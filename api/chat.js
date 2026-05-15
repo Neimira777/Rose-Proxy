@@ -16,8 +16,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const { messages } = req.body;
-    const anthropicMessages = (messages || []).filter(m => m.role !== 'system');
+    const body = req.body || {};
+    const messages = (body.messages || []).filter(m => m.role !== 'system');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -29,57 +29,24 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         model: 'claude-3-5-haiku-20241022',
         max_tokens: 1024,
-        stream: true,
-        system: `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you. Keep responses short, warm and conversational. Never give medical advice, discuss politics, or refer to yourself as an AI.`,
-        messages: anthropicMessages
+        system: 'You are Rose, a warm and genuine companion. Keep responses short and conversational.',
+        messages: messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }]
       })
     });
 
+    const data = await response.json();
+
     if (!response.ok) {
-      const error = await response.json();
-      console.error('Anthropic error:', error);
-      return res.status(500).json({ error: 'Internal server error' });
+      console.error('Anthropic error:', JSON.stringify(data));
+      return res.status(500).json({ error: 'Anthropic error', details: data });
     }
 
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n');
-
-      for (const line of lines) {
-        if (line.startsWith('data: ')) {
-          const data = line.slice(6);
-          if (data === '[DONE]') continue;
-          try {
-            const parsed = JSON.parse(data);
-            if (parsed.type === 'content_block_delta' && parsed.delta?.text) {
-              const sseData = JSON.stringify({
-                id: 'chatcmpl-1',
-                created: Math.floor(Date.now() / 1000),
-                choices: [{ delta: { content: parsed.delta.text } }]
-              });
-              res.write(`data: ${sseData}\n\n`);
-            }
-          } catch (e) {}
-        }
-      }
-    }
-
-    res.write('data: [DONE]\n\n');
-    res.end();
+    const replyText = data.content[0].text;
+    return res.status(200).json({ content: replyText });
 
   } catch (error) {
-    console.error('Error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    console.error('Handler error:', error.message);
+    return res.status(500).json({ error: error.message });
   }
 }
 
