@@ -17,7 +17,9 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    const messages = (body.messages || []).filter(m => m.role !== 'system');
+    const messages = (body.messages || [])
+  .filter(m => m.role !== 'system')
+  .map(m => ({ role: m.role, content: m.content }));;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
