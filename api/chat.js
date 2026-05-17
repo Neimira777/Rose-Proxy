@@ -21,8 +21,8 @@
     const messages = (body.messages || [])
       .filter(m => m.role !== 'system')
       .map(m => ({ role: m.role, content: m.content }));
-
-    const patientId = body.patientId || null;
+   
+const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
 
     // Fetch patient profile from Airtable if patientId provided
     let patientProfile = '';
