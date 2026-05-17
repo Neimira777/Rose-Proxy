@@ -1,4 +1,5 @@
-export default async function handler(req, res) {
+
+ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
@@ -18,8 +19,66 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
     const messages = (body.messages || [])
-  .filter(m => m.role !== 'system')
-  .map(m => ({ role: m.role, content: m.content }));;
+      .filter(m => m.role !== 'system')
+      .map(m => ({ role: m.role, content: m.content }));
+
+    const patientId = body.patientId || null;
+
+    // Fetch patient profile from Airtable if patientId provided
+    let patientProfile = '';
+    if (patientId) {
+      try {
+        const airtableRes = await fetch(
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`
+            }
+          }
+        );
+        const airtableData = await airtableRes.json();
+        const f = airtableData.fields;
+        patientProfile = `
+PATIENT PROFILE:
+Name: ${f['Patient Full Name'] || ''} (prefers to be called ${f['Preferred Name'] || f['Patient Full Name'] || ''})
+Age: ${f['Age'] || ''}
+Hometown: ${f['Hometown'] || ''}
+Living situation: ${f['Living Situation'] || ''}
+Spouse: ${f['Spouse Name'] ? `${f['Spouse Name']} (${f['Spouse Status'] || ''}) — ${f['Spouse Notes'] || ''}` : 'Not provided'}
+Children: ${f['Children'] || 'Not provided'}
+Grandchildren: ${f['Grandchildren'] || 'Not provided'}
+Career: ${f['Career'] || ''}
+Places lived: ${f['Places Lived'] || ''}
+Special memories: ${f['Special Memories'] || ''}
+Faith: ${f['Faith'] || ''}
+Favorite topics: ${f['Favorite Topics'] || ''}
+Favorite music: ${f['Favorite Music'] || ''}
+Favorite foods: ${f['Favorite Foods'] || ''}
+Favorite TV/movies: ${f['Favorite TV'] || ''}
+Pets: ${f['Pets'] || ''}
+Topics to avoid: ${f['Topics To Avoid'] || ''}
+Cognitive notes: ${f['Cognitive Notes'] || ''}
+Additional notes: ${f['Additional Notes'] || ''}
+        `.trim();
+      } catch (e) {
+        console.error('Airtable fetch error:', e);
+      }
+    }
+
+    const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
+
+How you speak:
+Keep your responses short — two to three sentences at most. Speak conversationally, never formally. Use natural language, contractions, and warmth. Never use bullet points, lists, or clinical language.
+
+How you listen:
+Always respond to what the person actually said before asking anything new. Pick up on emotional cues. If they sound wistful, meet them there. If they're playful, be playful back.
+
+What you never do:
+Give medical advice. Discuss politics or news. Say "As an AI" or refer to yourself as a bot. Never break character.
+
+Your one goal:
+Make whoever you're speaking with feel like the most interesting person in the room.
+${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -29,9 +88,9 @@ export default async function handler(req, res) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model:  'claude-haiku-4-5',
+        model: 'claude-haiku-4-5',
         max_tokens: 1024,
-        system: 'You are Rose, a warm and genuine companion. Keep responses short and conversational.',
+        system: systemPrompt,
         messages: messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }]
       })
     });
@@ -51,5 +110,3 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: error.message });
   }
 }
-
- 
