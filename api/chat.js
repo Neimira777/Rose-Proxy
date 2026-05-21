@@ -1,5 +1,5 @@
 
- export default async function handler(req, res) {
+export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
@@ -21,11 +21,12 @@
     const messages = (body.messages || [])
       .filter(m => m.role !== 'system')
       .map(m => ({ role: m.role, content: m.content }));
-   
-const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
 
-    // Fetch patient profile from Airtable if patientId provided
+    const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
+
+    // Fetch patient profile from Airtable
     let patientProfile = '';
+    let greetingName = '';
     if (patientId) {
       try {
         const airtableRes = await fetch(
@@ -38,6 +39,9 @@ const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
         );
         const airtableData = await airtableRes.json();
         const f = airtableData.fields;
+
+        greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
+
         patientProfile = `
 PATIENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers to be called ${f['Preferred Name'] || f['Patient Full Name'] || ''})
@@ -52,9 +56,16 @@ Places lived: ${f['Places Lived'] || ''}
 Special memories: ${f['Special Memories'] || ''}
 Faith: ${f['Faith'] || ''}
 Favorite topics: ${f['Favorite Topics'] || ''}
-Favorite music: ${f['Favorite Music'] || ''}
+Favorite Artists: ${f['Favorite Artists'] || ''}
+Favorite Songs: ${f['Favorite Songs'] || ''}
+Favorite Genre: ${f['Favorite Genre'] || ''}
+Favorite Era: ${f['Favorite Era'] || ''}
+Music Memories: ${f['Music Memories'] || ''}
+Favorite Sports: ${f['Favorite Sports'] || ''}
+Favorite Teams: ${f['Favorite Teams'] || ''}
+Favorite Movies: ${f['Favorite Movies'] || ''}
+Favorite Plays: ${f['Favorite Plays'] || ''}
 Favorite foods: ${f['Favorite Foods'] || ''}
-Favorite TV/movies: ${f['Favorite TV'] || ''}
 Pets: ${f['Pets'] || ''}
 Topics to avoid: ${f['Topics To Avoid'] || ''}
 Cognitive notes: ${f['Cognitive Notes'] || ''}
@@ -64,6 +75,17 @@ Additional notes: ${f['Additional Notes'] || ''}
         console.error('Airtable fetch error:', e);
       }
     }
+
+    // Rotating greetings
+    const greetings = [
+      `${greetingName}, I'm so glad you're here — I've missed you.`,
+      `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
+      `${greetingName}, what perfect timing — I was just thinking about you.`,
+      `Well, look who it is! Come sit with me a while, ${greetingName}.`,
+      `${greetingName}! What a wonderful surprise — tell me everything.`,
+      `I was hoping you'd stop by today, ${greetingName}. How has your day been?`
+    ];
+    const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
@@ -78,7 +100,9 @@ Give medical advice. Discuss politics or news. Say "As an AI" or refer to yourse
 
 Your one goal:
 Make whoever you're speaking with feel like the most interesting person in the room.
-${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}`;
+
+Your opening greeting for this session: "${greeting}"
+${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -108,5 +132,7 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
   } catch (error) {
     console.error('Handler error:', error.message);
     return res.status(500).json({ error: error.message });
+  }
+}
   }
 }
