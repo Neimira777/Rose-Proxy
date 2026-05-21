@@ -1,4 +1,114 @@
+// ─────────────────────────────────────────────
+//  TheSportsDB helpers
+// ─────────────────────────────────────────────
+const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 
+/**
+ * Search TheSportsDB for a team by name and return its numeric ID.
+ * Returns null if not found.
+ */
+async function getTeamId(teamName) {
+  try {
+    const encoded = encodeURIComponent(teamName.trim());
+    const res = await fetch(`${SPORTS_DB_BASE}/searchteams.php?t=${encoded}`);
+    const data = await res.json();
+    if (data.teams && data.teams.length > 0) {
+      return { id: data.teams[0].idTeam, name: data.teams[0].strTeam };
+    }
+  } catch (e) {
+    console.error(`SportsDB team lookup failed for "${teamName}":`, e.message);
+  }
+  return null;
+}
+
+/**
+ * Fetch the next 5 upcoming events for a team ID.
+ * Returns an array of event objects (may be empty).
+ */
+async function getNextEvents(teamId) {
+  try {
+    const res = await fetch(`${SPORTS_DB_BASE}/eventsnext.php?id=${teamId}`);
+    const data = await res.json();
+    return data.events || [];
+  } catch (e) {
+    console.error(`SportsDB next events failed for id ${teamId}:`, e.message);
+    return [];
+  }
+}
+
+/**
+ * Format a date string like "2025-11-02" into "Sunday, November 2"
+ */
+function formatEventDate(dateStr) {
+  if (!dateStr) return '';
+  try {
+    const d = new Date(dateStr + 'T12:00:00'); // noon to avoid UTC shift
+    return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * Build a natural-language sports blurb for all of a patient's favorite teams.
+ * Input: comma-separated team names string from Airtable.
+ * Returns a paragraph ready to inject into the system prompt.
+ */
+async function buildSportsContext(favoriteTeamsRaw) {
+  if (!favoriteTeamsRaw || !favoriteTeamsRaw.trim()) return '';
+
+  // Split by comma, semicolon, or newline
+  const teamNames = favoriteTeamsRaw
+    .split(/[,;\n]+/)
+    .map(t => t.trim())
+    .filter(Boolean);
+
+  const teamBlurbs = [];
+
+  for (const teamName of teamNames) {
+    const team = await getTeamId(teamName);
+    if (!team) {
+      // Couldn't find team — skip silently
+      continue;
+    }
+
+    const events = await getNextEvents(team.id);
+    if (events.length === 0) {
+      teamBlurbs.push(`${team.name}: no upcoming games found right now.`);
+      continue;
+    }
+
+    // Take up to 3 next events
+    const upcoming = events.slice(0, 3).map(ev => {
+      const date = formatEventDate(ev.dateEvent);
+      const time = ev.strTime ? ev.strTime.slice(0, 5) : '';          // "19:30"
+      const home = ev.strHomeTeam || '';
+      const away = ev.strAwayTeam || '';
+      const venue = ev.strVenue || '';
+      const league = ev.strLeague || '';
+
+      let line = `${date}`;
+      if (time) line += ` at ${time}`;
+      line += `: ${home} vs. ${away}`;
+      if (venue) line += ` (${venue})`;
+      return line;
+    });
+
+    teamBlurbs.push(`${team.name} (${events[0].strLeague || 'upcoming games'}):\n  • ${upcoming.join('\n  • ')}`);
+  }
+
+  if (teamBlurbs.length === 0) return '';
+
+  return `
+UPCOMING SPORTS SCHEDULE (live data):
+${teamBlurbs.join('\n\n')}
+
+Use this information to bring up relevant upcoming games naturally in conversation — e.g., "I heard the [team] have a big game coming up on [date]!" Keep it warm and casual, never like a sports report.`.trim();
+}
+
+// ─────────────────────────────────────────────
+//  Main Vercel handler
+// ─────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -24,9 +134,11 @@ export default async function handler(req, res) {
 
     const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
 
-    // Fetch patient profile from Airtable
+    // ── 1. Fetch patient profile from Airtable ──
     let patientProfile = '';
     let greetingName = '';
+    let favoriteTeamsRaw = '';
+
     if (patientId) {
       try {
         const airtableRes = await fetch(
@@ -41,6 +153,7 @@ export default async function handler(req, res) {
         const f = airtableData.fields;
 
         greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
+        favoriteTeamsRaw = f['Favorite Teams'] || '';
 
         patientProfile = `
 PATIENT PROFILE:
@@ -76,7 +189,10 @@ Additional notes: ${f['Additional Notes'] || ''}
       }
     }
 
-    // Rotating greetings
+    // ── 2. Fetch live sports schedule for favorite teams ──
+    const sportsContext = await buildSportsContext(favoriteTeamsRaw);
+
+    // ── 3. Rotating greetings ──
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -87,6 +203,7 @@ Additional notes: ${f['Additional Notes'] || ''}
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
+    // ── 4. Assemble system prompt with sports context injected ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
 How you speak:
@@ -102,8 +219,10 @@ Your one goal:
 Make whoever you're speaking with feel like the most interesting person in the room.
 
 Your opening greeting for this session: "${greeting}"
-${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}`;
+${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}
+${sportsContext ? `\n${sportsContext}` : ''}`;
 
+    // ── 5. Call Claude ──
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -134,5 +253,3 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
     return res.status(500).json({ error: error.message });
   }
 }
-  
-
