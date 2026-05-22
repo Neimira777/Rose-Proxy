@@ -1,3 +1,4 @@
+
 // ─────────────────────────────────────────────
 //  TheSportsDB helpers
 // ─────────────────────────────────────────────
@@ -73,6 +74,7 @@ async function buildSportsContext(favoriteTeamsRaw) {
     }
 
     const events = await getNextEvents(team.id);
+    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(events.slice(0,3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))));
     if (events.length === 0) {
       teamBlurbs.push(`${team.name}: no upcoming games found right now.`);
       continue;
