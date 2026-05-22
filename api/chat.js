@@ -1,55 +1,61 @@
+
 // ─────────────────────────────────────────────
-//  TheSportsDB helpers
+//  TheSportsDB + MLB Stats API helpers
 // ─────────────────────────────────────────────
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
+const MLB_API_BASE   = 'https://statsapi.mlb.com/api/v1';
 
 /**
- * Hardcoded TheSportsDB team IDs for common teams.
- * Avoids unreliable name search on the free tier.
+ * Team lookup table — TheSportsDB ID + MLB Stats API ID
  */
 const TEAM_ID_LOOKUP = {
   // MLB
-  'new york yankees':      { id: '135260', name: 'New York Yankees' },
-  'yankees':               { id: '135260', name: 'New York Yankees' },
-  'new york mets':         { id: '135270', name: 'New York Mets' },
-  'mets':                  { id: '135270', name: 'New York Mets' },
-  'boston red sox':        { id: '135253', name: 'Boston Red Sox' },
-  'red sox':               { id: '135253', name: 'Boston Red Sox' },
-  'los angeles dodgers':   { id: '135261', name: 'Los Angeles Dodgers' },
-  'dodgers':               { id: '135261', name: 'Los Angeles Dodgers' },
-  'chicago cubs':          { id: '135255', name: 'Chicago Cubs' },
-  'cubs':                  { id: '135255', name: 'Chicago Cubs' },
-  'san francisco giants':  { id: '135272', name: 'San Francisco Giants' },
-  'philadelphia phillies': { id: '135268', name: 'Philadelphia Phillies' },
-  'phillies':              { id: '135268', name: 'Philadelphia Phillies' },
-  'atlanta braves':        { id: '135252', name: 'Atlanta Braves' },
-  'braves':                { id: '135252', name: 'Atlanta Braves' },
+  'new york yankees':      { id: '135260', name: 'New York Yankees',       mlbId: 147  },
+  'yankees':               { id: '135260', name: 'New York Yankees',       mlbId: 147  },
+  'new york mets':         { id: '135270', name: 'New York Mets',          mlbId: 121  },
+  'mets':                  { id: '135270', name: 'New York Mets',          mlbId: 121  },
+  'boston red sox':        { id: '135253', name: 'Boston Red Sox',         mlbId: 111  },
+  'red sox':               { id: '135253', name: 'Boston Red Sox',         mlbId: 111  },
+  'los angeles dodgers':   { id: '135261', name: 'Los Angeles Dodgers',    mlbId: 119  },
+  'dodgers':               { id: '135261', name: 'Los Angeles Dodgers',    mlbId: 119  },
+  'chicago cubs':          { id: '135255', name: 'Chicago Cubs',           mlbId: 112  },
+  'cubs':                  { id: '135255', name: 'Chicago Cubs',           mlbId: 112  },
+  'san francisco giants':  { id: '135272', name: 'San Francisco Giants',   mlbId: 137  },
+  'giants':                { id: '135272', name: 'San Francisco Giants',   mlbId: 137  },
+  'philadelphia phillies': { id: '135268', name: 'Philadelphia Phillies',  mlbId: 143  },
+  'phillies':              { id: '135268', name: 'Philadelphia Phillies',  mlbId: 143  },
+  'atlanta braves':        { id: '135252', name: 'Atlanta Braves',         mlbId: 144  },
+  'braves':                { id: '135252', name: 'Atlanta Braves',         mlbId: 144  },
+  'houston astros':        { id: '135258', name: 'Houston Astros',         mlbId: 117  },
+  'astros':                { id: '135258', name: 'Houston Astros',         mlbId: 117  },
+  'chicago white sox':     { id: '135256', name: 'Chicago White Sox',      mlbId: 145  },
+  'white sox':             { id: '135256', name: 'Chicago White Sox',      mlbId: 145  },
   // NFL
-  'new york giants':       { id: '134925', name: 'New York Giants' },
-  'new york jets':         { id: '134926', name: 'New York Jets' },
-  'jets':                  { id: '134926', name: 'New York Jets' },
-  'dallas cowboys':        { id: '134916', name: 'Dallas Cowboys' },
-  'cowboys':               { id: '134916', name: 'Dallas Cowboys' },
-  'new england patriots':  { id: '134927', name: 'New England Patriots' },
-  'patriots':              { id: '134927', name: 'New England Patriots' },
-  'philadelphia eagles':   { id: '134928', name: 'Philadelphia Eagles' },
-  'eagles':                { id: '134928', name: 'Philadelphia Eagles' },
+  'new york giants':       { id: '134925', name: 'New York Giants',        mlbId: null },
+  'new york jets':         { id: '134926', name: 'New York Jets',          mlbId: null },
+  'jets':                  { id: '134926', name: 'New York Jets',          mlbId: null },
+  'dallas cowboys':        { id: '134916', name: 'Dallas Cowboys',         mlbId: null },
+  'cowboys':               { id: '134916', name: 'Dallas Cowboys',         mlbId: null },
+  'new england patriots':  { id: '134927', name: 'New England Patriots',   mlbId: null },
+  'patriots':              { id: '134927', name: 'New England Patriots',   mlbId: null },
+  'philadelphia eagles':   { id: '134928', name: 'Philadelphia Eagles',    mlbId: null },
+  'eagles':                { id: '134928', name: 'Philadelphia Eagles',    mlbId: null },
   // NBA
-  'new york knicks':       { id: '134860', name: 'New York Knicks' },
-  'knicks':                { id: '134860', name: 'New York Knicks' },
-  'brooklyn nets':         { id: '134853', name: 'Brooklyn Nets' },
-  'nets':                  { id: '134853', name: 'Brooklyn Nets' },
-  'boston celtics':        { id: '134852', name: 'Boston Celtics' },
-  'celtics':               { id: '134852', name: 'Boston Celtics' },
-  'los angeles lakers':    { id: '134858', name: 'Los Angeles Lakers' },
-  'lakers':                { id: '134858', name: 'Los Angeles Lakers' },
+  'new york knicks':       { id: '134860', name: 'New York Knicks',        mlbId: null },
+  'knicks':                { id: '134860', name: 'New York Knicks',        mlbId: null },
+  'brooklyn nets':         { id: '134853', name: 'Brooklyn Nets',          mlbId: null },
+  'nets':                  { id: '134853', name: 'Brooklyn Nets',          mlbId: null },
+  'boston celtics':        { id: '134852', name: 'Boston Celtics',         mlbId: null },
+  'celtics':               { id: '134852', name: 'Boston Celtics',         mlbId: null },
+  'los angeles lakers':    { id: '134858', name: 'Los Angeles Lakers',     mlbId: null },
+  'lakers':                { id: '134858', name: 'Los Angeles Lakers',     mlbId: null },
   // NHL
-  'new york rangers':      { id: '134942', name: 'New York Rangers' },
-  'rangers':               { id: '134942', name: 'New York Rangers' },
-  'new jersey devils':     { id: '134940', name: 'New Jersey Devils' },
-  'devils':                { id: '134940', name: 'New Jersey Devils' },
-  'philadelphia flyers':   { id: '134943', name: 'Philadelphia Flyers' },
-  'flyers':                { id: '134943', name: 'Philadelphia Flyers' },
+  'new york rangers':      { id: '134942', name: 'New York Rangers',       mlbId: null },
+  'rangers':               { id: '134942', name: 'New York Rangers',       mlbId: null },
+  'new jersey devils':     { id: '134940', name: 'New Jersey Devils',      mlbId: null },
+  'devils':                { id: '134940', name: 'New Jersey Devils',      mlbId: null },
+  'philadelphia flyers':   { id: '134943', name: 'Philadelphia Flyers',    mlbId: null },
+  'flyers':                { id: '134943', name: 'Philadelphia Flyers',    mlbId: null },
 };
 
 /**
@@ -67,7 +73,7 @@ async function getTeamId(teamName) {
     const data = await res.json();
     if (data.teams && data.teams.length > 0) {
       console.log(`Team lookup (API search): ${data.teams[0].strTeam}`);
-      return { id: data.teams[0].idTeam, name: data.teams[0].strTeam };
+      return { id: data.teams[0].idTeam, name: data.teams[0].strTeam, mlbId: null };
     }
   } catch (e) {
     console.error(`SportsDB team lookup failed for "${teamName}":`, e.message);
@@ -76,7 +82,7 @@ async function getTeamId(teamName) {
 }
 
 /**
- * Fetch the next 5 upcoming events for a team ID.
+ * Fetch next 5 upcoming events from TheSportsDB.
  */
 async function getNextEvents(teamId) {
   try {
@@ -90,12 +96,105 @@ async function getNextEvents(teamId) {
 }
 
 /**
+ * Fetch active roster + top player stats from MLB Stats API.
+ * Returns a formatted string or empty string if not an MLB team.
+ */
+async function getMlbRosterAndStats(mlbId, teamName) {
+  if (!mlbId) return '';
+  const season = new Date().getFullYear();
+
+  try {
+    // Fetch active roster
+    const rosterRes = await fetch(`${MLB_API_BASE}/teams/${mlbId}/roster?rosterType=active`);
+    const rosterData = await rosterRes.json();
+    const roster = rosterData.roster || [];
+
+    if (roster.length === 0) return '';
+
+    // Fetch season hitting stats for the team
+    const statsRes = await fetch(
+      `${MLB_API_BASE}/teams/${mlbId}/stats?stats=season&season=${season}&group=hitting&sportId=1`
+    );
+    const statsData = await statsRes.json();
+
+    // Fetch season pitching stats
+    const pitchRes = await fetch(
+      `${MLB_API_BASE}/teams/${mlbId}/stats?stats=season&season=${season}&group=pitching&sportId=1`
+    );
+    const pitchData = await pitchRes.json();
+
+    // Get individual player hitting stats (top hitters by at-bats)
+    const playerStatsRes = await fetch(
+      `${MLB_API_BASE}/stats?stats=season&season=${season}&group=hitting&sportId=1&teamId=${mlbId}&limit=10&offset=0`
+    );
+    const playerStatsData = await playerStatsRes.json();
+    const hitters = (playerStatsData.stats?.[0]?.splits || [])
+      .filter(s => s.stat.atBats >= 50)
+      .sort((a, b) => parseFloat(b.stat.avg || 0) - parseFloat(a.stat.avg || 0))
+      .slice(0, 5);
+
+    // Get individual pitcher stats
+    const pitcherStatsRes = await fetch(
+      `${MLB_API_BASE}/stats?stats=season&season=${season}&group=pitching&sportId=1&teamId=${mlbId}&limit=10&offset=0`
+    );
+    const pitcherStatsData = await pitcherStatsRes.json();
+    const pitchers = (pitcherStatsData.stats?.[0]?.splits || [])
+      .filter(s => s.stat.inningsPitched >= 10)
+      .sort((a, b) => parseFloat(a.stat.era || 99) - parseFloat(b.stat.era || 99))
+      .slice(0, 3);
+
+    // Format hitter lines
+    const hitterLines = hitters.map(s => {
+      const p = s.player?.fullName || 'Unknown';
+      const avg = s.stat.avg || '.000';
+      const hr  = s.stat.homeRuns || 0;
+      const rbi = s.stat.rbi || 0;
+      return `${p}: .${avg.replace('.', '')} AVG, ${hr} HR, ${rbi} RBI`;
+    });
+
+    // Format pitcher lines
+    const pitcherLines = pitchers.map(s => {
+      const p = s.player?.fullName || 'Unknown';
+      const era = s.stat.era || '0.00';
+      const w   = s.stat.wins || 0;
+      const l   = s.stat.losses || 0;
+      return `${p}: ${era} ERA, ${w}-${l}`;
+    });
+
+    // Roster position summary
+    const positions = {};
+    roster.forEach(p => {
+      const pos = p.position?.type || 'Unknown';
+      positions[pos] = (positions[pos] || 0) + 1;
+    });
+    const rosterSummary = Object.entries(positions)
+      .map(([pos, count]) => `${count} ${pos}`)
+      .join(', ');
+
+    let result = `${teamName} Roster (${season} season): ${roster.length} active players (${rosterSummary})`;
+    if (hitterLines.length > 0) {
+      result += `\n  Top hitters:\n    • ${hitterLines.join('\n    • ')}`;
+    }
+    if (pitcherLines.length > 0) {
+      result += `\n  Top pitchers:\n    • ${pitcherLines.join('\n    • ')}`;
+    }
+
+    console.log(`MLB stats fetched for ${teamName}: ${hitterLines.length} hitters, ${pitcherLines.length} pitchers`);
+    return result;
+
+  } catch (e) {
+    console.error(`MLB stats fetch failed for ${teamName}:`, e.message);
+    return '';
+  }
+}
+
+/**
  * Format a date string like "2026-05-22" into "Friday, May 22"
  */
 function formatEventDate(dateStr) {
   if (!dateStr) return '';
   try {
-    const d = new Date(dateStr + 'T12:00:00'); // noon to avoid UTC shift
+    const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   } catch {
     return dateStr;
@@ -103,7 +202,7 @@ function formatEventDate(dateStr) {
 }
 
 /**
- * Build a natural-language sports blurb for all favorite teams.
+ * Build the full sports context: schedule + roster + stats.
  */
 async function buildSportsContext(favoriteTeamsRaw) {
   if (!favoriteTeamsRaw || !favoriteTeamsRaw.trim()) return '';
@@ -113,7 +212,7 @@ async function buildSportsContext(favoriteTeamsRaw) {
     .map(t => t.trim())
     .filter(Boolean);
 
-  const teamBlurbs = [];
+  const teamSections = [];
 
   for (const teamName of teamNames) {
     const team = await getTeamId(teamName);
@@ -122,40 +221,55 @@ async function buildSportsContext(favoriteTeamsRaw) {
       continue;
     }
 
-    const events = await getNextEvents(team.id);
-    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(events.slice(0, 3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))));
+    // Fetch schedule and MLB stats in parallel
+    const [events, mlbInfo] = await Promise.all([
+      getNextEvents(team.id),
+      getMlbRosterAndStats(team.mlbId, team.name)
+    ]);
 
+    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(
+      events.slice(0, 3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))
+    ));
+
+    let section = `── ${team.name} ──`;
+
+    // Schedule
     if (events.length === 0) {
-      teamBlurbs.push(`${team.name}: no upcoming games found right now.`);
-      continue;
+      section += `\nSchedule: No upcoming games found.`;
+    } else {
+      const upcoming = events.slice(0, 3).map(ev => {
+        const date = formatEventDate(ev.dateEvent);
+        const time = ev.strTime ? ev.strTime.slice(0, 5) : '';
+        const home = ev.strHomeTeam || '';
+        const away = ev.strAwayTeam || '';
+        const venue = ev.strVenue || '';
+        let line = date;
+        if (time) line += ` at ${time}`;
+        line += `: ${home} vs. ${away}`;
+        if (venue) line += ` (${venue})`;
+        return line;
+      });
+      section += `\nUpcoming games (${events[0].strLeague || ''}):\n  • ${upcoming.join('\n  • ')}`;
     }
 
-    const upcoming = events.slice(0, 3).map(ev => {
-      const date = formatEventDate(ev.dateEvent);
-      const time = ev.strTime ? ev.strTime.slice(0, 5) : '';
-      const home = ev.strHomeTeam || '';
-      const away = ev.strAwayTeam || '';
-      const venue = ev.strVenue || '';
-      let line = date;
-      if (time) line += ` at ${time}`;
-      line += `: ${home} vs. ${away}`;
-      if (venue) line += ` (${venue})`;
-      return line;
-    });
+    // Roster + stats (MLB only)
+    if (mlbInfo) {
+      section += `\n${mlbInfo}`;
+    }
 
-    teamBlurbs.push(`${team.name} (${events[0].strLeague || 'upcoming games'}):\n  • ${upcoming.join('\n  • ')}`);
+    teamSections.push(section);
   }
 
-  if (teamBlurbs.length === 0) return '';
+  if (teamSections.length === 0) return '';
 
   const today = new Date();
   const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
 
   return `
-UPCOMING SPORTS SCHEDULE (live data as of ${todayStr}):
-${teamBlurbs.join('\n\n')}
+SPORTS INFO (live data as of ${todayStr}):
+${teamSections.join('\n\n')}
 
-IMPORTANT — Sports questions: You already have the schedule above. Today is ${todayStr}. If asked whether a team is playing tonight or this week, check the dates above and answer directly and confidently — never say you'll "check" or that you "don't know." If no game is listed for today, say so warmly. If a game is coming up soon, mention it with excitement. Keep it conversational, never like a sports report.`.trim();
+IMPORTANT — Sports questions: You have live schedule, roster, and player stats above. Today is ${todayStr}. Answer sports questions directly and confidently using this data — never say you'll "check" or that you "don't know." Reference players by name naturally — e.g., "Judge has been on fire this season!" Keep it warm and conversational, never like a sports report.`.trim();
 }
 
 // ─────────────────────────────────────────────
@@ -241,7 +355,7 @@ Additional notes: ${f['Additional Notes'] || ''}
       }
     }
 
-    // ── 2. Fetch live sports schedule ──
+    // ── 2. Fetch live sports data (schedule + roster + stats) ──
     const sportsContext = await buildSportsContext(favoriteTeamsRaw);
 
     // ── 3. Rotating greetings ──
