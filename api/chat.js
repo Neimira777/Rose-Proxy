@@ -1,5 +1,3 @@
-
-
 // ─────────────────────────────────────────────
 //  TheSportsDB helpers
 // ─────────────────────────────────────────────
@@ -11,14 +9,14 @@ const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
  */
 const TEAM_ID_LOOKUP = {
   // MLB
-  'new york yankees':      { id: '135269', name: 'New York Yankees' },
-  'yankees':               { id: '135269', name: 'New York Yankees' },
+  'new york yankees':      { id: '135260', name: 'New York Yankees' },
+  'yankees':               { id: '135260', name: 'New York Yankees' },
   'new york mets':         { id: '135270', name: 'New York Mets' },
   'mets':                  { id: '135270', name: 'New York Mets' },
   'boston red sox':        { id: '135253', name: 'Boston Red Sox' },
   'red sox':               { id: '135253', name: 'Boston Red Sox' },
-  'los angeles dodgers':   { id: '135260', name: 'Los Angeles Dodgers' },
-  'dodgers':               { id: '135260', name: 'Los Angeles Dodgers' },
+  'los angeles dodgers':   { id: '135261', name: 'Los Angeles Dodgers' },
+  'dodgers':               { id: '135261', name: 'Los Angeles Dodgers' },
   'chicago cubs':          { id: '135255', name: 'Chicago Cubs' },
   'cubs':                  { id: '135255', name: 'Chicago Cubs' },
   'san francisco giants':  { id: '135272', name: 'San Francisco Giants' },
