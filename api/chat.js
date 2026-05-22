@@ -99,11 +99,14 @@ async function buildSportsContext(favoriteTeamsRaw) {
 
   if (teamBlurbs.length === 0) return '';
 
+  const today = new Date();
+  const todayStr = today.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
   return `
-UPCOMING SPORTS SCHEDULE (live data):
+UPCOMING SPORTS SCHEDULE (live data as of ${todayStr}):
 ${teamBlurbs.join('\n\n')}
 
-Use this information to bring up relevant upcoming games naturally in conversation — e.g., "I heard the [team] have a big game coming up on [date]!" Keep it warm and casual, never like a sports report.`.trim();
+IMPORTANT — Sports questions: You already have the schedule above. Today is ${todayStr}. If asked whether a team is playing tonight or this week, check the dates above and answer directly and confidently — never say you'll "check" or that you "don't know." If no game is listed for today, say so warmly. If a game is coming up soon, mention it with excitement. Keep it conversational, never like a sports report.`.trim();
 }
 
 // ─────────────────────────────────────────────
