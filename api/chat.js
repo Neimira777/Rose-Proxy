@@ -5,15 +5,69 @@
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 
 /**
- * Search TheSportsDB for a team by name and return its numeric ID.
- * Returns null if not found.
+ * Hardcoded TheSportsDB team IDs for common teams.
+ * Avoids unreliable name search on the free tier.
+ */
+const TEAM_ID_LOOKUP = {
+  // MLB
+  'new york yankees':      { id: '135269', name: 'New York Yankees' },
+  'yankees':               { id: '135269', name: 'New York Yankees' },
+  'new york mets':         { id: '135270', name: 'New York Mets' },
+  'mets':                  { id: '135270', name: 'New York Mets' },
+  'boston red sox':        { id: '135253', name: 'Boston Red Sox' },
+  'red sox':               { id: '135253', name: 'Boston Red Sox' },
+  'los angeles dodgers':   { id: '135260', name: 'Los Angeles Dodgers' },
+  'dodgers':               { id: '135260', name: 'Los Angeles Dodgers' },
+  'chicago cubs':          { id: '135255', name: 'Chicago Cubs' },
+  'cubs':                  { id: '135255', name: 'Chicago Cubs' },
+  'san francisco giants':  { id: '135272', name: 'San Francisco Giants' },
+  'philadelphia phillies': { id: '135268', name: 'Philadelphia Phillies' },
+  'phillies':              { id: '135268', name: 'Philadelphia Phillies' },
+  'atlanta braves':        { id: '135252', name: 'Atlanta Braves' },
+  'braves':                { id: '135252', name: 'Atlanta Braves' },
+  // NFL
+  'new york giants':       { id: '134925', name: 'New York Giants' },
+  'new york jets':         { id: '134926', name: 'New York Jets' },
+  'jets':                  { id: '134926', name: 'New York Jets' },
+  'dallas cowboys':        { id: '134916', name: 'Dallas Cowboys' },
+  'cowboys':               { id: '134916', name: 'Dallas Cowboys' },
+  'new england patriots':  { id: '134927', name: 'New England Patriots' },
+  'patriots':              { id: '134927', name: 'New England Patriots' },
+  'philadelphia eagles':   { id: '134928', name: 'Philadelphia Eagles' },
+  'eagles':                { id: '134928', name: 'Philadelphia Eagles' },
+  // NBA
+  'new york knicks':       { id: '134860', name: 'New York Knicks' },
+  'knicks':                { id: '134860', name: 'New York Knicks' },
+  'brooklyn nets':         { id: '134853', name: 'Brooklyn Nets' },
+  'nets':                  { id: '134853', name: 'Brooklyn Nets' },
+  'boston celtics':        { id: '134852', name: 'Boston Celtics' },
+  'celtics':               { id: '134852', name: 'Boston Celtics' },
+  'los angeles lakers':    { id: '134858', name: 'Los Angeles Lakers' },
+  'lakers':                { id: '134858', name: 'Los Angeles Lakers' },
+  // NHL
+  'new york rangers':      { id: '134942', name: 'New York Rangers' },
+  'rangers':               { id: '134942', name: 'New York Rangers' },
+  'new jersey devils':     { id: '134940', name: 'New Jersey Devils' },
+  'devils':                { id: '134940', name: 'New Jersey Devils' },
+  'philadelphia flyers':   { id: '134943', name: 'Philadelphia Flyers' },
+  'flyers':                { id: '134943', name: 'Philadelphia Flyers' },
+};
+
+/**
+ * Look up a team — hardcoded table first, API search as fallback.
  */
 async function getTeamId(teamName) {
+  const key = teamName.trim().toLowerCase();
+  if (TEAM_ID_LOOKUP[key]) {
+    console.log(`Team lookup (hardcoded): ${TEAM_ID_LOOKUP[key].name}`);
+    return TEAM_ID_LOOKUP[key];
+  }
   try {
     const encoded = encodeURIComponent(teamName.trim());
     const res = await fetch(`${SPORTS_DB_BASE}/searchteams.php?t=${encoded}`);
     const data = await res.json();
     if (data.teams && data.teams.length > 0) {
+      console.log(`Team lookup (API search): ${data.teams[0].strTeam}`);
       return { id: data.teams[0].idTeam, name: data.teams[0].strTeam };
     }
   } catch (e) {
@@ -24,7 +78,6 @@ async function getTeamId(teamName) {
 
 /**
  * Fetch the next 5 upcoming events for a team ID.
- * Returns an array of event objects (may be empty).
  */
 async function getNextEvents(teamId) {
   try {
@@ -38,7 +91,7 @@ async function getNextEvents(teamId) {
 }
 
 /**
- * Format a date string like "2025-11-02" into "Sunday, November 2"
+ * Format a date string like "2026-05-22" into "Friday, May 22"
  */
 function formatEventDate(dateStr) {
   if (!dateStr) return '';
@@ -51,14 +104,11 @@ function formatEventDate(dateStr) {
 }
 
 /**
- * Build a natural-language sports blurb for all of a patient's favorite teams.
- * Input: comma-separated team names string from Airtable.
- * Returns a paragraph ready to inject into the system prompt.
+ * Build a natural-language sports blurb for all favorite teams.
  */
 async function buildSportsContext(favoriteTeamsRaw) {
   if (!favoriteTeamsRaw || !favoriteTeamsRaw.trim()) return '';
 
-  // Split by comma, semicolon, or newline
   const teamNames = favoriteTeamsRaw
     .split(/[,;\n]+/)
     .map(t => t.trim())
@@ -69,27 +119,25 @@ async function buildSportsContext(favoriteTeamsRaw) {
   for (const teamName of teamNames) {
     const team = await getTeamId(teamName);
     if (!team) {
-      // Couldn't find team — skip silently
+      console.log(`Team not found: ${teamName}`);
       continue;
     }
 
     const events = await getNextEvents(team.id);
-    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(events.slice(0,3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))));
+    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(events.slice(0, 3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))));
+
     if (events.length === 0) {
       teamBlurbs.push(`${team.name}: no upcoming games found right now.`);
       continue;
     }
 
-    // Take up to 3 next events
     const upcoming = events.slice(0, 3).map(ev => {
       const date = formatEventDate(ev.dateEvent);
-      const time = ev.strTime ? ev.strTime.slice(0, 5) : '';          // "19:30"
+      const time = ev.strTime ? ev.strTime.slice(0, 5) : '';
       const home = ev.strHomeTeam || '';
       const away = ev.strAwayTeam || '';
       const venue = ev.strVenue || '';
-      const league = ev.strLeague || '';
-
-      let line = `${date}`;
+      let line = date;
       if (time) line += ` at ${time}`;
       line += `: ${home} vs. ${away}`;
       if (venue) line += ` (${venue})`;
@@ -194,7 +242,7 @@ Additional notes: ${f['Additional Notes'] || ''}
       }
     }
 
-    // ── 2. Fetch live sports schedule for favorite teams ──
+    // ── 2. Fetch live sports schedule ──
     const sportsContext = await buildSportsContext(favoriteTeamsRaw);
 
     // ── 3. Rotating greetings ──
@@ -208,7 +256,7 @@ Additional notes: ${f['Additional Notes'] || ''}
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
-    // ── 4. Assemble system prompt with sports context injected ──
+    // ── 4. Assemble system prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
 How you speak:
