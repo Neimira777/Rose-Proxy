@@ -48,8 +48,9 @@ if (!tokenRes.ok || !tokenData.access_token) {
 
     return res.status(200).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h2 style="color:#00BCD4">Spotify Connected!</h2><p>You can close this window.</p></body></html>');
 
-  } catch (e) {
+} catch (e) {
     console.error('Spotify callback error:', e.message);
-    return res.status(500).send('Server error');
+    return res.status(500).send('Server error: ' + e.message);
+  }
   }
 }
