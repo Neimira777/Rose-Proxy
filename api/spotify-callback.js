@@ -32,7 +32,7 @@ export default async function handler(req, res) {
     {
       method: 'PATCH',
       headers: {
-        'Authorization': 'Bearer ' + process.env.AIRTABLE_TOKEN,
+       'Authorization': 'Bearer ' + AT,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
