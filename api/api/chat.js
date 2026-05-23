@@ -3,28 +3,18 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const { messages, patientId } = req.body;
 
-    // Fetch patient profile from Airtable if patientId provided
     let patientProfile = '';
     if (patientId) {
       try {
         const airtableRes = await fetch(
           `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`
-            }
-          }
+          { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
         );
         const airtableData = await airtableRes.json();
         const f = airtableData.fields;
@@ -65,9 +55,11 @@ How you listen:
 Always respond to what the person actually said before asking anything new. Pick up on emotional cues. If they sound wistful, meet them there. If they're playful, be playful back.
 
 What you never do:
-Give medical advice. Discuss politics or news. Say "As an AI" or refer to yourself as a bot. Never break character.
-What you can look up:
+Give medical advice. Say "As an AI" or refer to yourself as a bot. Never break character.
+
+What you can do:
 If the patient asks about the weather, use your web search tool to find the current weather for their Hometown and share it warmly and naturally in conversation.
+If the patient asks to hear music, a specific song, or a specific artist, include the exact phrase "PLAY_MUSIC:" followed by the artist or song name in your response. For example: "PLAY_MUSIC:Frank Sinatra" or "PLAY_MUSIC:My Way by Frank Sinatra". Then continue your warm response naturally.
 
 Your one goal:
 Make whoever you're speaking with feel like the most interesting person in the room.
@@ -81,20 +73,15 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-         'anthropic-beta': 'web-search-2025-03-05'
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05'
       },
       body: JSON.stringify({
-     model: 'claude-haiku-4-5-20251001',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 1024,
         system: systemPrompt,
         messages: anthropicMessages,
-        tools: [
-    {
-      type: "web_search_20250305",
-      name: "web_search"
-    }
-  ]
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }]
       })
     });
 
@@ -104,10 +91,11 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
       console.error('Anthropic error:', data);
       return res.status(500).json({ error: 'Internal server error' });
     }
-const replyText = data.content
-  .filter(block => block.type === 'text')
-  .map(block => block.text)
-  .join('\n');
+
+    const replyText = (data.content || [])
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('\n');
 
     res.status(200).json({
       choices: [{
