@@ -38,7 +38,7 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         fields: {
           'Spotify Access Token': tokenData.access_token,
-          'Spotify Refresh Token': tokenData.refresh_token
+         
         }
       })
     }
