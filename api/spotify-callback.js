@@ -33,7 +33,7 @@ export default async function handler(req, res) {
   const airtableRes = await fetch(airtableUrl, {
     method: 'PATCH',
     headers: {
-      'Authorization': 'Bearer ' + process.env.AIRTABLE_TOKEN,
+     'Authorization': 'Bearer paty8887Ou5nwsbPS.32e14aa4311f85745db49ebde3a31d9ef248f668d053a5853f716da7c02f203d',
       'Content-Type': 'application/json'
     },
     body: JSON.stringify({
