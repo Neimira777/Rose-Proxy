@@ -26,23 +26,22 @@ export default async function handler(req, res) {
     return res.status(500).send('Token error: ' + JSON.stringify(tokenData));
   }
 
-  const airtableUrl = 'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId;
-  console.log('Saving to Airtable:', airtableUrl);
-  console.log('Using token:', process.env.AIRTABLE_TOKEN ? 'present' : 'MISSING');
-
-  const airtableRes = await fetch(airtableUrl, {
-    method: 'PATCH',
-    headers: {
-     'Authorization': 'Bearer paty8887Ou5nwsbPS.32e14aa4311f85745db49ebde3a31d9ef248f668d053a5853f716da7c02f203d',
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      fields: {
-        'Spotify Access Token': tokenData.access_token,
-        'Spotify Refresh Token': tokenData.refresh_token
-      }
-    })
-  });
+  const airtableRes = await fetch(
+    'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId,
+    {
+      method: 'PATCH',
+      headers: {
+        'Authorization': 'Bearer ' + process.env.AIRTABLE_TOKEN,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        fields: {
+          'Spotify Access Token': tokenData.access_token,
+          'Spotify Refresh Token': tokenData.refresh_token
+        }
+      })
+    }
+  );
 
   const airtableData = await airtableRes.json();
   console.log('Airtable response:', JSON.stringify(airtableData));
