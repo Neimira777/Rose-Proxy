@@ -36,9 +36,9 @@ const AT = process.env.AIRTABLE_WRITE_TOKEN;
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        fields: {
-          'Spotify Access Token': tokenData.access_token,
-          'Spotify Refresh Token': tokenData.refresh_token || ''
+         fields: {
+  'Spotify Access Token': tokenData.access_token
+}
         }
       })
     }
