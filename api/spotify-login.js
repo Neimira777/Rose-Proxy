@@ -1,4 +1,4 @@
-module.exports = function handler(req, res) {
+export default function handler(req, res) {
   const { patientId } = req.query;
   if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
 
