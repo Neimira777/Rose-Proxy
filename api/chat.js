@@ -5,9 +5,6 @@
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const MLB_API_BASE   = 'https://statsapi.mlb.com/api/v1';
 
-/**
- * Team lookup table — TheSportsDB ID + MLB Stats API ID
- */
 const TEAM_ID_LOOKUP = {
   // MLB
   'new york yankees':      { id: '135260', name: 'New York Yankees',       mlbId: 147  },
@@ -58,9 +55,6 @@ const TEAM_ID_LOOKUP = {
   'flyers':                { id: '134943', name: 'Philadelphia Flyers',    mlbId: null },
 };
 
-/**
- * Look up a team — hardcoded table first, API search as fallback.
- */
 async function getTeamId(teamName) {
   const key = teamName.trim().toLowerCase();
   if (TEAM_ID_LOOKUP[key]) {
@@ -81,9 +75,6 @@ async function getTeamId(teamName) {
   return null;
 }
 
-/**
- * Fetch next 5 upcoming events from TheSportsDB.
- */
 async function getNextEvents(teamId) {
   try {
     const res = await fetch(`${SPORTS_DB_BASE}/eventsnext.php?id=${teamId}`);
@@ -95,35 +86,15 @@ async function getNextEvents(teamId) {
   }
 }
 
-/**
- * Fetch active roster + top player stats from MLB Stats API.
- * Returns a formatted string or empty string if not an MLB team.
- */
 async function getMlbRosterAndStats(mlbId, teamName) {
   if (!mlbId) return '';
   const season = new Date().getFullYear();
-
   try {
-    // Fetch active roster
     const rosterRes = await fetch(`${MLB_API_BASE}/teams/${mlbId}/roster?rosterType=active`);
     const rosterData = await rosterRes.json();
     const roster = rosterData.roster || [];
-
     if (roster.length === 0) return '';
 
-    // Fetch season hitting stats for the team
-    const statsRes = await fetch(
-      `${MLB_API_BASE}/teams/${mlbId}/stats?stats=season&season=${season}&group=hitting&sportId=1`
-    );
-    const statsData = await statsRes.json();
-
-    // Fetch season pitching stats
-    const pitchRes = await fetch(
-      `${MLB_API_BASE}/teams/${mlbId}/stats?stats=season&season=${season}&group=pitching&sportId=1`
-    );
-    const pitchData = await pitchRes.json();
-
-    // Get individual player hitting stats (top hitters by at-bats)
     const playerStatsRes = await fetch(
       `${MLB_API_BASE}/stats?stats=season&season=${season}&group=hitting&sportId=1&teamId=${mlbId}&limit=10&offset=0`
     );
@@ -133,7 +104,6 @@ async function getMlbRosterAndStats(mlbId, teamName) {
       .sort((a, b) => parseFloat(b.stat.avg || 0) - parseFloat(a.stat.avg || 0))
       .slice(0, 5);
 
-    // Get individual pitcher stats
     const pitcherStatsRes = await fetch(
       `${MLB_API_BASE}/stats?stats=season&season=${season}&group=pitching&sportId=1&teamId=${mlbId}&limit=10&offset=0`
     );
@@ -143,7 +113,6 @@ async function getMlbRosterAndStats(mlbId, teamName) {
       .sort((a, b) => parseFloat(a.stat.era || 99) - parseFloat(b.stat.era || 99))
       .slice(0, 3);
 
-    // Format hitter lines
     const hitterLines = hitters.map(s => {
       const p = s.player?.fullName || 'Unknown';
       const avg = s.stat.avg || '.000';
@@ -152,7 +121,6 @@ async function getMlbRosterAndStats(mlbId, teamName) {
       return `${p}: .${avg.replace('.', '')} AVG, ${hr} HR, ${rbi} RBI`;
     });
 
-    // Format pitcher lines
     const pitcherLines = pitchers.map(s => {
       const p = s.player?.fullName || 'Unknown';
       const era = s.stat.era || '0.00';
@@ -161,36 +129,25 @@ async function getMlbRosterAndStats(mlbId, teamName) {
       return `${p}: ${era} ERA, ${w}-${l}`;
     });
 
-    // Roster position summary
     const positions = {};
     roster.forEach(p => {
       const pos = p.position?.type || 'Unknown';
       positions[pos] = (positions[pos] || 0) + 1;
     });
-    const rosterSummary = Object.entries(positions)
-      .map(([pos, count]) => `${count} ${pos}`)
-      .join(', ');
+    const rosterSummary = Object.entries(positions).map(([pos, count]) => `${count} ${pos}`).join(', ');
 
     let result = `${teamName} Roster (${season} season): ${roster.length} active players (${rosterSummary})`;
-    if (hitterLines.length > 0) {
-      result += `\n  Top hitters:\n    • ${hitterLines.join('\n    • ')}`;
-    }
-    if (pitcherLines.length > 0) {
-      result += `\n  Top pitchers:\n    • ${pitcherLines.join('\n    • ')}`;
-    }
+    if (hitterLines.length > 0) result += `\n  Top hitters:\n    • ${hitterLines.join('\n    • ')}`;
+    if (pitcherLines.length > 0) result += `\n  Top pitchers:\n    • ${pitcherLines.join('\n    • ')}`;
 
     console.log(`MLB stats fetched for ${teamName}: ${hitterLines.length} hitters, ${pitcherLines.length} pitchers`);
     return result;
-
   } catch (e) {
     console.error(`MLB stats fetch failed for ${teamName}:`, e.message);
     return '';
   }
 }
 
-/**
- * Format a date string like "2026-05-22" into "Friday, May 22"
- */
 function formatEventDate(dateStr) {
   if (!dateStr) return '';
   try {
@@ -201,27 +158,15 @@ function formatEventDate(dateStr) {
   }
 }
 
-/**
- * Build the full sports context: schedule + roster + stats.
- */
 async function buildSportsContext(favoriteTeamsRaw) {
   if (!favoriteTeamsRaw || !favoriteTeamsRaw.trim()) return '';
-
-  const teamNames = favoriteTeamsRaw
-    .split(/[,;\n]+/)
-    .map(t => t.trim())
-    .filter(Boolean);
-
+  const teamNames = favoriteTeamsRaw.split(/[,;\n]+/).map(t => t.trim()).filter(Boolean);
   const teamSections = [];
 
   for (const teamName of teamNames) {
     const team = await getTeamId(teamName);
-    if (!team) {
-      console.log(`Team not found: ${teamName}`);
-      continue;
-    }
+    if (!team) { console.log(`Team not found: ${teamName}`); continue; }
 
-    // Fetch schedule and MLB stats in parallel
     const [events, mlbInfo] = await Promise.all([
       getNextEvents(team.id),
       getMlbRosterAndStats(team.mlbId, team.name)
@@ -232,8 +177,6 @@ async function buildSportsContext(favoriteTeamsRaw) {
     ));
 
     let section = `── ${team.name} ──`;
-
-    // Schedule
     if (events.length === 0) {
       section += `\nSchedule: No upcoming games found.`;
     } else {
@@ -251,12 +194,7 @@ async function buildSportsContext(favoriteTeamsRaw) {
       });
       section += `\nUpcoming games (${events[0].strLeague || ''}):\n  • ${upcoming.join('\n  • ')}`;
     }
-
-    // Roster + stats (MLB only)
-    if (mlbInfo) {
-      section += `\n${mlbInfo}`;
-    }
-
+    if (mlbInfo) section += `\n${mlbInfo}`;
     teamSections.push(section);
   }
 
@@ -269,7 +207,87 @@ async function buildSportsContext(favoriteTeamsRaw) {
 SPORTS INFO (live data as of ${todayStr}):
 ${teamSections.join('\n\n')}
 
-IMPORTANT — Sports questions: You have live schedule, roster, and player stats above. Today is ${todayStr}. Answer sports questions directly and confidently using this data — never say you'll "check" or that you "don't know." Reference players by name naturally — e.g., "Judge has been on fire this season!" Keep it warm and conversational, never like a sports report.`.trim();
+IMPORTANT — Sports questions: You have live schedule, roster, and player stats above. Today is ${todayStr}. Answer sports questions directly and confidently using this data — never say you'll "check" or that you "don't know." Reference players by name naturally. Keep it warm and conversational, never like a sports report.`.trim();
+}
+
+// ─────────────────────────────────────────────
+//  Claude API call with web search loop
+// ─────────────────────────────────────────────
+async function callClaude(systemPrompt, messages) {
+  const ANTHROPIC_HEADERS = {
+    'Content-Type': 'application/json',
+    'x-api-key': process.env.ANTHROPIC_API_KEY,
+    'anthropic-version': '2023-06-01',
+    'anthropic-beta': 'web-search-2025-03-05'
+  };
+
+  const CLAUDE_BODY = (msgs) => JSON.stringify({
+    model: 'claude-haiku-4-5-20251001',
+    max_tokens: 1024,
+    system: systemPrompt,
+    messages: msgs,
+    tools: [{ type: 'web_search_20250305', name: 'web_search' }]
+  });
+
+  // First call
+  let response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: ANTHROPIC_HEADERS,
+    body: CLAUDE_BODY(messages)
+  });
+
+  let data = await response.json();
+
+  if (!response.ok) {
+    console.error('Anthropic error:', JSON.stringify(data));
+    throw new Error('Anthropic API error');
+  }
+
+  // Web search loop — Claude may need multiple rounds
+  let loopCount = 0;
+  while (data.stop_reason === 'tool_use' && loopCount < 3) {
+    loopCount++;
+
+    const toolUseBlock = data.content.find(b => b.type === 'tool_use');
+    if (!toolUseBlock) break;
+
+    console.log(`Web search triggered: "${toolUseBlock.input?.query || ''}"`);
+
+    // Append assistant's tool call turn
+    messages = [...messages, { role: 'assistant', content: data.content }];
+
+    // Append tool result turn
+    messages = [...messages, {
+      role: 'user',
+      content: [{
+        type: 'tool_result',
+        tool_use_id: toolUseBlock.id,
+        content: 'Please search the web for this query and return the result.'
+      }]
+    }];
+
+    // Call Claude again with the tool result
+    response = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: ANTHROPIC_HEADERS,
+      body: CLAUDE_BODY(messages)
+    });
+
+    data = await response.json();
+
+    if (!response.ok) {
+      console.error('Anthropic error (loop):', JSON.stringify(data));
+      throw new Error('Anthropic API error in tool loop');
+    }
+  }
+
+  // Extract final text response
+  const replyText = (data.content || [])
+    .filter(block => block.type === 'text')
+    .map(block => block.text)
+    .join('\n');
+
+  return replyText;
 }
 
 // ─────────────────────────────────────────────
@@ -280,17 +298,9 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  if (req.method === 'GET') {
-    return res.status(200).json({ status: 'ok' });
-  }
-
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+  if (req.method === 'GET') return res.status(200).json({ status: 'ok' });
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
     const body = req.body || {};
@@ -309,11 +319,7 @@ export default async function handler(req, res) {
       try {
         const airtableRes = await fetch(
           `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-          {
-            headers: {
-              'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`
-            }
-          }
+          { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
         );
         const airtableData = await airtableRes.json();
         const f = airtableData.fields;
@@ -355,7 +361,7 @@ Additional notes: ${f['Additional Notes'] || ''}
       }
     }
 
-    // ── 2. Fetch live sports data (schedule + roster + stats) ──
+    // ── 2. Fetch live sports data ──
     const sportsContext = await buildSportsContext(favoriteTeamsRaw);
 
     // ── 3. Rotating greetings ──
@@ -379,7 +385,10 @@ How you listen:
 Always respond to what the person actually said before asking anything new. Pick up on emotional cues. If they sound wistful, meet them there. If they're playful, be playful back.
 
 What you never do:
-Give medical advice. Discuss politics or news. Say "As an AI" or refer to yourself as a bot. Never break character.
+Give medical advice. Say "As an AI" or refer to yourself as a bot. Never break character.
+
+What you can look up:
+If the patient asks about the weather, use your web search tool to find the current weather for their Hometown and share it warmly and naturally in conversation.
 
 Your one goal:
 Make whoever you're speaking with feel like the most interesting person in the room.
@@ -388,30 +397,10 @@ Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}
 ${sportsContext ? `\n${sportsContext}` : ''}`;
 
-    // ── 5. Call Claude ──
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01'
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5',
-        max_tokens: 1024,
-        system: systemPrompt,
-        messages: messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }]
-      })
-    });
+    // ── 5. Call Claude (with web search loop) ──
+    const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
+    const replyText = await callClaude(systemPrompt, finalMessages);
 
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Anthropic error:', JSON.stringify(data));
-      return res.status(500).json({ error: 'Anthropic error', details: data });
-    }
-
-    const replyText = data.content[0].text;
     return res.status(200).json({ content: replyText });
 
   } catch (error) {
