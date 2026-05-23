@@ -22,11 +22,12 @@ export default async function handler(req, res) {
         redirect_uri: 'https://rose-proxy.vercel.app/api/spotify-callback'
       })
     });
-
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-      return res.status(500).send('Failed to get Spotify tokens');
+if (!tokenRes.ok || !tokenData.access_token) {
+      console.error('Spotify token response:', JSON.stringify(tokenData));
+      return res.status(500).send('Failed to get Spotify tokens: ' + JSON.stringify(tokenData));
+   
     }
+    
 
     await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
