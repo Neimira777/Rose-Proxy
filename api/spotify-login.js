@@ -1,9 +1,6 @@
-export default function handler(req, res) {
+module.exports = function handler(req, res) {
   const { patientId } = req.query;
-
-  if (!patientId) {
-    return res.status(400).json({ error: 'Missing patientId' });
-  }
+  if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
 
   const scope = [
     'streaming',
