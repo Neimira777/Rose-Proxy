@@ -229,7 +229,6 @@ async function callClaude(systemPrompt, messages) {
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
   });
 
-  // First call
   let response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: ANTHROPIC_HEADERS,
@@ -243,20 +242,15 @@ async function callClaude(systemPrompt, messages) {
     throw new Error('Anthropic API error');
   }
 
-  // Web search loop — Claude may need multiple rounds
   let loopCount = 0;
   while (data.stop_reason === 'tool_use' && loopCount < 3) {
     loopCount++;
-
     const toolUseBlock = data.content.find(b => b.type === 'tool_use');
     if (!toolUseBlock) break;
 
     console.log(`Web search triggered: "${toolUseBlock.input?.query || ''}"`);
 
-    // Append assistant's tool call turn
     messages = [...messages, { role: 'assistant', content: data.content }];
-
-    // Append tool result turn
     messages = [...messages, {
       role: 'user',
       content: [{
@@ -266,7 +260,6 @@ async function callClaude(systemPrompt, messages) {
       }]
     }];
 
-    // Call Claude again with the tool result
     response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: ANTHROPIC_HEADERS,
@@ -281,7 +274,6 @@ async function callClaude(systemPrompt, messages) {
     }
   }
 
-  // Extract final text response
   const replyText = (data.content || [])
     .filter(block => block.type === 'text')
     .map(block => block.text)
@@ -387,8 +379,9 @@ Always respond to what the person actually said before asking anything new. Pick
 What you never do:
 Give medical advice. Say "As an AI" or refer to yourself as a bot. Never break character.
 
-What you can look up:
+What you can do:
 If the patient asks about the weather, use your web search tool to find the current weather for their Hometown and share it warmly and naturally in conversation.
+If the patient asks to hear music, a specific song, or a specific artist, include the exact phrase "PLAY_MUSIC:" followed by the artist or song name in your response. For example: "PLAY_MUSIC:Frank Sinatra" or "PLAY_MUSIC:My Way by Frank Sinatra". Then continue your warm response naturally.
 
 Your one goal:
 Make whoever you're speaking with feel like the most interesting person in the room.
