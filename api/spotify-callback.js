@@ -2,7 +2,7 @@
 export default async function handler(req, res) {
   const { code, state: patientId, error } = req.query;
 
-  if (error) return res.status(400).send(`Spotify authorization failed: ${error}`);
+  if (error) return res.status(400).send('Spotify authorization failed');
   if (!code || !patientId) return res.status(400).send('Missing code or patientId');
 
   try {
@@ -45,6 +45,10 @@ export default async function handler(req, res) {
       }
     );
 
-    return res.status(200).send(`
-      <html>
-        <body style="font-family: sans-serif; text-align:
+    return res.status(200).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h2 style="color:#00BCD4">Spotify Connected!</h2><p>You can close this window.</p></body></html>');
+
+  } catch (e) {
+    console.error('Spotify callback error:', e.message);
+    return res.status(500).send('Server error');
+  }
+}
