@@ -24,8 +24,11 @@ export default async function handler(req, res) {
 
   if (!tokenData.access_token) {
     return res.status(500).send('Token error: ' + JSON.stringify(tokenData));
-  }const airtableUrl = 'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId;
-console.log('Saving to Airtable:', airtableUrl);
+  }
+
+  const airtableUrl = 'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId;
+  console.log('Saving to Airtable:', airtableUrl);
+  console.log('Using token:', process.env.AIRTABLE_TOKEN ? 'present' : 'MISSING');
 
   const airtableRes = await fetch(airtableUrl, {
     method: 'PATCH',
