@@ -25,8 +25,7 @@ export default async function handler(req, res) {
   if (!tokenData.access_token) {
     return res.status(500).send('Token error: ' + JSON.stringify(tokenData));
   }
-
-  const airtableUrl = 'https://api.airtable.com/v0/' + process.env.AIRTABLE_BASE_ID + '/' + process.env.AIRTABLE_TABLE_ID + '/' + patientId;
+const airtableUrl = 'https://api.airtable.com/v0/' + process.env.AIRTABLE_BASE_ID + '/tblWZWMZNWfpbVVRX/' + patientId;
   console.log('Saving to Airtable:', airtableUrl);
 
   const airtableRes = await fetch(airtableUrl, {
