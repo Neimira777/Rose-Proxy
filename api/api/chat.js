@@ -85,7 +85,13 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
         model: 'claude-3-5-haiku-20241022',
         max_tokens: 1024,
         system: systemPrompt,
-        messages: anthropicMessages
+        messages: anthropicMessages,
+        tools: [
+    {
+      type: "web_search_20250305",
+      name: "web_search"
+    }
+  ]
       })
     });
 
@@ -95,8 +101,10 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
       console.error('Anthropic error:', data);
       return res.status(500).json({ error: 'Internal server error' });
     }
-
-    const replyText = data.content[0].text;
+const replyText = data.content
+  .filter(block => block.type === 'text')
+  .map(block => block.text)
+  .join('\n');
 
     res.status(200).json({
       choices: [{
