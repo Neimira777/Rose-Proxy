@@ -1,4 +1,3 @@
-
 export default async function handler(req, res) {
   const code = req.query.code;
   const patientId = req.query.state;
@@ -25,20 +24,18 @@ export default async function handler(req, res) {
   if (!tokenData.access_token) {
     return res.status(500).send('Token error: ' + JSON.stringify(tokenData));
   }
-const AT = process.env.AIRTABLE_WRITE_TOKEN;
 
   const airtableRes = await fetch(
     'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId,
     {
       method: 'PATCH',
       headers: {
-        'Authorization': 'Bearer ' + AT,
+        'Authorization': 'Bearer ' + process.env.AIRTABLE_WRITE_TOKEN,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-         fields: {
-  'Spotify Access Token': tokenData.access_token
-}
+        fields: {
+          'Spotify Access Token': tokenData.access_token
         }
       })
     }
