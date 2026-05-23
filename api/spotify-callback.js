@@ -1,4 +1,5 @@
-module.exports = async function handler(req, res) {
+
+export default async function handler(req, res) {
   const { code, state: patientId, error } = req.query;
 
   if (error) return res.status(400).send(`Spotify authorization failed: ${error}`);
@@ -46,16 +47,4 @@ module.exports = async function handler(req, res) {
 
     return res.status(200).send(`
       <html>
-        <body style="font-family: sans-serif; text-align: center; padding: 60px; background: #f5f6f8;">
-          <h2 style="color: #00BCD4;">✅ Spotify Connected!</h2>
-          <p>Spotify has been successfully linked to Rose.</p>
-          <p style="color: #888;">You can close this window.</p>
-        </body>
-      </html>
-    `);
-
-  } catch (e) {
-    console.error('Spotify callback error:', e.message);
-    return res.status(500).send('Server error');
-  }
-}
+        <body style="font-family: sans-serif; text-align:
