@@ -1,5 +1,5 @@
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -23,40 +23,4 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: 'No Spotify refresh token found. Please authorize Spotify first.' });
     }
 
-    const credentials = Buffer.from(
-      `${process.env.SPOTIFY_CLIENT_ID}:${process.env.SPOTIFY_CLIENT_SECRET}`
-    ).toString('base64');
-
-    const tokenRes = await fetch('https://accounts.spotify.com/api/token', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Basic ${credentials}`,
-        'Content-Type': 'application/x-www-form-urlencoded'
-      },
-      body: new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: refreshToken
-      })
-    });
-
-    const tokenData = await tokenRes.json();
-    if (!tokenRes.ok || !tokenData.access_token) {
-      console.error('Spotify refresh failed:', tokenData);
-      return res.status(500).json({ error: 'Failed to refresh Spotify token' });
-    }
-
-    await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          fields: { 'Spotify Access Token': tokenData.access_token }
-        })
-      }
-    );
-
-    return res.status(200).json({ access_token: tokenData.acce
+    const credentials
