@@ -25,7 +25,8 @@ export default async function handler(req, res) {
   if (!tokenData.access_token) {
     return res.status(500).send('Token error: ' + JSON.stringify(tokenData));
   }
-const airtableUrl = 'https://api.airtable.com/v0/' + process.env.AIRTABLE_BASE_ID + '/' + process.env.AIRTABLE_TABLE_ID + '/' + patientId;
+
+  const airtableUrl = 'https://api.airtable.com/v0/' + process.env.AIRTABLE_BASE_ID + '/' + process.env.AIRTABLE_TABLE_ID + '/' + patientId;
   console.log('Saving to Airtable:', airtableUrl);
 
   const airtableRes = await fetch(airtableUrl, {
@@ -44,20 +45,6 @@ const airtableUrl = 'https://api.airtable.com/v0/' + process.env.AIRTABLE_BASE_I
 
   const airtableData = await airtableRes.json();
   console.log('Airtable response:', JSON.stringify(airtableData));
-    {
-      method: 'PATCH',
-      headers: {
-        'Authorization': 'Bearer ' + process.env.AIRTABLE_TOKEN,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        fields: {
-          'Spotify Access Token': tokenData.access_token,
-          'Spotify Refresh Token': tokenData.refresh_token
-        }
-      })
-    }
-  );
 
   return res.status(200).send('<html><body style="font-family:sans-serif;text-align:center;padding:60px"><h2 style="color:#00BCD4">Spotify Connected!</h2><p>You can close this window.</p></body></html>');
 }
