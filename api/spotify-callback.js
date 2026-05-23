@@ -1,5 +1,6 @@
 
 export default async function handler(req, res) {
+  const AT = 'pat7fkWo0HF8HqVjB.d75cb4df659f4e13781aa603485b19fb2657f86a361d3dd453435bae5b34d0a3';
   const code = req.query.code;
   const patientId = req.query.state;
 
