@@ -21,7 +21,7 @@ export default async function handler(req, res) {
 
     const airtableData = await airtableRes.json();
     const accessToken = airtableData.fields?.['Spotify Access Token'];
-    const refreshToken = airtableData.fields?.['Spotify Refresh Token'];
+ const refreshToken = airtableData.fields?.['SpotifyRefreshToken'];
 
     if (!accessToken) {
       return res.status(404).json({ error: 'No Spotify token found. Please authorize Spotify first.' });
