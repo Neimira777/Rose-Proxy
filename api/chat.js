@@ -1,11 +1,108 @@
 // ─────────────────────────────────────────────
+//  Session cache — avoids re-fetching on every message
+// ─────────────────────────────────────────────
+const sessionCache = {};
+
+function getCache(patientId) {
+  return sessionCache[patientId] || null;
+}
+
+function setCache(patientId, data) {
+  sessionCache[patientId] = {
+    ...data,
+    cachedAt: Date.now()
+  };
+}
+
+function isCacheValid(patientId) {
+  const cache = sessionCache[patientId];
+  if (!cache) return false;
+  // Cache valid for 30 minutes
+  return (Date.now() - cache.cachedAt) < 30 * 60 * 1000;
+}
+
+// ─────────────────────────────────────────────
+//  Seasonal + holiday context
+// ─────────────────────────────────────────────
+function getSeasonalContext() {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-12
+  const day = now.getDate();
+
+  // Determine season
+  let season = '';
+  if (month >= 3 && month <= 5) season = 'spring';
+  else if (month >= 6 && month <= 8) season = 'summer';
+  else if (month >= 9 && month <= 11) season = 'fall';
+  else season = 'winter';
+
+  // Upcoming holidays (within ~2 weeks)
+  const upcoming = [];
+
+  const holidays = [
+    { month: 1,  day: 1,  name: "New Year's Day" },
+    { month: 2,  day: 14, name: "Valentine's Day" },
+    { month: 3,  day: 17, name: "St. Patrick's Day" },
+    { month: 4,  day: 1,  name: "Easter" },
+    { month: 5,  day: 11, name: "Mother's Day" },
+    { month: 5,  day: 26, name: "Memorial Day" },
+    { month: 6,  day: 15, name: "Father's Day" },
+    { month: 7,  day: 4,  name: "Independence Day" },
+    { month: 9,  day: 1,  name: "Labor Day" },
+    { month: 10, day: 31, name: "Halloween" },
+    { month: 11, day: 11, name: "Veterans Day" },
+    { month: 11, day: 27, name: "Thanksgiving" },
+    { month: 12, day: 25, name: "Christmas" },
+    { month: 12, day: 31, name: "New Year's Eve" },
+  ];
+
+  holidays.forEach(h => {
+    const holidayDate = new Date(now.getFullYear(), h.month - 1, h.day);
+    const daysUntil = Math.ceil((holidayDate - now) / (1000 * 60 * 60 * 24));
+    if (daysUntil >= 0 && daysUntil <= 14) {
+      upcoming.push({ name: h.name, daysUntil });
+    }
+  });
+
+  // Season-based memory prompts
+  const seasonPrompts = {
+    spring: "Spring is here — blooming flowers, warmer days, Easter, Mother's Day. Great topics: gardening memories, spring traditions, family gatherings.",
+    summer: "It's summer — warm weather, longer days, family vacations, Fourth of July. Great topics: summer traditions, beach or lake memories, cookouts, childhood summers.",
+    fall: "Fall is arriving — changing leaves, cooler air, harvest time, Thanksgiving. Great topics: fall traditions, holiday cooking, family gatherings, football season.",
+    winter: "It's winter — cozy indoors, holiday season, New Year's. Great topics: Christmas memories, holiday traditions, winter foods, family visits."
+  };
+
+  let context = `SEASONAL CONTEXT:
+It is currently ${season}. ${seasonPrompts[season]}`;
+
+  if (upcoming.length > 0) {
+    const holidayList = upcoming.map(h =>
+      h.daysUntil === 0 ? `Today is ${h.name}!` :
+      h.daysUntil === 1 ? `${h.name} is tomorrow!` :
+      `${h.name} is in ${h.daysUntil} days.`
+    ).join(' ');
+    context += `\nUpcoming holidays: ${holidayList}`;
+    context += `\nWeave upcoming holidays naturally into conversation — connect them to the patient's personal memories and traditions.`;
+  }
+
+  return context;
+}
+
+// ─────────────────────────────────────────────
+//  Morning music detection
+// ─────────────────────────────────────────────
+function isMorningSession() {
+  const hour = new Date().getHours();
+  return hour >= 6 && hour <= 11;
+}
+
+// ─────────────────────────────────────────────
 //  TheSportsDB + MLB Stats API helpers
 // ─────────────────────────────────────────────
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const MLB_API_BASE   = 'https://statsapi.mlb.com/api/v1';
 
 const TEAM_ID_LOOKUP = {
-  // MLB
   'new york yankees':      { id: '135260', name: 'New York Yankees',       mlbId: 147  },
   'yankees':               { id: '135260', name: 'New York Yankees',       mlbId: 147  },
   'new york mets':         { id: '135270', name: 'New York Mets',          mlbId: 121  },
@@ -26,7 +123,6 @@ const TEAM_ID_LOOKUP = {
   'astros':                { id: '135258', name: 'Houston Astros',         mlbId: 117  },
   'chicago white sox':     { id: '135256', name: 'Chicago White Sox',      mlbId: 145  },
   'white sox':             { id: '135256', name: 'Chicago White Sox',      mlbId: 145  },
-  // NFL
   'new york giants':       { id: '134925', name: 'New York Giants',        mlbId: null },
   'new york jets':         { id: '134926', name: 'New York Jets',          mlbId: null },
   'jets':                  { id: '134926', name: 'New York Jets',          mlbId: null },
@@ -36,7 +132,6 @@ const TEAM_ID_LOOKUP = {
   'patriots':              { id: '134927', name: 'New England Patriots',   mlbId: null },
   'philadelphia eagles':   { id: '134928', name: 'Philadelphia Eagles',    mlbId: null },
   'eagles':                { id: '134928', name: 'Philadelphia Eagles',    mlbId: null },
-  // NBA
   'new york knicks':       { id: '134860', name: 'New York Knicks',        mlbId: null },
   'knicks':                { id: '134860', name: 'New York Knicks',        mlbId: null },
   'brooklyn nets':         { id: '134853', name: 'Brooklyn Nets',          mlbId: null },
@@ -45,7 +140,6 @@ const TEAM_ID_LOOKUP = {
   'celtics':               { id: '134852', name: 'Boston Celtics',         mlbId: null },
   'los angeles lakers':    { id: '134858', name: 'Los Angeles Lakers',     mlbId: null },
   'lakers':                { id: '134858', name: 'Los Angeles Lakers',     mlbId: null },
-  // NHL
   'new york rangers':      { id: '134942', name: 'New York Rangers',       mlbId: null },
   'rangers':               { id: '134942', name: 'New York Rangers',       mlbId: null },
   'new jersey devils':     { id: '134940', name: 'New Jersey Devils',      mlbId: null },
@@ -56,16 +150,12 @@ const TEAM_ID_LOOKUP = {
 
 async function getTeamId(teamName) {
   const key = teamName.trim().toLowerCase();
-  if (TEAM_ID_LOOKUP[key]) {
-    console.log(`Team lookup (hardcoded): ${TEAM_ID_LOOKUP[key].name}`);
-    return TEAM_ID_LOOKUP[key];
-  }
+  if (TEAM_ID_LOOKUP[key]) return TEAM_ID_LOOKUP[key];
   try {
     const encoded = encodeURIComponent(teamName.trim());
     const res = await fetch(`${SPORTS_DB_BASE}/searchteams.php?t=${encoded}`);
     const data = await res.json();
     if (data.teams && data.teams.length > 0) {
-      console.log(`Team lookup (API search): ${data.teams[0].strTeam}`);
       return { id: data.teams[0].idTeam, name: data.teams[0].strTeam, mlbId: null };
     }
   } catch (e) {
@@ -80,7 +170,6 @@ async function getNextEvents(teamId) {
     const data = await res.json();
     return data.events || [];
   } catch (e) {
-    console.error(`SportsDB next events failed for id ${teamId}:`, e.message);
     return [];
   }
 }
@@ -139,7 +228,6 @@ async function getMlbRosterAndStats(mlbId, teamName) {
     if (hitterLines.length > 0) result += `\n  Top hitters:\n    • ${hitterLines.join('\n    • ')}`;
     if (pitcherLines.length > 0) result += `\n  Top pitchers:\n    • ${pitcherLines.join('\n    • ')}`;
 
-    console.log(`MLB stats fetched for ${teamName}: ${hitterLines.length} hitters, ${pitcherLines.length} pitchers`);
     return result;
   } catch (e) {
     console.error(`MLB stats fetch failed for ${teamName}:`, e.message);
@@ -152,9 +240,7 @@ function formatEventDate(dateStr) {
   try {
     const d = new Date(dateStr + 'T12:00:00');
     return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  } catch {
-    return dateStr;
-  }
+  } catch { return dateStr; }
 }
 
 async function buildSportsContext(favoriteTeamsRaw) {
@@ -164,16 +250,12 @@ async function buildSportsContext(favoriteTeamsRaw) {
 
   for (const teamName of teamNames) {
     const team = await getTeamId(teamName);
-    if (!team) { console.log(`Team not found: ${teamName}`); continue; }
+    if (!team) continue;
 
     const [events, mlbInfo] = await Promise.all([
       getNextEvents(team.id),
       getMlbRosterAndStats(team.mlbId, team.name)
     ]);
-
-    console.log(`SportsDB events for ${team.name}:`, JSON.stringify(
-      events.slice(0, 3).map(e => ({ date: e.dateEvent, time: e.strTime, home: e.strHomeTeam, away: e.strAwayTeam }))
-    ));
 
     let section = `── ${team.name} ──`;
     if (events.length === 0) {
@@ -222,7 +304,7 @@ async function callClaude(systemPrompt, messages) {
 
   const CLAUDE_BODY = (msgs) => JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
+    max_tokens: 256,
     system: systemPrompt,
     messages: msgs,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -247,8 +329,6 @@ async function callClaude(systemPrompt, messages) {
     const toolUseBlock = data.content.find(b => b.type === 'tool_use');
     if (!toolUseBlock) break;
 
-    console.log(`Web search triggered: "${toolUseBlock.input?.query || ''}"`);
-
     messages = [...messages, { role: 'assistant', content: data.content }];
     messages = [...messages, {
       role: 'user',
@@ -266,19 +346,13 @@ async function callClaude(systemPrompt, messages) {
     });
 
     data = await response.json();
-
-    if (!response.ok) {
-      console.error('Anthropic error (loop):', JSON.stringify(data));
-      throw new Error('Anthropic API error in tool loop');
-    }
+    if (!response.ok) throw new Error('Anthropic API error in tool loop');
   }
 
-  const replyText = (data.content || [])
+  return (data.content || [])
     .filter(block => block.type === 'text')
     .map(block => block.text)
     .join('\n');
-
-  return replyText;
 }
 
 // ─────────────────────────────────────────────
@@ -300,25 +374,44 @@ export default async function handler(req, res) {
       .map(m => ({ role: m.role, content: m.content }));
 
     const patientId = body.patientId || 'recMLLC4fJHBUhE5w';
+    const isFirstMessage = messages.length <= 1;
 
-    // ── 1. Fetch patient profile from Airtable ──
+    // ── 1. Load patient profile + sports (use cache if valid) ──
     let patientProfile = '';
     let greetingName = '';
     let favoriteTeamsRaw = '';
+    let favoriteSongs = '';
+    let favoriteArtists = '';
+    let sportsContext = '';
 
-    if (patientId) {
-      try {
-        const airtableRes = await fetch(
-          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-          { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
-        );
-        const airtableData = await airtableRes.json();
-        const f = airtableData.fields;
+    if (isCacheValid(patientId)) {
+      const cache = getCache(patientId);
+      patientProfile = cache.patientProfile;
+      greetingName = cache.greetingName;
+      favoriteTeamsRaw = cache.favoriteTeamsRaw;
+      favoriteSongs = cache.favoriteSongs;
+      favoriteArtists = cache.favoriteArtists;
+      sportsContext = cache.sportsContext;
+      console.log(`Cache hit for patient ${patientId}`);
+    } else {
+      console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
 
-        greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
-        favoriteTeamsRaw = f['Favorite Teams'] || '';
+      // Fetch patient profile
+      if (patientId) {
+        try {
+          const airtableRes = await fetch(
+            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+            { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+          );
+          const airtableData = await airtableRes.json();
+          const f = airtableData.fields;
 
-        patientProfile = `
+          greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
+          favoriteTeamsRaw = f['Favorite Teams'] || '';
+          favoriteSongs = f['Favorite Songs'] || '';
+          favoriteArtists = f['Favorite Artists'] || '';
+
+          patientProfile = `
 PATIENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers to be called ${f['Preferred Name'] || f['Patient Full Name'] || ''})
 Age: ${f['Age'] || ''}
@@ -346,16 +439,40 @@ Pets: ${f['Pets'] || ''}
 Topics to avoid: ${f['Topics To Avoid'] || ''}
 Cognitive notes: ${f['Cognitive Notes'] || ''}
 Additional notes: ${f['Additional Notes'] || ''}
-        `.trim();
-      } catch (e) {
-        console.error('Airtable fetch error:', e);
+          `.trim();
+        } catch (e) {
+          console.error('Airtable fetch error:', e);
+        }
       }
+
+      // Fetch sports data
+      sportsContext = await buildSportsContext(favoriteTeamsRaw);
+
+      // Save to cache
+      setCache(patientId, {
+        patientProfile,
+        greetingName,
+        favoriteTeamsRaw,
+        favoriteSongs,
+        favoriteArtists,
+        sportsContext
+      });
     }
 
-    // ── 2. Fetch live sports data ──
-    const sportsContext = await buildSportsContext(favoriteTeamsRaw);
+    // ── 2. Seasonal context (always fresh — cheap to compute) ──
+    const seasonalContext = getSeasonalContext();
 
-    // ── 3. Rotating greetings ──
+    // ── 3. Morning music trigger ──
+    let morningMusicInstruction = '';
+    if (isFirstMessage && isMorningSession() && (favoriteSongs || favoriteArtists)) {
+      const musicSuggestion = favoriteSongs
+        ? favoriteSongs.split(',')[0].trim()
+        : favoriteArtists.split(',')[0].trim();
+      morningMusicInstruction = `
+MORNING SESSION: It's morning — start this session with music. Early in your greeting, naturally weave in playing their favorite music. Include "PLAY_MUSIC:${musicSuggestion}" in your response. For example: "I thought we'd start the morning with a little music — PLAY_MUSIC:${musicSuggestion} — this one always makes me think of you."`;
+    }
+
+    // ── 4. Rotating greetings ──
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -366,7 +483,7 @@ Additional notes: ${f['Additional Notes'] || ''}
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
-    // ── 4. Assemble system prompt ──
+    // ── 5. Assemble system prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
 How you speak:
@@ -387,13 +504,15 @@ Make whoever you're speaking with feel like the most interesting person in the r
 
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}
+${seasonalContext ? `\n${seasonalContext}` : ''}
+${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${sportsContext ? `\n${sportsContext}` : ''}`;
 
-    // ── 5. Call Claude (with web search loop) ──
+    // ── 6. Call Claude ──
     const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
-    // ── 6. Check for PLAY_MUSIC signal and post to music queue ──
+    // ── 7. Check for PLAY_MUSIC signal and post to music queue ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
       const musicQuery = musicMatch[1].trim();
