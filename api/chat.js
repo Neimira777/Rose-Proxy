@@ -382,6 +382,7 @@ export default async function handler(req, res) {
     let favoriteTeamsRaw = '';
     let favoriteSongs = '';
     let favoriteArtists = '';
+    let morningPlaylist = '';
     let sportsContext = '';
 
     if (isCacheValid(patientId)) {
@@ -391,6 +392,7 @@ export default async function handler(req, res) {
       favoriteTeamsRaw = cache.favoriteTeamsRaw;
       favoriteSongs = cache.favoriteSongs;
       favoriteArtists = cache.favoriteArtists;
+      morningPlaylist = cache.morningPlaylist;
       sportsContext = cache.sportsContext;
       console.log(`Cache hit for patient ${patientId}`);
     } else {
@@ -410,6 +412,10 @@ export default async function handler(req, res) {
           favoriteTeamsRaw = f['Favorite Teams'] || '';
           favoriteSongs = f['Favorite Songs'] || '';
           favoriteArtists = f['Favorite Artists'] || '';
+          const favoriteColors = f['Favorite Colors'] || '';
+          const favoriteClothing = f['Favorite Clothing'] || '';
+          const dressingNotes = f['Dressing Notes'] || '';
+          const morningPlaylist = f['Morning Playlist'] || '';
 
           patientProfile = `
 PATIENT PROFILE:
@@ -430,6 +436,10 @@ Favorite Songs: ${f['Favorite Songs'] || ''}
 Favorite Genre: ${f['Favorite Genre'] || ''}
 Favorite Era: ${f['Favorite Era'] || ''}
 Music Memories: ${f['Music Memories'] || ''}
+Morning Playlist: ${morningPlaylist}
+Favorite Colors: ${favoriteColors}
+Favorite Clothing: ${favoriteClothing}
+Dressing Notes: ${dressingNotes}
 Favorite Sports: ${f['Favorite Sports'] || ''}
 Favorite Teams: ${f['Favorite Teams'] || ''}
 Favorite Movies: ${f['Favorite Movies'] || ''}
@@ -455,6 +465,7 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteTeamsRaw,
         favoriteSongs,
         favoriteArtists,
+        morningPlaylist,
         sportsContext
       });
     }
@@ -462,14 +473,22 @@ Additional notes: ${f['Additional Notes'] || ''}
     // ── 2. Seasonal context (always fresh — cheap to compute) ──
     const seasonalContext = getSeasonalContext();
 
-    // ── 3. Morning music trigger ──
+    // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
-    if (isFirstMessage && isMorningSession() && (favoriteSongs || favoriteArtists)) {
-      const musicSuggestion = favoriteSongs
-        ? favoriteSongs.split(',')[0].trim()
-        : favoriteArtists.split(',')[0].trim();
-      morningMusicInstruction = `
-MORNING SESSION: It's morning — start this session with music. Early in your greeting, naturally weave in playing their favorite music. Include "PLAY_MUSIC:${musicSuggestion}" in your response. For example: "I thought we'd start the morning with a little music — PLAY_MUSIC:${musicSuggestion} — this one always makes me think of you."`;
+    if (isFirstMessage && isMorningSession()) {
+      // Morning music
+      if (favoriteSongs || favoriteArtists) {
+        const cache = getCache(patientId);
+        const morningPlaylistRaw = cache?.morningPlaylist || favoriteSongs;
+        const songs = morningPlaylistRaw.split(',').map(s => s.trim()).filter(Boolean);
+        const randomSong = songs[Math.floor(Math.random() * songs.length)];
+        if (randomSong) {
+          morningMusicInstruction += `\nMORNING MUSIC: Start this session with music. Early in your greeting naturally say something like "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${randomSong}" in your response.`;
+        }
+      }
+
+      // Morning clothing/weather reminder
+      morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Use your web search tool to check today's weather for the patient's Hometown. Then very naturally and warmly — in one sentence — weave in a gentle suggestion about what to wear today. Reference their Favorite Colors and Favorite Clothing items specifically. For example: "It's a bit chilly out today — perfect weather for that green cardigan you love." Never make it sound like a reminder or instruction — just a warm, caring observation from a friend.`;
     }
 
     // ── 4. Rotating greetings ──
