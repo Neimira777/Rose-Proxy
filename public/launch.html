@@ -34,7 +34,6 @@
       position: relative;
     }
 
-    /* ── Background ambient glow ── */
     .ambient {
       position: fixed;
       inset: 0;
@@ -64,7 +63,6 @@
     @keyframes drift1 { from { transform: translate(0,0); } to { transform: translate(3%,5%); } }
     @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-3%,-5%); } }
 
-    /* ── SCREENS ── */
     .screen {
       position: fixed;
       inset: 0;
@@ -81,7 +79,6 @@
       transform: scale(0.97);
     }
 
-    /* ── SELECTION SCREEN ── */
     #selectionScreen {
       padding: 40px 24px;
       gap: 0;
@@ -199,12 +196,8 @@
     }
     .load-link:hover { color: var(--cyan); }
 
-    /* ── JIM SCREEN ── */
-    #roseScreen {
-      background: #000;
-    }
+    #roseScreen { background: #000; }
 
-    /* D-ID video fills entire screen */
     #roseVideo {
       position: fixed;
       inset: 0;
@@ -214,7 +207,6 @@
       z-index: 0;
     }
 
-    /* Gradient overlay — subtle vignette */
     .vignette {
       position: fixed;
       inset: 0;
@@ -225,7 +217,6 @@
       pointer-events: none;
     }
 
-    /* Top bar — Neimira branding */
     .rose-topbar {
       position: fixed;
       top: 0;
@@ -264,7 +255,6 @@
       color: white;
     }
 
-    /* Listening indicator */
     .listen-indicator {
       position: fixed;
       bottom: 100px;
@@ -318,7 +308,6 @@
       color: var(--cyan);
     }
 
-    /* Speaking indicator */
     .speaking-indicator {
       position: fixed;
       bottom: 100px;
@@ -361,7 +350,6 @@
       color: var(--cyan);
     }
 
-    /* Music bar — slides up from bottom */
     #musicBar {
       position: fixed;
       bottom: 0;
@@ -390,10 +378,7 @@
       font-size: 16px;
       flex-shrink: 0;
     }
-    .music-info {
-      flex: 1;
-      min-width: 0;
-    }
+    .music-info { flex: 1; min-width: 0; }
     .music-label {
       font-size: 10px;
       letter-spacing: 2px;
@@ -408,11 +393,7 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
-    .music-controls {
-      display: flex;
-      gap: 8px;
-      flex-shrink: 0;
-    }
+    .music-controls { display: flex; gap: 8px; flex-shrink: 0; }
     .music-ctrl {
       background: rgba(255,255,255,0.08);
       border: none;
@@ -436,7 +417,6 @@
     }
     .music-ctrl.play:hover { background: #22c55e; }
 
-    /* D-ID widget — visible and positioned full screen */
     [data-name="did-agent"] {
       position: fixed !important;
       inset: 0 !important;
@@ -474,12 +454,12 @@
 
     <div class="divider">— or —</div>
 
-    <button class="home-btn" onclick="launchRose('recMLLC4fJHBUhE5w')">
+    <button class="home-btn" onclick="launchCompanion('recMLLC4fJHBUhE5w')">
       Visit with Rose 🌹
     </button>
   </div>
 
-  <!-- ── JIM SCREEN ── -->
+  <!-- ── ROSE SCREEN ── -->
   <div class="screen hidden" id="roseScreen">
     <video id="roseVideo" autoplay playsinline muted></video>
     <div class="vignette"></div>
@@ -524,7 +504,7 @@
     </div>
   </div>
 
-  <!-- ── Rose's agent ID hardcoded — D-ID script loads Rose directly ── -->
+  <!-- ── Rose's agent — hardcoded, always loads Rose ── -->
   <script>
     document.write('<scr' + 'ipt type="module" ' +
       'src="https://agent.d-id.com/v2/index.js" ' +
@@ -541,12 +521,8 @@
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
   <script>
-    // ── State ──
     const _urlParams = new URLSearchParams(window.location.search);
     let currentPatientId = _urlParams.get('patient') || null;
-
-    // ── FIX 2: Auto-launch block REMOVED — no more redirect loop ──
-    // User clicks the widget manually; no window.addEventListener('load', ...) here.
 
     let spotifyPlayer = null;
     let spotifyDeviceId = null;
@@ -557,15 +533,12 @@
     let isSpeaking = false;
     let conversationHistory = [];
 
-    // Cancel any browser TTS immediately
     window.speechSynthesis?.cancel();
 
-    // ── Spotify SDK ──
     window.onSpotifyWebPlaybackSDKReady = () => {
       console.log('Spotify SDK ready');
     };
 
-    // ── Show/hide screens ──
     function showRoseScreen() {
       document.getElementById('selectionScreen').classList.add('hidden');
       document.getElementById('roseScreen').classList.remove('hidden');
@@ -576,7 +549,6 @@
       document.getElementById('selectionScreen').classList.remove('hidden');
     }
 
-    // ── Initialize Spotify ──
     async function initSpotify(patientId) {
       try {
         const res = await fetch('https://rose-proxy.vercel.app/api/spotify-token', {
@@ -594,7 +566,6 @@
         });
 
         spotifyPlayer.addListener('ready', ({ device_id }) => {
-          console.log('Spotify ready, device:', device_id);
           spotifyDeviceId = device_id;
         });
 
@@ -616,16 +587,9 @@
       }
     }
 
-    // ── Audio ducking ──
-    function duckMusic() {
-      if (spotifyPlayer) spotifyPlayer.setVolume(0.1);
-    }
+    function duckMusic() { if (spotifyPlayer) spotifyPlayer.setVolume(0.1); }
+    function restoreMusic() { if (spotifyPlayer) spotifyPlayer.setVolume(0.35); }
 
-    function restoreMusic() {
-      if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
-    }
-
-    // ── Play by search (with artist variety) ──
     async function spotifyPlayBySearch(query) {
       try {
         const tokenRes = await fetch('https://rose-proxy.vercel.app/api/spotify-token', {
@@ -656,7 +620,6 @@
           if (tracks.length > 0) {
             const randomTrack = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))];
             uri = randomTrack.uri;
-            console.log('Playing artist track:', randomTrack.name, 'by', artist.name);
           }
         }
 
@@ -667,10 +630,9 @@
           );
           const searchData = await searchRes.json();
           const tracks = searchData.tracks?.items || [];
-          if (tracks.length === 0) { console.log('No track found:', query); return; }
+          if (tracks.length === 0) return;
           const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
           uri = randomTrack.uri;
-          console.log('Playing track:', randomTrack.name);
         }
 
         await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
@@ -678,51 +640,38 @@
           headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ uris: [uri] })
         });
-
       } catch (e) {
         console.error('Spotify play error:', e);
       }
     }
 
-    // ── Poll music queue ──
     function startMusicQueuePolling(patientId) {
       if (musicPollInterval) clearInterval(musicPollInterval);
       musicPollInterval = setInterval(async () => {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/music-queue?patientId=' + patientId);
           const data = await res.json();
-          if (data.query) {
-            console.log('Music queue triggered:', data.query);
-            spotifyPlayBySearch(data.query);
-          }
+          if (data.query) spotifyPlayBySearch(data.query);
         } catch (e) {}
       }, 2000);
     }
 
-    // ── Spotify controls ──
     function spotifyPlayPause() { if (spotifyPlayer) spotifyPlayer.togglePlay(); }
     function spotifyNext() { if (spotifyPlayer) spotifyPlayer.nextTrack(); }
     function spotifyPrevious() { if (spotifyPlayer) spotifyPlayer.previousTrack(); }
 
-    // ── Send message to Jim (chat.js) ──
     async function sendToRose(userText) {
       try {
         conversationHistory.push({ role: 'user', content: userText });
-
         const res = await fetch('https://rose-proxy.vercel.app/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            patientId: currentPatientId,
-            messages: conversationHistory
-          })
+          body: JSON.stringify({ patientId: currentPatientId, messages: conversationHistory })
         });
         const data = await res.json();
         const reply = data.content || '';
-
         const spokenReply = reply.replace(/PLAY_MUSIC:[^\n]+/g, '').trim();
         conversationHistory.push({ role: 'assistant', content: reply });
-
         return spokenReply;
       } catch (e) {
         console.error('Chat error:', e);
@@ -730,7 +679,6 @@
       }
     }
 
-    // ── State indicators ──
     function setRoseSpeaking(speaking) {
       isSpeaking = speaking;
       document.getElementById('speakingIndicator').classList.toggle('active', speaking);
@@ -742,57 +690,37 @@
       document.getElementById('listenIndicator').classList.toggle('active', listening && !isSpeaking);
     }
 
-    // ── Voice recognition ──
     function setupSpeechRecognition() {
       const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) {
-        console.log('Speech recognition not supported');
-        return;
-      }
+      if (!SpeechRecognition) return;
 
       recognition = new SpeechRecognition();
       recognition.continuous = false;
       recognition.interimResults = false;
       recognition.lang = 'en-US';
 
-      recognition.onstart = () => {
-        setListening(true);
-        console.log('Listening...');
-      };
-
+      recognition.onstart = () => setListening(true);
       recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
-        console.log('Patient said:', transcript);
         setListening(false);
         await sendToRose(transcript);
       };
-
       recognition.onerror = (e) => {
-        console.log('Speech error:', e.error);
         setListening(false);
         if (e.error !== 'no-speech') setTimeout(() => startListening(), 1000);
       };
-
-      recognition.onend = () => {
-        setListening(false);
-      };
+      recognition.onend = () => setListening(false);
     }
 
     function startListening() {
       if (!recognition || isSpeaking) return;
-      try {
-        recognition.start();
-      } catch (e) {
-        // already started
-      }
+      try { recognition.start(); } catch (e) {}
     }
 
-    // ── Auto-greeting ──
     async function autoGreet() {
       await sendToRose('Hello');
     }
 
-    // ── Load patients ──
     async function loadPatients() {
       document.getElementById('loadLink').style.display = 'none';
       const list = document.getElementById('patientList');
@@ -805,7 +733,7 @@
           const btn = document.createElement('button');
           btn.className = 'patient-btn';
           btn.textContent = patient.name;
-          btn.onclick = () => launchRose(patient.id);
+          btn.onclick = () => launchCompanion(patient.id, patient.gender);
           list.appendChild(btn);
         });
       } catch (e) {
@@ -813,23 +741,36 @@
       }
     }
 
-    // ── FIX 3: loadDIDAgent REMOVED — Jim's page always uses Jim's agent ──
-    // No redirect logic. No gender check. No loop possible.
+    // ── ROUTING: check gender, send male patients to Jim ──
+    async function launchCompanion(patientId, gender) {
+      // If gender not passed, fetch from Airtable
+      if (!gender) {
+        try {
+          const res = await fetch('https://rose-proxy.vercel.app/api/patients?id=' + patientId);
+          const data = await res.json();
+          gender = data.gender || 'Female';
+        } catch(e) {
+          gender = 'Female';
+        }
+      }
 
-    // ── Launch Jim ──
-    async function launchRose(patientId) {
+      const isMale = gender && gender.toLowerCase().trim() === 'male';
+      if (isMale) {
+        // Redirect to Jim's page
+        window.location.href = 'launch-jim.html?patient=' + patientId;
+        return;
+      }
+
+      // Female — launch Rose on this page
       currentPatientId = patientId;
       conversationHistory = [];
-
       showRoseScreen();
       await initSpotify(patientId);
       startMusicQueuePolling(patientId);
       setupSpeechRecognition();
-
       setTimeout(() => autoGreet(), 1500);
     }
 
-    // ── End session ──
     function endSession() {
       if (recognition) recognition.stop();
       if (musicPollInterval) clearInterval(musicPollInterval);
