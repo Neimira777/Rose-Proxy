@@ -462,7 +462,7 @@ export default async function handler(req, res) {
       favoriteArtists = cache.favoriteArtists;
       morningPlaylist = cache.morningPlaylist;
       sportsContext = cache.sportsContext;
-      const hometown = cache.hometown || '';
+      let _hometown = cache.hometown || '';
       console.log(`Cache hit for patient ${patientId}`);
     } else {
       console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
@@ -481,11 +481,11 @@ export default async function handler(req, res) {
           favoriteTeamsRaw = f['Favorite Teams'] || '';
           favoriteSongs = f['Favorite Songs'] || '';
           favoriteArtists = f['Favorite Artists'] || '';
-          const hometown = f['Hometown'] || '';
+          let _hometown = f['Hometown'] || '';
           const favoriteColors = f['Favorite Colors'] || '';
           const favoriteClothing = f['Favorite Clothing'] || '';
           const dressingNotes = f['Dressing Notes'] || '';
-          const morningPlaylist = f['Morning Playlist'] || '';
+          morningPlaylist = f['Morning Playlist'] || '';
 
           patientProfile = `
 PATIENT PROFILE:
@@ -536,18 +536,18 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteSongs,
         favoriteArtists,
         morningPlaylist,
-        hometown,
+        hometown: _hometown,
         sportsContext
       });
     }
 
     // ── 2. Seasonal context (always fresh — cheap to compute) ──
-    const hometown = patientProfile ? (getCache(patientId)?.hometown || '') : '';
-    const seasonalContext = getSeasonalContext(hometown);
+    const cachedHometown = getCache(patientId)?.hometown || '';
+    const seasonalContext = getSeasonalContext(cachedHometown);
 
     // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
-    if (isFirstMessage && isMorningSession(hometown)) {
+    if (isFirstMessage && isMorningSession(cachedHometown)) {
       // Morning music
       if (favoriteSongs || favoriteArtists) {
         const cache = getCache(patientId);
