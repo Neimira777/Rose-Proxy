@@ -24,9 +24,10 @@ function isCacheValid(patientId) {
 // ─────────────────────────────────────────────
 //  Seasonal + holiday context
 // ─────────────────────────────────────────────
-function getSeasonalContext() {
+function getSeasonalContext(hometown) {
+  const { monthName, dayName, dayNum, full, timeOfDay } = getLocalDateTime(hometown);
   const now = new Date();
-  const month = now.getMonth() + 1; // 1-12
+  const month = now.getMonth() + 1;
   const day = now.getDate();
 
   // Determine season
@@ -72,7 +73,11 @@ function getSeasonalContext() {
     winter: "It's winter — cozy indoors, holiday season, New Year's. Great topics: Christmas memories, holiday traditions, winter foods, family visits."
   };
 
-  let context = `SEASONAL CONTEXT:
+  let context = `DATE & TIME CONTEXT:
+Today is ${full}. It is currently ${timeOfDay} for the patient.
+IMPORTANT: On the FIRST message of each session, naturally weave in the day and date — never as a quiz or reminder, just warmly in passing. For example: 'Good ${timeOfDay} — it's a lovely ${dayName}.' or 'Can you believe it's already ${monthName} ${dayNum}?'
+
+SEASONAL CONTEXT:
 It is currently ${season}. ${seasonPrompts[season]}`;
 
   if (upcoming.length > 0) {
@@ -89,10 +94,73 @@ It is currently ${season}. ${seasonPrompts[season]}`;
 }
 
 // ─────────────────────────────────────────────
-//  Morning music detection
+//  Timezone detection from Hometown
 // ─────────────────────────────────────────────
-function isMorningSession() {
-  const hour = new Date().getHours();
+function getTimezoneFromHometown(hometown) {
+  if (!hometown) return 'America/New_York';
+  const h = hometown.toLowerCase();
+
+  // Pacific
+  if (h.includes('los angeles') || h.includes('san francisco') || h.includes('seattle') ||
+      h.includes('portland') || h.includes('san diego') || h.includes('las vegas') ||
+      h.includes('phoenix') || h.includes('california') || h.includes('washington') ||
+      h.includes('oregon') || h.includes('nevada') || h.includes('arizona')) {
+    return h.includes('arizona') || h.includes('phoenix') ? 'America/Phoenix' : 'America/Los_Angeles';
+  }
+
+  // Mountain
+  if (h.includes('denver') || h.includes('salt lake') || h.includes('albuquerque') ||
+      h.includes('colorado') || h.includes('utah') || h.includes('new mexico') ||
+      h.includes('montana') || h.includes('wyoming') || h.includes('idaho')) {
+    return 'America/Denver';
+  }
+
+  // Central
+  if (h.includes('chicago') || h.includes('dallas') || h.includes('houston') ||
+      h.includes('minneapolis') || h.includes('kansas city') || h.includes('new orleans') ||
+      h.includes('nashville') || h.includes('memphis') || h.includes('oklahoma') ||
+      h.includes('texas') || h.includes('illinois') || h.includes('minnesota') ||
+      h.includes('missouri') || h.includes('louisiana') || h.includes('tennessee') ||
+      h.includes('wisconsin') || h.includes('iowa') || h.includes('arkansas')) {
+    return 'America/Chicago';
+  }
+
+  // Default Eastern
+  return 'America/New_York';
+}
+
+function getLocalDateTime(hometown) {
+  const timezone = getTimezoneFromHometown(hometown);
+  const now = new Date();
+
+  const localDate = new Date(now.toLocaleString('en-US', { timeZone: timezone }));
+
+  const dayName = localDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone });
+  const monthName = localDate.toLocaleDateString('en-US', { month: 'long', timeZone: timezone });
+  const dayNum = localDate.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone });
+  const hour = localDate.getHours();
+
+  let timeOfDay = '';
+  if (hour >= 5 && hour < 12) timeOfDay = 'morning';
+  else if (hour >= 12 && hour < 17) timeOfDay = 'afternoon';
+  else if (hour >= 17 && hour < 21) timeOfDay = 'evening';
+  else timeOfDay = 'night';
+
+  return {
+    dayName,       // e.g. "Tuesday"
+    monthName,     // e.g. "June"
+    dayNum,        // e.g. "3"
+    hour,
+    timeOfDay,     // morning / afternoon / evening / night
+    full: `${dayName}, ${monthName} ${dayNum}`  // e.g. "Tuesday, June 3"
+  };
+}
+
+// ─────────────────────────────────────────────
+//  Morning music detection (uses local time)
+// ─────────────────────────────────────────────
+function isMorningSession(hometown) {
+  const { hour } = getLocalDateTime(hometown);
   return hour >= 6 && hour <= 11;
 }
 
@@ -394,6 +462,7 @@ export default async function handler(req, res) {
       favoriteArtists = cache.favoriteArtists;
       morningPlaylist = cache.morningPlaylist;
       sportsContext = cache.sportsContext;
+      const hometown = cache.hometown || '';
       console.log(`Cache hit for patient ${patientId}`);
     } else {
       console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
@@ -412,6 +481,7 @@ export default async function handler(req, res) {
           favoriteTeamsRaw = f['Favorite Teams'] || '';
           favoriteSongs = f['Favorite Songs'] || '';
           favoriteArtists = f['Favorite Artists'] || '';
+          const hometown = f['Hometown'] || '';
           const favoriteColors = f['Favorite Colors'] || '';
           const favoriteClothing = f['Favorite Clothing'] || '';
           const dressingNotes = f['Dressing Notes'] || '';
@@ -466,16 +536,18 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteSongs,
         favoriteArtists,
         morningPlaylist,
+        hometown,
         sportsContext
       });
     }
 
     // ── 2. Seasonal context (always fresh — cheap to compute) ──
-    const seasonalContext = getSeasonalContext();
+    const hometown = patientProfile ? (getCache(patientId)?.hometown || '') : '';
+    const seasonalContext = getSeasonalContext(hometown);
 
     // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
-    if (isFirstMessage && isMorningSession()) {
+    if (isFirstMessage && isMorningSession(hometown)) {
       // Morning music
       if (favoriteSongs || favoriteArtists) {
         const cache = getCache(patientId);
