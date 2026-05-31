@@ -452,6 +452,7 @@ export default async function handler(req, res) {
     let favoriteArtists = '';
     let morningPlaylist = '';
     let sportsContext = '';
+    let hometown = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
@@ -462,7 +463,7 @@ export default async function handler(req, res) {
       favoriteArtists = cache.favoriteArtists;
       morningPlaylist = cache.morningPlaylist;
       sportsContext = cache.sportsContext;
-      let _hometown = cache.hometown || '';
+      hometown = cache.hometown || '';
       console.log(`Cache hit for patient ${patientId}`);
     } else {
       console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
@@ -481,7 +482,7 @@ export default async function handler(req, res) {
           favoriteTeamsRaw = f['Favorite Teams'] || '';
           favoriteSongs = f['Favorite Songs'] || '';
           favoriteArtists = f['Favorite Artists'] || '';
-          let _hometown = f['Hometown'] || '';
+          hometown = f['Hometown'] || '';
           const favoriteColors = f['Favorite Colors'] || '';
           const favoriteClothing = f['Favorite Clothing'] || '';
           const dressingNotes = f['Dressing Notes'] || '';
@@ -536,18 +537,17 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteSongs,
         favoriteArtists,
         morningPlaylist,
-        hometown: _hometown,
+        hometown,
         sportsContext
       });
     }
 
     // ── 2. Seasonal context (always fresh — cheap to compute) ──
-    const cachedHometown = getCache(patientId)?.hometown || '';
-    const seasonalContext = getSeasonalContext(cachedHometown);
+    const seasonalContext = getSeasonalContext(hometown);
 
     // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
-    if (isFirstMessage && isMorningSession(cachedHometown)) {
+    if (isFirstMessage && isMorningSession(hometown)) {
       // Morning music
       if (favoriteSongs || favoriteArtists) {
         const cache = getCache(patientId);
