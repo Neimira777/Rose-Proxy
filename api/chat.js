@@ -147,12 +147,12 @@ function getLocalDateTime(hometown) {
   else timeOfDay = 'night';
 
   return {
-    dayName,       // e.g. "Tuesday"
-    monthName,     // e.g. "June"
-    dayNum,        // e.g. "3"
+    dayName,
+    monthName,
+    dayNum,
     hour,
-    timeOfDay,     // morning / afternoon / evening / night
-    full: `${dayName}, ${monthName} ${dayNum}`  // e.g. "Tuesday, June 3"
+    timeOfDay,
+    full: `${dayName}, ${monthName} ${dayNum}`
   };
 }
 
@@ -453,6 +453,7 @@ export default async function handler(req, res) {
     let morningPlaylist = '';
     let sportsContext = '';
     let hometown = '';
+    let photoContext = '';  // ← NEW
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
@@ -464,11 +465,11 @@ export default async function handler(req, res) {
       morningPlaylist = cache.morningPlaylist;
       sportsContext = cache.sportsContext;
       hometown = cache.hometown || '';
+      photoContext = cache.photoContext || '';  // ← NEW
       console.log(`Cache hit for patient ${patientId}`);
     } else {
       console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
 
-      // Fetch patient profile
       if (patientId) {
         try {
           const airtableRes = await fetch(
@@ -487,6 +488,15 @@ export default async function handler(req, res) {
           const favoriteClothing = f['Favorite Clothing'] || '';
           const dressingNotes = f['Dressing Notes'] || '';
           morningPlaylist = f['Morning Playlist'] || '';
+
+          // ── NEW: Photo context ──
+          const photoLabels = f['Photo Labels'] || '';
+          const attachments = f['Family Photos'] || [];
+          if (photoLabels && attachments.length > 0) {
+            photoContext = `FAMILY PHOTOS:
+The patient has ${attachments.length} family photo(s) on file. The people in these photos are: ${photoLabels}.
+Use this information to ask warm, personal questions about their family members — for example, "I love that photo of your daughter Sara — what is she up to these days?" Reference family members by name naturally over the course of the conversation. Never mention the photos directly as if reading from a list.`;
+          }
 
           patientProfile = `
 PATIENT PROFILE:
@@ -526,10 +536,8 @@ Additional notes: ${f['Additional Notes'] || ''}
         }
       }
 
-      // Fetch sports data
       sportsContext = await buildSportsContext(favoriteTeamsRaw);
 
-      // Save to cache
       setCache(patientId, {
         patientProfile,
         greetingName,
@@ -538,17 +546,17 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteArtists,
         morningPlaylist,
         hometown,
-        sportsContext
+        sportsContext,
+        photoContext  // ← NEW
       });
     }
 
-    // ── 2. Seasonal context (always fresh — cheap to compute) ──
+    // ── 2. Seasonal context (always fresh) ──
     const seasonalContext = getSeasonalContext(hometown);
 
     // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
     if (isFirstMessage && isMorningSession(hometown)) {
-      // Morning music
       if (favoriteSongs || favoriteArtists) {
         const cache = getCache(patientId);
         const morningPlaylistRaw = cache?.morningPlaylist || favoriteSongs;
@@ -559,7 +567,6 @@ Additional notes: ${f['Additional Notes'] || ''}
         }
       }
 
-      // Morning clothing/weather reminder
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Use your web search tool to check today's weather for the patient's Hometown. Then very naturally and warmly — in one sentence — weave in a gentle suggestion about what to wear today. Reference their Favorite Colors and Favorite Clothing items specifically. For example: "It's a bit chilly out today — perfect weather for that green cardigan you love." Never make it sound like a reminder or instruction — just a warm, caring observation from a friend.`;
     }
 
@@ -595,6 +602,7 @@ Make whoever you're speaking with feel like the most interesting person in the r
 
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Reference their family, memories, music, sports teams, and interests naturally — never all at once, but weave them in warmly over time. Never reveal that you are reading from a profile.` : ''}
+${photoContext ? `\n${photoContext}` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${sportsContext ? `\n${sportsContext}` : ''}`;
@@ -603,7 +611,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
     const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
-    // ── 7. Check for PLAY_MUSIC signal and post to music queue ──
+    // ── 7. Check for PLAY_MUSIC signal ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
       const musicQuery = musicMatch[1].trim();
