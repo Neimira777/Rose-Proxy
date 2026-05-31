@@ -2,25 +2,38 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  const { id } = req.query || {};
+
   try {
+    // ── Single patient fetch (for gender lookup) ──
+    if (id) {
+      const airtableRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${id}`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const data = await airtableRes.json();
+      return res.status(200).json({
+        id: data.id,
+        name: data.fields['Preferred Name'] || data.fields['Patient Full Name'] || '',
+        gender: data.fields['Gender'] || 'Female'
+      });
+    }
+
+    // ── All patients fetch ──
     const airtableRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
-      {
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`
-        }
-      }
+      { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
     );
     const data = await airtableRes.json();
     const patients = data.records
       .map(record => ({
         id: record.id,
-        name: record.fields['Preferred Name'] || record.fields['Patient Full Name'] || ''
+        name: record.fields['Preferred Name'] || record.fields['Patient Full Name'] || '',
+        gender: record.fields['Gender'] || 'Female'
       }))
-      .filter(patient => patient.name.trim() !== ''); // skip empty records
+      .filter(patient => patient.name.trim() !== '');
 
     return res.status(200).json({ patients });
   } catch (error) {
