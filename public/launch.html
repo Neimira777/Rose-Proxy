@@ -199,7 +199,7 @@
     }
     .load-link:hover { color: var(--cyan); }
 
-    /* ── ROSE SCREEN ── */
+    /* ── JIM SCREEN ── */
     #roseScreen {
       background: #000;
     }
@@ -436,11 +436,13 @@
     }
     .music-ctrl.play:hover { background: #22c55e; }
 
-    /* D-ID widget hidden */
+    /* D-ID widget — visible and positioned full screen */
     [data-name="did-agent"] {
-      display: none !important;
-      opacity: 0 !important;
-      pointer-events: none !important;
+      position: fixed !important;
+      inset: 0 !important;
+      width: 100vw !important;
+      height: 100vh !important;
+      z-index: 2 !important;
     }
 
     .loading-text {
@@ -477,7 +479,7 @@
     </button>
   </div>
 
-  <!-- ── ROSE SCREEN ── -->
+  <!-- ── JIM SCREEN ── -->
   <div class="screen hidden" id="roseScreen">
     <video id="roseVideo" autoplay playsinline muted></video>
     <div class="vignette"></div>
@@ -522,24 +524,30 @@
     </div>
   </div>
 
-  <!-- D-ID widget (hidden — used for session only) -->
-  <script type="module"
-    src="https://agent.d-id.com/v2/index.js"
-    data-mode="fabio"
-    data-client-key="ck_-MqtRhwe5B0Gqmpm3oow5"
-    data-agent-id="v2_agt_LZBI4lcW"
-    data-name="did-agent"
-    data-monitor="true"
-    data-orientation="horizontal"
-    data-position="right"
-    data-open-mode="expanded">
+  <!-- ── Rose's agent ID hardcoded — D-ID script loads Rose directly ── -->
+  <script>
+    document.write('<scr' + 'ipt type="module" ' +
+      'src="https://agent.d-id.com/v2/index.js" ' +
+      'data-mode="fabio" ' +
+      'data-client-key="ck_-MqtRhwe5B0Gqmpm3oow5" ' +
+      'data-agent-id="v2_agt_LZBI4lcW" ' +
+      'data-name="did-agent" ' +
+      'data-monitor="true" ' +
+      'data-orientation="horizontal" ' +
+      'data-position="right" ' +
+      'data-open-mode="expanded"><\/scr' + 'ipt>');
   </script>
 
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
   <script>
     // ── State ──
-    let currentPatientId = null;
+    const _urlParams = new URLSearchParams(window.location.search);
+    let currentPatientId = _urlParams.get('patient') || null;
+
+    // ── FIX 2: Auto-launch block REMOVED — no more redirect loop ──
+    // User clicks the widget manually; no window.addEventListener('load', ...) here.
+
     let spotifyPlayer = null;
     let spotifyDeviceId = null;
     let isPlaying = false;
@@ -580,9 +588,9 @@
         if (!data.access_token) { console.log('No Spotify token'); return; }
 
         spotifyPlayer = new Spotify.Player({
-          name: 'Rose — Neimira',
+          name: 'Neimira — Companion',
           getOAuthToken: cb => cb(data.access_token),
-          volume: 0.35 // start at 35% — background music level
+          volume: 0.35
         });
 
         spotifyPlayer.addListener('ready', ({ device_id }) => {
@@ -610,14 +618,14 @@
 
     // ── Audio ducking ──
     function duckMusic() {
-      if (spotifyPlayer) spotifyPlayer.setVolume(0.1); // fade to 10% when Rose speaks
+      if (spotifyPlayer) spotifyPlayer.setVolume(0.1);
     }
 
     function restoreMusic() {
-      if (spotifyPlayer) spotifyPlayer.setVolume(0.35); // restore to 35% when Rose finishes
+      if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
     }
 
-    // ── Play by search ──
+    // ── Play by search (with artist variety) ──
     async function spotifyPlayBySearch(query) {
       try {
         const tokenRes = await fetch('https://rose-proxy.vercel.app/api/spotify-token', {
@@ -629,13 +637,41 @@
         const access_token = tokenData.access_token;
         if (!access_token) return;
 
-        const searchRes = await fetch(
-          'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=track&limit=1',
+        let uri = null;
+
+        const artistRes = await fetch(
+          'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=artist&limit=1',
           { headers: { 'Authorization': 'Bearer ' + access_token } }
         );
-        const searchData = await searchRes.json();
-        const uri = searchData.tracks?.items?.[0]?.uri;
-        if (!uri) { console.log('No track found:', query); return; }
+        const artistData = await artistRes.json();
+        const artist = artistData.artists?.items?.[0];
+
+        if (artist) {
+          const topTracksRes = await fetch(
+            'https://api.spotify.com/v1/artists/' + artist.id + '/top-tracks?market=US',
+            { headers: { 'Authorization': 'Bearer ' + access_token } }
+          );
+          const topTracksData = await topTracksRes.json();
+          const tracks = topTracksData.tracks || [];
+          if (tracks.length > 0) {
+            const randomTrack = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))];
+            uri = randomTrack.uri;
+            console.log('Playing artist track:', randomTrack.name, 'by', artist.name);
+          }
+        }
+
+        if (!uri) {
+          const searchRes = await fetch(
+            'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=track&limit=5',
+            { headers: { 'Authorization': 'Bearer ' + access_token } }
+          );
+          const searchData = await searchRes.json();
+          const tracks = searchData.tracks?.items || [];
+          if (tracks.length === 0) { console.log('No track found:', query); return; }
+          const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
+          uri = randomTrack.uri;
+          console.log('Playing track:', randomTrack.name);
+        }
 
         await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
           method: 'PUT',
@@ -643,7 +679,6 @@
           body: JSON.stringify({ uris: [uri] })
         });
 
-        console.log('Playing:', query);
       } catch (e) {
         console.error('Spotify play error:', e);
       }
@@ -669,7 +704,7 @@
     function spotifyNext() { if (spotifyPlayer) spotifyPlayer.nextTrack(); }
     function spotifyPrevious() { if (spotifyPlayer) spotifyPlayer.previousTrack(); }
 
-    // ── Send message to Rose (chat.js) ──
+    // ── Send message to Jim (chat.js) ──
     async function sendToRose(userText) {
       try {
         conversationHistory.push({ role: 'user', content: userText });
@@ -685,9 +720,7 @@
         const data = await res.json();
         const reply = data.content || '';
 
-        // Strip PLAY_MUSIC signal from spoken text
         const spokenReply = reply.replace(/PLAY_MUSIC:[^\n]+/g, '').trim();
-
         conversationHistory.push({ role: 'assistant', content: reply });
 
         return spokenReply;
@@ -696,8 +729,6 @@
         return '';
       }
     }
-
-    // Browser TTS removed — D-ID handles all voice output
 
     // ── State indicators ──
     function setRoseSpeaking(speaking) {
@@ -733,8 +764,6 @@
         const transcript = event.results[0][0].transcript;
         console.log('Patient said:', transcript);
         setListening(false);
-        // Send to chat.js for music queue detection only
-        // D-ID handles the actual voice response
         await sendToRose(transcript);
       };
 
@@ -759,10 +788,7 @@
     }
 
     // ── Auto-greeting ──
-    // Browser TTS disabled — D-ID handles voice
     async function autoGreet() {
-      // Just send to chat.js to prime the session cache
-      // D-ID handles the actual greeting via its own session
       await sendToRose('Hello');
     }
 
@@ -787,7 +813,10 @@
       }
     }
 
-    // ── Launch Rose ──
+    // ── FIX 3: loadDIDAgent REMOVED — Jim's page always uses Jim's agent ──
+    // No redirect logic. No gender check. No loop possible.
+
+    // ── Launch Jim ──
     async function launchRose(patientId) {
       currentPatientId = patientId;
       conversationHistory = [];
@@ -797,8 +826,7 @@
       startMusicQueuePolling(patientId);
       setupSpeechRecognition();
 
-      // Auto-greet after short delay
-      setTimeout(() => autoGreet(), 800);
+      setTimeout(() => autoGreet(), 1500);
     }
 
     // ── End session ──
