@@ -25,7 +25,7 @@ function isCacheValid(patientId) {
 //  Seasonal + holiday context
 // ─────────────────────────────────────────────
 function getSeasonalContext(hometown) {
-  const { monthName, dayName, dayNum, full, timeOfDay } = getLocalDateTime(hometown);
+  const { monthName, dayName, dayNum, year, full, timeOfDay } = getLocalDateTime(hometown);
   const now = new Date();
   const month = now.getMonth() + 1;
   const day = now.getDate();
@@ -75,7 +75,7 @@ function getSeasonalContext(hometown) {
 
   let context = `DATE & TIME CONTEXT:
 Today is ${full}. It is currently ${timeOfDay} for the patient.
-IMPORTANT: On the FIRST message of each session, naturally weave in the day and date — never as a quiz or reminder, just warmly in passing. For example: 'Good ${timeOfDay} — it's a lovely ${dayName}.' or 'Can you believe it's already ${monthName} ${dayNum}?'
+IMPORTANT: On the FIRST message of each session, naturally weave in the day, date, AND year — never as a quiz or reminder, just warmly in passing. For example: 'Good ${timeOfDay} — it's a lovely ${dayName}.' or 'Can you believe it's already ${monthName} ${dayNum}, ${year}?'
 
 SEASONAL CONTEXT:
 It is currently ${season}. ${seasonPrompts[season]}`;
@@ -138,6 +138,7 @@ function getLocalDateTime(hometown) {
   const dayName = localDate.toLocaleDateString('en-US', { weekday: 'long', timeZone: timezone });
   const monthName = localDate.toLocaleDateString('en-US', { month: 'long', timeZone: timezone });
   const dayNum = localDate.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone });
+  const year = localDate.toLocaleDateString('en-US', { year: 'numeric', timeZone: timezone });
   const hour = localDate.getHours();
 
   let timeOfDay = '';
@@ -150,9 +151,10 @@ function getLocalDateTime(hometown) {
     dayName,
     monthName,
     dayNum,
+    year,
     hour,
     timeOfDay,
-    full: `${dayName}, ${monthName} ${dayNum}`
+    full: `${dayName}, ${monthName} ${dayNum}, ${year}`
   };
 }
 
@@ -450,10 +452,12 @@ export default async function handler(req, res) {
     let favoriteTeamsRaw = '';
     let favoriteSongs = '';
     let favoriteArtists = '';
+    let musicToAvoid = '';
     let morningPlaylist = '';
+    let musicMemories = '';
     let sportsContext = '';
     let hometown = '';
-    let photoContext = '';  // ← NEW
+    let photoContext = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
@@ -462,10 +466,12 @@ export default async function handler(req, res) {
       favoriteTeamsRaw = cache.favoriteTeamsRaw;
       favoriteSongs = cache.favoriteSongs;
       favoriteArtists = cache.favoriteArtists;
+      musicToAvoid = cache.musicToAvoid || '';
       morningPlaylist = cache.morningPlaylist;
+      musicMemories = cache.musicMemories || '';
       sportsContext = cache.sportsContext;
       hometown = cache.hometown || '';
-      photoContext = cache.photoContext || '';  // ← NEW
+      photoContext = cache.photoContext || '';
       console.log(`Cache hit for patient ${patientId}`);
     } else {
       console.log(`Cache miss for patient ${patientId} — fetching fresh data`);
@@ -483,13 +489,15 @@ export default async function handler(req, res) {
           favoriteTeamsRaw = f['Favorite Teams'] || '';
           favoriteSongs = f['Favorite Songs'] || '';
           favoriteArtists = f['Favorite Artists'] || '';
+          musicToAvoid = f['Music to Avoid'] || '';
+          musicMemories = f['Music Memories'] || '';
           hometown = f['Hometown'] || '';
           const favoriteColors = f['Favorite Colors'] || '';
           const favoriteClothing = f['Favorite Clothing'] || '';
           const dressingNotes = f['Dressing Notes'] || '';
           morningPlaylist = f['Morning Playlist'] || '';
 
-          // ── NEW: Photo context ──
+          // ── Photo context ──
           const photoLabels = f['Photo Labels'] || '';
           const attachments = f['Family Photos'] || [];
           if (photoLabels && attachments.length > 0) {
@@ -512,11 +520,12 @@ Places lived: ${f['Places Lived'] || ''}
 Special memories: ${f['Special Memories'] || ''}
 Faith: ${f['Faith'] || ''}
 Favorite topics: ${f['Favorite Topics'] || ''}
-Favorite Artists: ${f['Favorite Artists'] || ''}
-Favorite Songs: ${f['Favorite Songs'] || ''}
+Favorite Artists: ${favoriteArtists}
+Favorite Songs: ${favoriteSongs}
 Favorite Genre: ${f['Favorite Genre'] || ''}
 Favorite Era: ${f['Favorite Era'] || ''}
-Music Memories: ${f['Music Memories'] || ''}
+Music Memories: ${musicMemories}
+Music to Avoid: ${musicToAvoid}
 Morning Playlist: ${morningPlaylist}
 Favorite Colors: ${favoriteColors}
 Favorite Clothing: ${favoriteClothing}
@@ -544,10 +553,12 @@ Additional notes: ${f['Additional Notes'] || ''}
         favoriteTeamsRaw,
         favoriteSongs,
         favoriteArtists,
+        musicToAvoid,
+        musicMemories,
         morningPlaylist,
         hometown,
         sportsContext,
-        photoContext  // ← NEW
+        photoContext
       });
     }
 
@@ -557,10 +568,9 @@ Additional notes: ${f['Additional Notes'] || ''}
     // ── 3. Morning music + clothing trigger ──
     let morningMusicInstruction = '';
     if (isFirstMessage && isMorningSession(hometown)) {
-      if (favoriteSongs || favoriteArtists) {
-        const cache = getCache(patientId);
-        const morningPlaylistRaw = cache?.morningPlaylist || favoriteSongs;
-        const songs = morningPlaylistRaw.split(',').map(s => s.trim()).filter(Boolean);
+      if (morningPlaylist || favoriteSongs || favoriteArtists) {
+        const playlistSource = morningPlaylist || favoriteSongs;
+        const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
         if (randomSong) {
           morningMusicInstruction += `\nMORNING MUSIC: Start this session with music. Early in your greeting naturally say something like "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${randomSong}" in your response.`;
@@ -570,7 +580,17 @@ Additional notes: ${f['Additional Notes'] || ''}
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Use your web search tool to check today's weather for the patient's Hometown. Then very naturally and warmly — in one sentence — weave in a gentle suggestion about what to wear today. Reference their Favorite Colors and Favorite Clothing items specifically. For example: "It's a bit chilly out today — perfect weather for that green cardigan you love." Never make it sound like a reminder or instruction — just a warm, caring observation from a friend.`;
     }
 
-    // ── 4. Rotating greetings ──
+    // ── 4. Music guidance ──
+    let musicGuidance = '';
+    if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
+      musicGuidance = `\nMUSIC GUIDANCE:
+The patient loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.
+${musicMemories ? `Music memories to weave in naturally: ${musicMemories}` : ''}
+${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}
+When music comes up in conversation, reference their specific artists and songs warmly and personally. If they ask to hear music, include "PLAY_MUSIC:" followed by the artist or song name.`;
+    }
+
+    // ── 5. Rotating greetings ──
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -581,7 +601,7 @@ Additional notes: ${f['Additional Notes'] || ''}
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
-    // ── 5. Assemble system prompt ──
+    // ── 6. Assemble system prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
 How you speak:
@@ -605,13 +625,14 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
 ${photoContext ? `\n${photoContext}` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
+${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sportsContext ? `\n${sportsContext}` : ''}`;
 
-    // ── 6. Call Claude ──
+    // ── 7. Call Claude ──
     const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
-    // ── 7. Check for PLAY_MUSIC signal ──
+    // ── 8. Check for PLAY_MUSIC signal ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
       const musicQuery = musicMatch[1].trim();
