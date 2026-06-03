@@ -12,20 +12,16 @@ export default async function handler(req, res) {
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
       );
       const data = await airtableRes.json();
-
-      // Extract photo URLs from Airtable attachment field
       const attachments = data.fields['Family Photos'] || [];
       const photoUrls = attachments.map(a => a.url);
-
       return res.status(200).json({
         id: data.id,
         name: data.fields['Preferred Name'] || data.fields['Patient Full Name'] || '',
-        gender: data.fields['Gender'] || 'Female',
+        preferredCompanion: data.fields['Preferred Companion'] || 'Rose',
         photoUrls,
         photoLabels: data.fields['Photo Labels'] || ''
       });
     }
-
     // ── All patients fetch ──
     const airtableRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
@@ -36,7 +32,7 @@ export default async function handler(req, res) {
       .map(record => ({
         id: record.id,
         name: record.fields['Preferred Name'] || record.fields['Patient Full Name'] || '',
-        gender: record.fields['Gender'] || 'Female'
+        preferredCompanion: record.fields['Preferred Companion'] || 'Rose'
       }))
       .filter(patient => patient.name.trim() !== '');
     return res.status(200).json({ patients });
