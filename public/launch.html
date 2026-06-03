@@ -721,6 +721,7 @@
       await sendToRose('Hello');
     }
 
+    // ── Load patients from Airtable ──
     async function loadPatients() {
       document.getElementById('loadLink').style.display = 'none';
       const list = document.getElementById('patientList');
@@ -733,7 +734,7 @@
           const btn = document.createElement('button');
           btn.className = 'patient-btn';
           btn.textContent = patient.name;
-          btn.onclick = () => launchCompanion(patient.id, patient.gender);
+          btn.onclick = () => launchCompanion(patient.id, patient.preferredCompanion);
           list.appendChild(btn);
         });
       } catch (e) {
@@ -741,27 +742,26 @@
       }
     }
 
-    // ── ROUTING: check gender, send male patients to Jim ──
-    async function launchCompanion(patientId, gender) {
-      // If gender not passed, fetch from Airtable
-      if (!gender) {
+    // ── ROUTING: check Preferred Companion field, send Jim patients to Jim's page ──
+    async function launchCompanion(patientId, preferredCompanion) {
+      // If preferredCompanion not passed, fetch from Airtable
+      if (!preferredCompanion) {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/patients?id=' + patientId);
           const data = await res.json();
-          gender = data.gender || 'Female';
+          preferredCompanion = data.preferredCompanion || 'Rose';
         } catch(e) {
-          gender = 'Female';
+          preferredCompanion = 'Rose';
         }
       }
 
-      const isMale = gender && gender.toLowerCase().trim() === 'male';
-      if (isMale) {
-        // Redirect to Jim's page
+      const isJim = preferredCompanion && preferredCompanion.trim() === 'Jim';
+      if (isJim) {
         window.location.href = 'launch-jim.html?patient=' + patientId;
         return;
       }
 
-      // Female — launch Rose on this page
+      // Rose — launch on this page
       currentPatientId = patientId;
       conversationHistory = [];
       showRoseScreen();
