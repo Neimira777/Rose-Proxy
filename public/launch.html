@@ -507,8 +507,12 @@
         liveAvatarSession.on('listening', () => setListening(true));
         liveAvatarSession.on('idle', () => { setSpeaking(false); setListening(false); });
 
-        // 5. Start
-        await liveAvatarSession.start();
+        // 5. Start — SDK may throw even on success, so we catch and continue
+        try {
+          await liveAvatarSession.start();
+        } catch (startErr) {
+          console.warn('session.start() threw (may be harmless):', startErr?.message);
+        }
 
         showLoading(false);
         showRoseScreen();
