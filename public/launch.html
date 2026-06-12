@@ -196,6 +196,7 @@
     }
     .load-link:hover { color: var(--cyan); }
 
+    /* ── Rose Screen ── */
     #roseScreen { background: #000; }
 
     #roseVideo {
@@ -255,7 +256,8 @@
       color: white;
     }
 
-    .listen-indicator {
+    /* ── Status indicator ── */
+    .status-indicator {
       position: fixed;
       bottom: 100px;
       left: 50%;
@@ -268,7 +270,8 @@
       opacity: 0;
       transition: opacity 0.4s ease;
     }
-    .listen-indicator.active { opacity: 1; }
+    .status-indicator.active { opacity: 1; }
+
     .listen-rings {
       position: relative;
       width: 60px;
@@ -301,27 +304,13 @@
       font-size: 14px;
       z-index: 1;
     }
-    .listen-label {
+    .status-label {
       font-size: 11px;
       letter-spacing: 3px;
       text-transform: uppercase;
       color: var(--cyan);
     }
 
-    .speaking-indicator {
-      position: fixed;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      opacity: 0;
-      transition: opacity 0.4s ease;
-    }
-    .speaking-indicator.active { opacity: 1; }
     .sound-bars {
       display: flex;
       align-items: flex-end;
@@ -343,13 +332,43 @@
       from { transform: scaleY(0.4); opacity: 0.6; }
       to { transform: scaleY(1); opacity: 1; }
     }
-    .speaking-label {
-      font-size: 11px;
+
+    /* ── Loading overlay ── */
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 20;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.4s ease;
+    }
+    #loadingOverlay.active {
+      opacity: 1;
+      pointer-events: all;
+    }
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(0,188,212,0.2);
+      border-top-color: var(--cyan);
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-msg {
+      font-size: 13px;
       letter-spacing: 3px;
       text-transform: uppercase;
       color: var(--cyan);
     }
 
+    /* ── Music bar ── */
     #musicBar {
       position: fixed;
       bottom: 0;
@@ -417,14 +436,6 @@
     }
     .music-ctrl.play:hover { background: #22c55e; }
 
-    [data-name="did-agent"] {
-      position: fixed !important;
-      inset: 0 !important;
-      width: 100vw !important;
-      height: 100vh !important;
-      z-index: 2 !important;
-    }
-
     .loading-text {
       color: var(--text-muted);
       font-size: 13px;
@@ -435,6 +446,12 @@
 <body>
 
   <div class="ambient"></div>
+
+  <!-- ── LOADING OVERLAY ── -->
+  <div id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-msg">Connecting to Rose…</div>
+  </div>
 
   <!-- ── SELECTION SCREEN ── -->
   <div class="screen" id="selectionScreen">
@@ -461,7 +478,7 @@
 
   <!-- ── ROSE SCREEN ── -->
   <div class="screen hidden" id="roseScreen">
-    <video id="roseVideo" autoplay playsinline muted></video>
+    <video id="roseVideo" autoplay playsinline></video>
     <div class="vignette"></div>
 
     <div class="rose-topbar">
@@ -469,17 +486,19 @@
       <button class="end-btn" onclick="endSession()">End Visit</button>
     </div>
 
-    <div class="listen-indicator" id="listenIndicator">
+    <!-- Listening indicator -->
+    <div class="status-indicator" id="listenIndicator">
       <div class="listen-rings">
         <div class="listen-ring"></div>
         <div class="listen-ring"></div>
         <div class="listen-ring"></div>
         <div class="mic-icon">🎤</div>
       </div>
-      <div class="listen-label">Listening</div>
+      <div class="status-label">Listening</div>
     </div>
 
-    <div class="speaking-indicator" id="speakingIndicator">
+    <!-- Speaking indicator -->
+    <div class="status-indicator" id="speakingIndicator">
       <div class="sound-bars">
         <div class="sound-bar"></div>
         <div class="sound-bar"></div>
@@ -487,7 +506,7 @@
         <div class="sound-bar"></div>
         <div class="sound-bar"></div>
       </div>
-      <div class="speaking-label">Rose is speaking</div>
+      <div class="status-label">Rose is speaking</div>
     </div>
 
     <div id="musicBar">
@@ -504,51 +523,49 @@
     </div>
   </div>
 
-  <!-- ── Rose's agent — hardcoded, always loads Rose ── -->
-  <script>
-    document.write('<scr' + 'ipt type="module" ' +
-      'src="https://agent.d-id.com/v2/index.js" ' +
-      'data-mode="fabio" ' +
-      'data-client-key="ck_-MqtRhwe5B0Gqmpm3oow5" ' +
-      'data-agent-id="v2_agt_LZBI4lcW" ' +
-      'data-name="did-agent" ' +
-      'data-monitor="true" ' +
-      'data-orientation="horizontal" ' +
-      'data-position="right" ' +
-      'data-open-mode="expanded"><\/scr' + 'ipt>');
-  </script>
-
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
-  <script>
+  <script type="module">
+    import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
+
+    // ── State ──
     const _urlParams = new URLSearchParams(window.location.search);
     let currentPatientId = _urlParams.get('patient') || null;
-
+    let liveAvatarSession = null;
     let spotifyPlayer = null;
     let spotifyDeviceId = null;
     let isPlaying = false;
     let musicPollInterval = null;
-    let recognition = null;
-    let isListening = false;
-    let isSpeaking = false;
-    let conversationHistory = [];
 
     window.speechSynthesis?.cancel();
 
+    // ── Spotify SDK ready ──
     window.onSpotifyWebPlaybackSDKReady = () => {
       console.log('Spotify SDK ready');
     };
 
+    // ── Screen helpers ──
     function showRoseScreen() {
       document.getElementById('selectionScreen').classList.add('hidden');
       document.getElementById('roseScreen').classList.remove('hidden');
     }
-
     function showSelectionScreen() {
       document.getElementById('roseScreen').classList.add('hidden');
       document.getElementById('selectionScreen').classList.remove('hidden');
     }
+    function showLoading(show) {
+      document.getElementById('loadingOverlay').classList.toggle('active', show);
+    }
+    function setListening(on) {
+      document.getElementById('listenIndicator').classList.toggle('active', on);
+      if (on) document.getElementById('speakingIndicator').classList.remove('active');
+    }
+    function setSpeaking(on) {
+      document.getElementById('speakingIndicator').classList.toggle('active', on);
+      if (on) document.getElementById('listenIndicator').classList.remove('active');
+    }
 
+    // ── Spotify ──
     async function initSpotify(patientId) {
       try {
         const res = await fetch('https://rose-proxy.vercel.app/api/spotify-token', {
@@ -586,9 +603,6 @@
         console.error('Spotify init error:', e);
       }
     }
-
-    function duckMusic() { if (spotifyPlayer) spotifyPlayer.setVolume(0.1); }
-    function restoreMusic() { if (spotifyPlayer) spotifyPlayer.setVolume(0.35); }
 
     async function spotifyPlayBySearch(query) {
       try {
@@ -656,73 +670,12 @@
       }, 2000);
     }
 
-    function spotifyPlayPause() { if (spotifyPlayer) spotifyPlayer.togglePlay(); }
-    function spotifyNext() { if (spotifyPlayer) spotifyPlayer.nextTrack(); }
-    function spotifyPrevious() { if (spotifyPlayer) spotifyPlayer.previousTrack(); }
+    window.spotifyPlayPause = () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); };
+    window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
+    window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
-    async function sendToRose(userText) {
-      try {
-        conversationHistory.push({ role: 'user', content: userText });
-        const res = await fetch('https://rose-proxy.vercel.app/api/chat', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: currentPatientId, messages: conversationHistory })
-        });
-        const data = await res.json();
-        const reply = data.content || '';
-        const spokenReply = reply.replace(/PLAY_MUSIC:[^\n]+/g, '').trim();
-        conversationHistory.push({ role: 'assistant', content: reply });
-        return spokenReply;
-      } catch (e) {
-        console.error('Chat error:', e);
-        return '';
-      }
-    }
-
-    function setRoseSpeaking(speaking) {
-      isSpeaking = speaking;
-      document.getElementById('speakingIndicator').classList.toggle('active', speaking);
-      document.getElementById('listenIndicator').classList.toggle('active', !speaking);
-    }
-
-    function setListening(listening) {
-      isListening = listening;
-      document.getElementById('listenIndicator').classList.toggle('active', listening && !isSpeaking);
-    }
-
-    function setupSpeechRecognition() {
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRecognition) return;
-
-      recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => setListening(true);
-      recognition.onresult = async (event) => {
-        const transcript = event.results[0][0].transcript;
-        setListening(false);
-        await sendToRose(transcript);
-      };
-      recognition.onerror = (e) => {
-        setListening(false);
-        if (e.error !== 'no-speech') setTimeout(() => startListening(), 1000);
-      };
-      recognition.onend = () => setListening(false);
-    }
-
-    function startListening() {
-      if (!recognition || isSpeaking) return;
-      try { recognition.start(); } catch (e) {}
-    }
-
-    async function autoGreet() {
-      await sendToRose('Hello');
-    }
-
-    // ── Load patients from Airtable ──
-    async function loadPatients() {
+    // ── Load patients ──
+    window.loadPatients = async function() {
       document.getElementById('loadLink').style.display = 'none';
       const list = document.getElementById('patientList');
       list.innerHTML = '<div class="loading-text">Loading...</div>';
@@ -734,17 +687,16 @@
           const btn = document.createElement('button');
           btn.className = 'patient-btn';
           btn.textContent = patient.name;
-          btn.onclick = () => launchCompanion(patient.id, patient.preferredCompanion);
+          btn.onclick = () => window.launchCompanion(patient.id, patient.preferredCompanion);
           list.appendChild(btn);
         });
       } catch (e) {
         list.innerHTML = '<div class="loading-text">Error loading patients.</div>';
       }
-    }
+    };
 
-    // ── ROUTING: check Preferred Companion field, send Jim patients to Jim's page ──
-    async function launchCompanion(patientId, preferredCompanion) {
-      // If preferredCompanion not passed, fetch from Airtable
+    // ── Companion routing ──
+    window.launchCompanion = async function(patientId, preferredCompanion) {
       if (!preferredCompanion) {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/patients?id=' + patientId);
@@ -755,28 +707,83 @@
         }
       }
 
-      const isJim = preferredCompanion && preferredCompanion.trim() === 'Jim';
-      if (isJim) {
+      if (preferredCompanion && preferredCompanion.trim() === 'Jim') {
         window.location.href = 'launch-jim.html?patient=' + patientId;
         return;
       }
 
-      // Rose — launch on this page
+      // ── Launch Rose via LiveAvatar ──
       currentPatientId = patientId;
-      conversationHistory = [];
-      showRoseScreen();
-      await initSpotify(patientId);
-      startMusicQueuePolling(patientId);
-      setupSpeechRecognition();
-      setTimeout(() => autoGreet(), 1500);
-    }
+      showLoading(true);
 
-    function endSession() {
-      if (recognition) recognition.stop();
+      try {
+        // 1. Get session token from our backend
+        const tokenRes = await fetch('https://rose-proxy.vercel.app/api/liveavatar-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId })
+        });
+        const tokenData = await tokenRes.json();
+
+        if (!tokenData.session_token) {
+          console.error('No session token:', tokenData);
+          showLoading(false);
+          alert('Could not connect to Rose. Please try again.');
+          return;
+        }
+
+        // 2. Create LiveAvatar session
+        liveAvatarSession = new LiveAvatarSession(tokenData.session_token, {
+          voiceChat: true
+        });
+
+        // 3. Wire up the video stream to our <video> element
+        liveAvatarSession.on('stream', (stream) => {
+          const video = document.getElementById('roseVideo');
+          video.srcObject = stream;
+          video.play();
+        });
+
+        // 4. Status events
+        liveAvatarSession.on('speaking', () => setSpeaking(true));
+        liveAvatarSession.on('listening', () => setListening(true));
+        liveAvatarSession.on('idle', () => {
+          setSpeaking(false);
+          setListening(false);
+        });
+
+        // 5. Start the session
+        await liveAvatarSession.start();
+
+        showLoading(false);
+        showRoseScreen();
+        setListening(true);
+
+        // 6. Start Spotify + music queue polling
+        await initSpotify(patientId);
+        startMusicQueuePolling(patientId);
+
+      } catch (err) {
+        console.error('LiveAvatar launch error:', err);
+        showLoading(false);
+        alert('Could not connect to Rose: ' + err.message);
+      }
+    };
+
+    // ── End session ──
+    window.endSession = async function() {
       if (musicPollInterval) clearInterval(musicPollInterval);
-      speechSynthesis.cancel();
+      if (liveAvatarSession) {
+        try { await liveAvatarSession.stop(); } catch(e) {}
+        liveAvatarSession = null;
+      }
+      const video = document.getElementById('roseVideo');
+      video.srcObject = null;
+      setSpeaking(false);
+      setListening(false);
       showSelectionScreen();
-    }
+    };
+
   </script>
 
 </body>
