@@ -327,7 +327,6 @@
     let musicPollInterval = null;
 
     window.speechSynthesis?.cancel();
-
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
 
     function showRoseScreen() {
@@ -359,7 +358,6 @@
         });
         const data = await res.json();
         if (!data.access_token) { console.log('No Spotify token'); return; }
-
         spotifyPlayer = new Spotify.Player({
           name: 'Neimira — Companion',
           getOAuthToken: cb => cb(data.access_token),
@@ -405,9 +403,7 @@
           );
           const topTracksData = await topTracksRes.json();
           const tracks = topTracksData.tracks || [];
-          if (tracks.length > 0) {
-            uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
-          }
+          if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
         }
         if (!uri) {
           const searchRes = await fetch(
@@ -497,31 +493,21 @@
         // 2. Create LiveAvatar session
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        // 3. Wire video — handle trackPublished event from LiveKit
+        // 3. Wire video using LiveKit track.attach()
         liveAvatarSession.on('trackPublished', (track) => {
           console.log('trackPublished:', track?.kind, track);
-          if (track?.kind === 'video' && track?.mediaStreamTrack) {
+          if (track?.kind === 'video' && track?.track) {
             const video = document.getElementById('roseVideo');
-            const mediaStream = new MediaStream([track.mediaStreamTrack]);
-            video.srcObject = mediaStream;
-            video.play().catch(e => console.error('Video play error:', e));
+            track.track.attach(video);
           }
         });
 
-        // 4. Also try 'stream' event as fallback
-        liveAvatarSession.on('stream', (stream) => {
-          console.log('stream event:', stream);
-          const video = document.getElementById('roseVideo');
-          video.srcObject = stream;
-          video.play().catch(e => console.error('Video play error:', e));
-        });
-
-        // 5. Status events
+        // 4. Status events
         liveAvatarSession.on('speaking', () => setSpeaking(true));
         liveAvatarSession.on('listening', () => setListening(true));
         liveAvatarSession.on('idle', () => { setSpeaking(false); setListening(false); });
 
-        // 6. Start
+        // 5. Start
         await liveAvatarSession.start();
 
         showLoading(false);
