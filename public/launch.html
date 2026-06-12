@@ -34,29 +34,20 @@
       position: relative;
     }
 
-    .ambient {
-      position: fixed;
-      inset: 0;
-      pointer-events: none;
-      z-index: 0;
-    }
+    .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
     .ambient::before {
       content: '';
       position: absolute;
-      top: -20%;
-      left: -10%;
-      width: 60%;
-      height: 60%;
+      top: -20%; left: -10%;
+      width: 60%; height: 60%;
       background: radial-gradient(ellipse, rgba(0,188,212,0.08) 0%, transparent 70%);
       animation: drift1 12s ease-in-out infinite alternate;
     }
     .ambient::after {
       content: '';
       position: absolute;
-      bottom: -20%;
-      right: -10%;
-      width: 60%;
-      height: 60%;
+      bottom: -20%; right: -10%;
+      width: 60%; height: 60%;
       background: radial-gradient(ellipse, rgba(41,121,255,0.08) 0%, transparent 70%);
       animation: drift2 15s ease-in-out infinite alternate;
     }
@@ -64,225 +55,119 @@
     @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-3%,-5%); } }
 
     .screen {
-      position: fixed;
-      inset: 0;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      position: fixed; inset: 0; z-index: 1;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
       transition: opacity 0.6s ease, transform 0.6s ease;
     }
-    .screen.hidden {
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(0.97);
-    }
+    .screen.hidden { opacity: 0; pointer-events: none; transform: scale(0.97); }
 
-    #selectionScreen {
-      padding: 40px 24px;
-      gap: 0;
-    }
+    #selectionScreen { padding: 40px 24px; gap: 0; }
 
-    .logo {
-      text-align: center;
-      margin-bottom: 48px;
-    }
+    .logo { text-align: center; margin-bottom: 48px; }
     .logo-name {
       font-family: 'Cormorant Garamond', serif;
-      font-size: 42px;
-      font-weight: 300;
-      letter-spacing: 14px;
-      text-transform: uppercase;
-      color: white;
+      font-size: 42px; font-weight: 300;
+      letter-spacing: 14px; text-transform: uppercase; color: white;
     }
     .logo-tag {
-      font-size: 10px;
-      letter-spacing: 4px;
-      text-transform: uppercase;
-      color: var(--cyan);
-      margin-top: 6px;
-      font-weight: 400;
+      font-size: 10px; letter-spacing: 4px;
+      text-transform: uppercase; color: var(--cyan);
+      margin-top: 6px; font-weight: 400;
     }
 
     .selection-panel {
-      width: 100%;
-      max-width: 480px;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 24px;
-      padding: 32px;
-      backdrop-filter: blur(20px);
-      margin-bottom: 16px;
+      width: 100%; max-width: 480px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 24px; padding: 32px;
+      backdrop-filter: blur(20px); margin-bottom: 16px;
     }
     .panel-title {
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--cyan);
-      margin-bottom: 20px;
-      font-weight: 500;
+      font-size: 11px; letter-spacing: 3px;
+      text-transform: uppercase; color: var(--cyan);
+      margin-bottom: 20px; font-weight: 500;
     }
-
     .patient-list {
-      display: flex;
-      flex-direction: column;
-      gap: 10px;
-      max-height: 240px;
-      overflow-y: auto;
-      scrollbar-width: thin;
-      scrollbar-color: var(--border) transparent;
+      display: flex; flex-direction: column; gap: 10px;
+      max-height: 240px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: var(--border) transparent;
     }
     .patient-btn {
-      background: rgba(255,255,255,0.05);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 14px 20px;
-      color: var(--text);
-      font-family: 'Jost', sans-serif;
-      font-size: 15px;
-      font-weight: 400;
-      letter-spacing: 0.5px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 14px; padding: 14px 20px; color: var(--text);
+      font-family: 'Jost', sans-serif; font-size: 15px; font-weight: 400;
+      letter-spacing: 0.5px; cursor: pointer; transition: all 0.2s ease; text-align: left;
     }
-    .patient-btn:hover {
-      background: rgba(0,188,212,0.12);
-      border-color: var(--cyan);
-      color: white;
-    }
+    .patient-btn:hover { background: rgba(0,188,212,0.12); border-color: var(--cyan); color: white; }
 
-    .divider {
-      text-align: center;
-      color: var(--text-muted);
-      font-size: 11px;
-      letter-spacing: 3px;
-      margin: 12px 0;
-    }
+    .divider { text-align: center; color: var(--text-muted); font-size: 11px; letter-spacing: 3px; margin: 12px 0; }
 
     .home-btn {
-      width: 100%;
-      max-width: 480px;
+      width: 100%; max-width: 480px;
       background: linear-gradient(135deg, var(--cyan), var(--blue));
-      border: none;
-      border-radius: 18px;
-      padding: 20px;
-      color: white;
-      font-family: 'Jost', sans-serif;
-      font-size: 16px;
-      font-weight: 600;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      box-shadow: 0 8px 32px rgba(0,188,212,0.25);
+      border: none; border-radius: 18px; padding: 20px; color: white;
+      font-family: 'Jost', sans-serif; font-size: 16px; font-weight: 600;
+      letter-spacing: 3px; text-transform: uppercase; cursor: pointer;
+      transition: all 0.3s ease; box-shadow: 0 8px 32px rgba(0,188,212,0.25);
     }
-    .home-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 12px 40px rgba(0,188,212,0.35);
-    }
+    .home-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 40px rgba(0,188,212,0.35); }
 
     .load-link {
-      color: var(--text-muted);
-      font-size: 13px;
-      letter-spacing: 1px;
-      cursor: pointer;
-      text-align: center;
-      margin-bottom: 20px;
-      transition: color 0.2s;
-      text-decoration: underline;
-      text-underline-offset: 3px;
+      color: var(--text-muted); font-size: 13px; letter-spacing: 1px;
+      cursor: pointer; text-align: center; margin-bottom: 20px;
+      transition: color 0.2s; text-decoration: underline; text-underline-offset: 3px;
     }
     .load-link:hover { color: var(--cyan); }
 
-    /* ── Rose Screen ── */
     #roseScreen { background: #000; }
 
     #roseVideo {
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 0;
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; z-index: 0;
     }
 
     .vignette {
-      position: fixed;
-      inset: 0;
+      position: fixed; inset: 0;
       background:
         radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.5) 100%),
         linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.6) 100%);
-      z-index: 1;
-      pointer-events: none;
+      z-index: 1; pointer-events: none;
     }
 
     .rose-topbar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      padding: 24px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      z-index: 10;
+      position: fixed; top: 0; left: 0; right: 0;
+      padding: 24px 32px; display: flex;
+      align-items: center; justify-content: space-between; z-index: 10;
     }
     .rose-logo {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 22px;
-      font-weight: 300;
-      letter-spacing: 8px;
-      text-transform: uppercase;
-      color: rgba(255,255,255,0.8);
+      font-family: 'Cormorant Garamond', serif; font-size: 22px;
+      font-weight: 300; letter-spacing: 8px;
+      text-transform: uppercase; color: rgba(255,255,255,0.8);
     }
     .end-btn {
-      background: rgba(255,255,255,0.1);
-      border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 20px;
-      padding: 8px 20px;
-      color: rgba(255,255,255,0.7);
-      font-family: 'Jost', sans-serif;
-      font-size: 12px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      cursor: pointer;
-      transition: all 0.2s;
-      backdrop-filter: blur(10px);
+      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 20px; padding: 8px 20px; color: rgba(255,255,255,0.7);
+      font-family: 'Jost', sans-serif; font-size: 12px;
+      letter-spacing: 2px; text-transform: uppercase;
+      cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px);
     }
-    .end-btn:hover {
-      background: rgba(255,255,255,0.18);
-      color: white;
-    }
+    .end-btn:hover { background: rgba(255,255,255,0.18); color: white; }
 
-    /* ── Status indicator ── */
     .status-indicator {
-      position: fixed;
-      bottom: 100px;
-      left: 50%;
-      transform: translateX(-50%);
-      z-index: 10;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 10px;
-      opacity: 0;
-      transition: opacity 0.4s ease;
+      position: fixed; bottom: 100px; left: 50%;
+      transform: translateX(-50%); z-index: 10;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      opacity: 0; transition: opacity 0.4s ease;
     }
     .status-indicator.active { opacity: 1; }
 
     .listen-rings {
-      position: relative;
-      width: 60px;
-      height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      position: relative; width: 60px; height: 60px;
+      display: flex; align-items: center; justify-content: center;
     }
     .listen-ring {
-      position: absolute;
-      border-radius: 50%;
+      position: absolute; border-radius: 50%;
       border: 2px solid var(--cyan);
       animation: pulse-ring 1.8s ease-out infinite;
     }
@@ -294,33 +179,15 @@
       100% { transform: scale(2); opacity: 0; }
     }
     .mic-icon {
-      width: 28px;
-      height: 28px;
-      background: var(--cyan);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
-      z-index: 1;
+      width: 28px; height: 28px; background: var(--cyan);
+      border-radius: 50%; display: flex; align-items: center;
+      justify-content: center; font-size: 14px; z-index: 1;
     }
-    .status-label {
-      font-size: 11px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--cyan);
-    }
+    .status-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
 
-    .sound-bars {
-      display: flex;
-      align-items: flex-end;
-      gap: 4px;
-      height: 30px;
-    }
+    .sound-bars { display: flex; align-items: flex-end; gap: 4px; height: 30px; }
     .sound-bar {
-      width: 4px;
-      background: var(--cyan);
-      border-radius: 2px;
+      width: 4px; background: var(--cyan); border-radius: 2px;
       animation: sound-wave 0.8s ease-in-out infinite alternate;
     }
     .sound-bar:nth-child(1) { height: 8px; animation-delay: 0s; }
@@ -333,160 +200,86 @@
       to { transform: scaleY(1); opacity: 1; }
     }
 
-    /* ── Loading overlay ── */
     #loadingOverlay {
-      position: fixed;
-      inset: 0;
-      background: #000;
-      z-index: 20;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 20px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.4s ease;
+      position: fixed; inset: 0; background: #000; z-index: 20;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+      opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
     }
-    #loadingOverlay.active {
-      opacity: 1;
-      pointer-events: all;
-    }
+    #loadingOverlay.active { opacity: 1; pointer-events: all; }
     .loading-spinner {
-      width: 48px;
-      height: 48px;
+      width: 48px; height: 48px;
       border: 3px solid rgba(0,188,212,0.2);
       border-top-color: var(--cyan);
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
+      border-radius: 50%; animation: spin 0.9s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-msg {
-      font-size: 13px;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--cyan);
-    }
+    .loading-msg { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
 
-    /* ── Music bar ── */
     #musicBar {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      background: rgba(10, 14, 26, 0.85);
-      backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(29,185,84,0.3);
-      padding: 14px 32px;
-      z-index: 20;
-      transform: translateY(100%);
-      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-      display: flex;
-      align-items: center;
-      gap: 16px;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      background: rgba(10,14,26,0.85); backdrop-filter: blur(20px);
+      border-top: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20;
+      transform: translateY(100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
+      display: flex; align-items: center; gap: 16px;
     }
     #musicBar.visible { transform: translateY(0); }
     .music-icon {
-      width: 36px;
-      height: 36px;
+      width: 36px; height: 36px;
       background: linear-gradient(135deg, var(--green), #158a3a);
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-      flex-shrink: 0;
+      border-radius: 8px; display: flex; align-items: center;
+      justify-content: center; font-size: 16px; flex-shrink: 0;
     }
     .music-info { flex: 1; min-width: 0; }
-    .music-label {
-      font-size: 10px;
-      letter-spacing: 2px;
-      text-transform: uppercase;
-      color: var(--green);
-      margin-bottom: 3px;
-    }
-    #nowPlayingText {
-      font-size: 14px;
-      color: white;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+    .music-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--green); margin-bottom: 3px; }
+    #nowPlayingText { font-size: 14px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .music-controls { display: flex; gap: 8px; flex-shrink: 0; }
     .music-ctrl {
-      background: rgba(255,255,255,0.08);
-      border: none;
-      border-radius: 8px;
-      width: 34px;
-      height: 34px;
-      color: white;
-      font-size: 13px;
-      cursor: pointer;
-      transition: background 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      background: rgba(255,255,255,0.08); border: none; border-radius: 8px;
+      width: 34px; height: 34px; color: white; font-size: 13px;
+      cursor: pointer; transition: background 0.2s;
+      display: flex; align-items: center; justify-content: center;
     }
     .music-ctrl:hover { background: rgba(255,255,255,0.15); }
-    .music-ctrl.play {
-      background: var(--green);
-      width: 40px;
-      height: 40px;
-      border-radius: 10px;
-    }
+    .music-ctrl.play { background: var(--green); width: 40px; height: 40px; border-radius: 10px; }
     .music-ctrl.play:hover { background: #22c55e; }
-
-    .loading-text {
-      color: var(--text-muted);
-      font-size: 13px;
-      letter-spacing: 1px;
-    }
+    .loading-text { color: var(--text-muted); font-size: 13px; letter-spacing: 1px; }
   </style>
 </head>
 <body>
 
   <div class="ambient"></div>
 
-  <!-- ── LOADING OVERLAY ── -->
   <div id="loadingOverlay">
     <div class="loading-spinner"></div>
     <div class="loading-msg">Connecting to Rose…</div>
   </div>
 
-  <!-- ── SELECTION SCREEN ── -->
   <div class="screen" id="selectionScreen">
     <div class="logo">
       <div class="logo-name">Neimira</div>
       <div class="logo-tag">AI Companion Technology</div>
     </div>
-
     <div class="selection-panel">
       <div class="panel-title">Facility — Select Patient</div>
       <div class="patient-list" id="patientList">
         <div class="loading-text">—</div>
       </div>
     </div>
-
     <div class="load-link" id="loadLink" onclick="loadPatients()">Load facility patients</div>
-
     <div class="divider">— or —</div>
-
     <button class="home-btn" onclick="launchCompanion('recMLLC4fJHBUhE5w')">
       Visit with Rose 🌹
     </button>
   </div>
 
-  <!-- ── ROSE SCREEN ── -->
   <div class="screen hidden" id="roseScreen">
     <video id="roseVideo" autoplay playsinline></video>
     <div class="vignette"></div>
-
     <div class="rose-topbar">
       <div class="rose-logo">Neimira</div>
       <button class="end-btn" onclick="endSession()">End Visit</button>
     </div>
-
-    <!-- Listening indicator -->
     <div class="status-indicator" id="listenIndicator">
       <div class="listen-rings">
         <div class="listen-ring"></div>
@@ -496,8 +289,6 @@
       </div>
       <div class="status-label">Listening</div>
     </div>
-
-    <!-- Speaking indicator -->
     <div class="status-indicator" id="speakingIndicator">
       <div class="sound-bars">
         <div class="sound-bar"></div>
@@ -508,7 +299,6 @@
       </div>
       <div class="status-label">Rose is speaking</div>
     </div>
-
     <div id="musicBar">
       <div class="music-icon">♪</div>
       <div class="music-info">
@@ -528,7 +318,6 @@
   <script type="module">
     import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
 
-    // ── State ──
     const _urlParams = new URLSearchParams(window.location.search);
     let currentPatientId = _urlParams.get('patient') || null;
     let liveAvatarSession = null;
@@ -539,12 +328,8 @@
 
     window.speechSynthesis?.cancel();
 
-    // ── Spotify SDK ready ──
-    window.onSpotifyWebPlaybackSDKReady = () => {
-      console.log('Spotify SDK ready');
-    };
+    window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
 
-    // ── Screen helpers ──
     function showRoseScreen() {
       document.getElementById('selectionScreen').classList.add('hidden');
       document.getElementById('roseScreen').classList.remove('hidden');
@@ -565,7 +350,6 @@
       if (on) document.getElementById('listenIndicator').classList.remove('active');
     }
 
-    // ── Spotify ──
     async function initSpotify(patientId) {
       try {
         const res = await fetch('https://rose-proxy.vercel.app/api/spotify-token', {
@@ -581,11 +365,7 @@
           getOAuthToken: cb => cb(data.access_token),
           volume: 0.35
         });
-
-        spotifyPlayer.addListener('ready', ({ device_id }) => {
-          spotifyDeviceId = device_id;
-        });
-
+        spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; });
         spotifyPlayer.addListener('player_state_changed', state => {
           if (!state) return;
           isPlaying = !state.paused;
@@ -597,11 +377,8 @@
           }
           document.getElementById('playPauseBtn').textContent = isPlaying ? '⏸' : '▶';
         });
-
         spotifyPlayer.connect();
-      } catch (e) {
-        console.error('Spotify init error:', e);
-      }
+      } catch (e) { console.error('Spotify init error:', e); }
     }
 
     async function spotifyPlayBySearch(query) {
@@ -614,16 +391,13 @@
         const tokenData = await tokenRes.json();
         const access_token = tokenData.access_token;
         if (!access_token) return;
-
         let uri = null;
-
         const artistRes = await fetch(
           'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=artist&limit=1',
           { headers: { 'Authorization': 'Bearer ' + access_token } }
         );
         const artistData = await artistRes.json();
         const artist = artistData.artists?.items?.[0];
-
         if (artist) {
           const topTracksRes = await fetch(
             'https://api.spotify.com/v1/artists/' + artist.id + '/top-tracks?market=US',
@@ -632,11 +406,9 @@
           const topTracksData = await topTracksRes.json();
           const tracks = topTracksData.tracks || [];
           if (tracks.length > 0) {
-            const randomTrack = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))];
-            uri = randomTrack.uri;
+            uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
           }
         }
-
         if (!uri) {
           const searchRes = await fetch(
             'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=track&limit=5',
@@ -645,18 +417,14 @@
           const searchData = await searchRes.json();
           const tracks = searchData.tracks?.items || [];
           if (tracks.length === 0) return;
-          const randomTrack = tracks[Math.floor(Math.random() * tracks.length)];
-          uri = randomTrack.uri;
+          uri = tracks[Math.floor(Math.random() * tracks.length)].uri;
         }
-
         await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
           method: 'PUT',
           headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' },
           body: JSON.stringify({ uris: [uri] })
         });
-      } catch (e) {
-        console.error('Spotify play error:', e);
-      }
+      } catch (e) { console.error('Spotify play error:', e); }
     }
 
     function startMusicQueuePolling(patientId) {
@@ -674,7 +442,6 @@
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
-    // ── Load patients ──
     window.loadPatients = async function() {
       document.getElementById('loadLink').style.display = 'none';
       const list = document.getElementById('patientList');
@@ -695,29 +462,24 @@
       }
     };
 
-    // ── Companion routing ──
     window.launchCompanion = async function(patientId, preferredCompanion) {
       if (!preferredCompanion) {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/patients?id=' + patientId);
           const data = await res.json();
           preferredCompanion = data.preferredCompanion || 'Rose';
-        } catch(e) {
-          preferredCompanion = 'Rose';
-        }
+        } catch(e) { preferredCompanion = 'Rose'; }
       }
-
       if (preferredCompanion && preferredCompanion.trim() === 'Jim') {
         window.location.href = 'launch-jim.html?patient=' + patientId;
         return;
       }
 
-      // ── Launch Rose via LiveAvatar ──
       currentPatientId = patientId;
       showLoading(true);
 
       try {
-        // 1. Get session token from our backend
+        // 1. Get session token from backend
         const tokenRes = await fetch('https://rose-proxy.vercel.app/api/liveavatar-session', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -733,33 +495,39 @@
         }
 
         // 2. Create LiveAvatar session
-        liveAvatarSession = new LiveAvatarSession(tokenData.session_token, {
-          voiceChat: true
+        liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
+
+        // 3. Wire video — handle trackPublished event from LiveKit
+        liveAvatarSession.on('trackPublished', (track) => {
+          console.log('trackPublished:', track?.kind, track);
+          if (track?.kind === 'video' && track?.mediaStreamTrack) {
+            const video = document.getElementById('roseVideo');
+            const mediaStream = new MediaStream([track.mediaStreamTrack]);
+            video.srcObject = mediaStream;
+            video.play().catch(e => console.error('Video play error:', e));
+          }
         });
 
-        // 3. Wire up the video stream to our <video> element
+        // 4. Also try 'stream' event as fallback
         liveAvatarSession.on('stream', (stream) => {
+          console.log('stream event:', stream);
           const video = document.getElementById('roseVideo');
           video.srcObject = stream;
-          video.play();
+          video.play().catch(e => console.error('Video play error:', e));
         });
 
-        // 4. Status events
+        // 5. Status events
         liveAvatarSession.on('speaking', () => setSpeaking(true));
         liveAvatarSession.on('listening', () => setListening(true));
-        liveAvatarSession.on('idle', () => {
-          setSpeaking(false);
-          setListening(false);
-        });
+        liveAvatarSession.on('idle', () => { setSpeaking(false); setListening(false); });
 
-        // 5. Start the session
+        // 6. Start
         await liveAvatarSession.start();
 
         showLoading(false);
         showRoseScreen();
         setListening(true);
 
-        // 6. Start Spotify + music queue polling
         await initSpotify(patientId);
         startMusicQueuePolling(patientId);
 
@@ -770,7 +538,6 @@
       }
     };
 
-    // ── End session ──
     window.endSession = async function() {
       if (musicPollInterval) clearInterval(musicPollInterval);
       if (liveAvatarSession) {
