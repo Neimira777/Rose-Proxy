@@ -15,15 +15,12 @@ export default async function handler(req, res) {
   try {
     const { patientId } = req.body || {};
 
-    // ── Build session token request ──
-    // FULL mode: LiveAvatar handles ASR, TTS, and WebRTC.
-    // We plug in our own LLM via llm_configuration_id.
-    // The custom LLM endpoint is /api/chat-completions (OpenAI-compatible).
     const sessionPayload = {
       mode: 'FULL',
       avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
       avatar_persona: {
         voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232',
+        context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
         language: 'en',
         voice_settings: {
           provider: 'elevenLabs',
@@ -37,7 +34,6 @@ export default async function handler(req, res) {
       },
       interactivity_type: 'CONVERSATIONAL',
       llm_configuration_id: process.env.LIVEAVATAR_LLM_CONFIG_ID,
-      // Pass patientId as a dynamic variable so chat-completions.js can load the right profile
       dynamic_variables: {
         patient_id: patientId || 'recMLLC4fJHBUhE5w'
       },
@@ -47,7 +43,6 @@ export default async function handler(req, res) {
       }
     };
 
-    // ── Call LiveAvatar API ──
     const response = await fetch('https://api.liveavatar.com/v1/sessions/token', {
       method: 'POST',
       headers: {
@@ -67,7 +62,6 @@ export default async function handler(req, res) {
       });
     }
 
-    // Return session_id and session_token to the frontend
     return res.status(200).json({
       session_id: data.data.session_id,
       session_token: data.data.session_token
