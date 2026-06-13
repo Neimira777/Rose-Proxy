@@ -374,24 +374,24 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       res.setHeader('Cache-Control', 'no-cache');
       res.setHeader('Connection', 'keep-alive');
       res.status(200);
-      const chunkId = `chatcmpl-${Date.now()}`;
+      const chunkId = 'chatcmpl-' + Date.now();
       const created = Math.floor(Date.now() / 1000);
       const chunk = {
         id: chunkId, object: 'chat.completion.chunk', created,
         model: 'claude-haiku-4-5-20251001',
         choices: [{ index: 0, delta: { role: 'assistant', content: cleanReply }, finish_reason: null }]
       };
-      res.write(`data: ${JSON.stringify(chunk)}
+      res.write('data: ' + JSON.stringify(chunk) + '
 
-`);
+');
       const finalChunk = {
         id: chunkId, object: 'chat.completion.chunk', created,
         model: 'claude-haiku-4-5-20251001',
         choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
       };
-      res.write(`data: ${JSON.stringify(finalChunk)}
+      res.write('data: ' + JSON.stringify(finalChunk) + '
 
-`);
+');
       res.write('data: [DONE]
 
 ');
