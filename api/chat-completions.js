@@ -301,7 +301,9 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     // ── Morning music + clothing trigger ──
     console.log("DEBUG morning:", { isFirstMessage, morningPlaylist, favoriteSongs, hometown });
     let morningMusicInstruction = '';
-    if (isFirstMessage) { // TEMP: testing morning music all day
+    const hasAssistantReply = allMessages.some(m => m.role === "assistant");
+    console.log("DEBUG hasAssistantReply:", hasAssistantReply, "allMessages.length:", allMessages.length);
+    if (!hasAssistantReply) { // first turn — no assistant reply yet
       const playlistSource = morningPlaylist || favoriteSongs;
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
