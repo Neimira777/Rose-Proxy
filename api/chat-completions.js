@@ -365,46 +365,22 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
 
-    // ── Return in OpenAI-compatible format (streaming + non-streaming) ──
+    // ── Return in OpenAI-compatible format ──
     const cleanReply = replyText.replace(/PLAY_MUSIC:[^\n]+/g, '').trim();
-    const isStreaming = body.stream === true;
-
-    if (isStreaming) {
-      res.setHeader('Content-Type', 'text/event-stream');
-      res.setHeader('Cache-Control', 'no-cache');
-      res.setHeader('Connection', 'keep-alive');
-      res.status(200);
-      const chunkId = 'chatcmpl-' + Date.now();
-      const created = Math.floor(Date.now() / 1000);
-      const chunk = {
-        id: chunkId, object: 'chat.completion.chunk', created,
-        model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: { role: 'assistant', content: cleanReply }, finish_reason: null }]
-      };
-      res.write('data: ' + JSON.stringify(chunk) + '
-
-');
-      const finalChunk = {
-        id: chunkId, object: 'chat.completion.chunk', created,
-        model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
-      };
-      res.write('data: ' + JSON.stringify(finalChunk) + '
-
-');
-      res.write('data: [DONE]
-
-');
-      res.end();
-      return;
-    }
 
     return res.status(200).json({
-      id: `chatcmpl-${Date.now()}`,
+      id: 'chatcmpl-' + Date.now(),
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: 'claude-haiku-4-5-20251001',
-      choices: [{ index: 0, message: { role: 'assistant', content: cleanReply }, finish_reason: 'stop' }],
+      choices: [{
+        index: 0,
+        message: {
+          role: 'assistant',
+          content: cleanReply
+        },
+        finish_reason: 'stop'
+      }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
     });
 
