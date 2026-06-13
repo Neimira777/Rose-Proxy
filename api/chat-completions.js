@@ -299,6 +299,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     const seasonalContext = getSeasonalContext(hometown);
 
     // ── Morning music + clothing trigger ──
+    console.log("DEBUG morning:", { isFirstMessage, morningPlaylist, favoriteSongs, hometown });
     let morningMusicInstruction = '';
     if (isFirstMessage) { // TEMP: testing morning music all day
       const playlistSource = morningPlaylist || favoriteSongs;
