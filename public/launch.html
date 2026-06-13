@@ -475,6 +475,11 @@
       showLoading(true);
 
       try {
+        // 0. Clear any stale music queue from previous session
+        try {
+          await fetch('https://rose-proxy.vercel.app/api/music-queue?patientId=' + patientId, { method: 'DELETE' });
+        } catch(e) {}
+
         // 1. Get session token from backend
         const tokenRes = await fetch('https://rose-proxy.vercel.app/api/liveavatar-session', {
           method: 'POST',
