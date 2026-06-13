@@ -493,27 +493,40 @@
         // 2. Create LiveAvatar session
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        // 3. Wire video using LiveKit track
-        liveAvatarSession.on('trackPublished', (track) => {
-          console.log('trackPublished kind:', track?.kind, 'track.track:', track?.track, 'mst:', track?.track?.mediaStreamTrack);
-          if (track?.kind === 'video') {
-            const video = document.getElementById('roseVideo');
-            // Try attach() first — it returns the element it attached to
-            if (track.track?.attach) {
-              const attached = track.track.attach();
-              console.log('attach() returned:', attached);
-              if (attached && attached.srcObject) {
-                video.srcObject = attached.srcObject;
+        // 3. Log ALL events to find the right one for video
+        const originalOn = liveAvatarSession.on.bind(liveAvatarSession);
+        const _emit = liveAvatarSession.emit?.bind(liveAvatarSession);
+        
+        // Intercept by wrapping the session object
+        ['trackPublished', 'track', 'stream', 'video', 'media', 'remoteTrack', 
+         'participantConnected', 'connected', 'started', 'ready', 'mediaStream',
+         'trackSubscribed', 'trackAdded'].forEach(evtName => {
+          liveAvatarSession.on(evtName, (...args) => {
+            console.log('EVENT:', evtName, args);
+            // Try to attach video for any track-like event
+            const track = args[0];
+            if (track?.kind === 'video') {
+              const video = document.getElementById('roseVideo');
+              if (track.mediaStreamTrack) {
+                video.srcObject = new MediaStream([track.mediaStreamTrack]);
                 video.play().catch(e => console.error('play error:', e));
-              } else if (track.track.mediaStreamTrack) {
+              } else if (track.track?.mediaStreamTrack) {
                 video.srcObject = new MediaStream([track.track.mediaStreamTrack]);
                 video.play().catch(e => console.error('play error:', e));
+              } else if (track.attach) {
+                const el = track.attach();
+                if (el?.srcObject) { video.srcObject = el.srcObject; video.play(); }
+              } else if (track.track?.attach) {
+                const el = track.track.attach();
+                if (el?.srcObject) { video.srcObject = el.srcObject; video.play(); }
               }
-            } else if (track.track?.mediaStreamTrack) {
-              video.srcObject = new MediaStream([track.track.mediaStreamTrack]);
+            }
+            if (args[0] instanceof MediaStream) {
+              const video = document.getElementById('roseVideo');
+              video.srcObject = args[0];
               video.play().catch(e => console.error('play error:', e));
             }
-          }
+          });
         });
 
         // 4. Status events
