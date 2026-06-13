@@ -513,6 +513,14 @@
           console.warn('session.start() threw (may be harmless):', startErr?.message);
         }
 
+        // 6. Explicitly start voice chat mic
+        try {
+          await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' });
+          console.log('Voice chat started successfully');
+        } catch (vcErr) {
+          console.warn('voiceChat.start() error:', vcErr?.message);
+        }
+
         showLoading(false);
         showRoseScreen();
         setListening(true);
