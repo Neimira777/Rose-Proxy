@@ -493,12 +493,26 @@
         // 2. Create LiveAvatar session
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        // 3. Wire video using LiveKit track.attach()
+        // 3. Wire video using LiveKit track
         liveAvatarSession.on('trackPublished', (track) => {
-          console.log('trackPublished:', track?.kind, track);
-          if (track?.kind === 'video' && track?.track) {
+          console.log('trackPublished kind:', track?.kind, 'track.track:', track?.track, 'mst:', track?.track?.mediaStreamTrack);
+          if (track?.kind === 'video') {
             const video = document.getElementById('roseVideo');
-            track.track.attach(video);
+            // Try attach() first — it returns the element it attached to
+            if (track.track?.attach) {
+              const attached = track.track.attach();
+              console.log('attach() returned:', attached);
+              if (attached && attached.srcObject) {
+                video.srcObject = attached.srcObject;
+                video.play().catch(e => console.error('play error:', e));
+              } else if (track.track.mediaStreamTrack) {
+                video.srcObject = new MediaStream([track.track.mediaStreamTrack]);
+                video.play().catch(e => console.error('play error:', e));
+              }
+            } else if (track.track?.mediaStreamTrack) {
+              video.srcObject = new MediaStream([track.track.mediaStreamTrack]);
+              video.play().catch(e => console.error('play error:', e));
+            }
           }
         });
 
