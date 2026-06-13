@@ -32,5 +32,11 @@ export default async function handler(req, res) {
     return res.status(200).json({ query });
   }
 
+  if (req.method === 'DELETE') {
+    const { patientId } = req.query || {};
+    if (patientId) delete musicQueue[patientId];
+    return res.status(200).json({ ok: true });
+  }
+
   return res.status(405).json({ error: 'Method not allowed' });
 }
