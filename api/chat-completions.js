@@ -232,6 +232,7 @@ export default async function handler(req, res) {
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
 
     const isFirstMessage = messages.length <= 1;
+    console.log("DEBUG isFirstMessage:", isFirstMessage, "messages.length:", messages.length, "morningPlaylist:", morningPlaylist, "favoriteSongs:", favoriteSongs);
 
     // ── Load patient profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
