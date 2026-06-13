@@ -301,7 +301,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     // ── Morning music + clothing trigger ──
     console.log("DEBUG morning:", { isFirstMessage, morningPlaylist, favoriteSongs, hometown });
     let morningMusicInstruction = '';
-    if (true) { // always include morning music instruction when applicable
+    if (isMorningSession(hometown)) {
       const playlistSource = morningPlaylist || favoriteSongs;
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
