@@ -493,46 +493,18 @@
         // 2. Create LiveAvatar session
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        // 3. Log ALL events to find the right one for video
-        const originalOn = liveAvatarSession.on.bind(liveAvatarSession);
-        const _emit = liveAvatarSession.emit?.bind(liveAvatarSession);
-        
-        // Intercept by wrapping the session object
-        ['trackPublished', 'track', 'stream', 'video', 'media', 'remoteTrack', 
-         'participantConnected', 'connected', 'started', 'ready', 'mediaStream',
-         'trackSubscribed', 'trackAdded'].forEach(evtName => {
-          liveAvatarSession.on(evtName, (...args) => {
-            console.log('EVENT:', evtName, args);
-            // Try to attach video for any track-like event
-            const track = args[0];
-            if (track?.kind === 'video') {
-              const video = document.getElementById('roseVideo');
-              if (track.mediaStreamTrack) {
-                video.srcObject = new MediaStream([track.mediaStreamTrack]);
-                video.play().catch(e => console.error('play error:', e));
-              } else if (track.track?.mediaStreamTrack) {
-                video.srcObject = new MediaStream([track.track.mediaStreamTrack]);
-                video.play().catch(e => console.error('play error:', e));
-              } else if (track.attach) {
-                const el = track.attach();
-                if (el?.srcObject) { video.srcObject = el.srcObject; video.play(); }
-              } else if (track.track?.attach) {
-                const el = track.track.attach();
-                if (el?.srcObject) { video.srcObject = el.srcObject; video.play(); }
-              }
-            }
-            if (args[0] instanceof MediaStream) {
-              const video = document.getElementById('roseVideo');
-              video.srcObject = args[0];
-              video.play().catch(e => console.error('play error:', e));
-            }
-          });
+        // 3. Wire video — use session.stream_ready + session.attach()
+        liveAvatarSession.on('session.stream_ready', () => {
+          console.log('session.stream_ready fired — attaching video');
+          const video = document.getElementById('roseVideo');
+          liveAvatarSession.attach(video);
         });
 
         // 4. Status events
-        liveAvatarSession.on('speaking', () => setSpeaking(true));
-        liveAvatarSession.on('listening', () => setListening(true));
-        liveAvatarSession.on('idle', () => { setSpeaking(false); setListening(false); });
+        liveAvatarSession.on('avatar.speak_started', () => setSpeaking(true));
+        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); });
+        liveAvatarSession.on('user.speak_started', () => setListening(true));
+        liveAvatarSession.on('user.speak_ended', () => setListening(false));
 
         // 5. Start — SDK may throw even on success, so we catch and continue
         try {
