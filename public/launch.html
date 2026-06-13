@@ -500,11 +500,23 @@
           liveAvatarSession.attach(video);
         });
 
-        // 4. Status events
-        liveAvatarSession.on('avatar.speak_started', () => setSpeaking(true));
-        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); });
-        liveAvatarSession.on('user.speak_started', () => setListening(true));
-        liveAvatarSession.on('user.speak_ended', () => setListening(false));
+        // 4. Status events + volume ducking
+        liveAvatarSession.on('avatar.speak_started', () => {
+          setSpeaking(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+        });
+        liveAvatarSession.on('avatar.speak_ended', () => {
+          setSpeaking(false); setListening(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
+        });
+        liveAvatarSession.on('user.speak_started', () => {
+          setListening(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+        });
+        liveAvatarSession.on('user.speak_ended', () => {
+          setListening(false);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
+        });
 
         // 5. Start — SDK may throw even on success, so we catch and continue
         try {
