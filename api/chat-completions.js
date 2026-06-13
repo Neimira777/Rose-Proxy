@@ -231,7 +231,7 @@ export default async function handler(req, res) {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
 
-    const isFirstMessage = messages.length <= 1;
+    const isFirstMessage = !messages.some(m => m.role === "assistant");
 
     // ── Load patient profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
