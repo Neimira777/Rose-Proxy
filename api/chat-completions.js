@@ -300,7 +300,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
 
     // ── Morning music + clothing trigger ──
     let morningMusicInstruction = '';
-    if (isFirstMessage && isMorningSession(hometown)) {
+    if (isFirstMessage) { // TEMP: testing morning music all day
       const playlistSource = morningPlaylist || favoriteSongs;
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
