@@ -1,4 +1,5 @@
-// ─────────────────────────────────────────────
+
+  // ─────────────────────────────────────────────
 //  /api/photos
 //  Simple in-memory queue for SHOW_PHOTO signals
 //  GET    → returns and clears the queued photo URL
