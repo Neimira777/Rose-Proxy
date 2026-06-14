@@ -314,7 +314,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     // ── Music guidance ──
     let musicGuidance = '';
     if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
-      musicGuidance = `\nMUSIC GUIDANCE:\nThe patient loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the artist or song name.`;
+      musicGuidance = `\nMUSIC GUIDANCE:\nThe patient loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way" or "PLAY_MUSIC:Frank Sinatra". Always include the artist name to avoid wrong versions.`;
     }
 
     // ── Rotating greetings ──
