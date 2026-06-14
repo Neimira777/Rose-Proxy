@@ -388,16 +388,10 @@
         try {
           const res = await fetch("https://rose-proxy.vercel.app/api/photos?patientId=" + patientId + "&t=" + Date.now());
           const data = await res.json();
-          if (data.photoMap) {
-            const entries = Object.entries(data.photoMap);
-            if (entries.length > 0) {
-              const [label, url] = entries[0];
-              if (url) {
-                photoShown = true;
-                clearInterval(photoPollInterval);
-                showPhoto(url, label);
-              }
-            }
+          if (data.url) {
+            photoShown = true;
+            clearInterval(photoPollInterval);
+            showPhoto(data.url, data.label || '');
           }
         } catch(e) {}
       }, 2000);
