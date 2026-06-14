@@ -244,6 +244,39 @@
     .music-ctrl.play { background: var(--green); width: 40px; height: 40px; border-radius: 10px; }
     .music-ctrl.play:hover { background: #22c55e; }
     .loading-text { color: var(--text-muted); font-size: 13px; letter-spacing: 1px; }
+
+    #photoOverlay {
+      position: fixed; inset: 0; z-index: 30;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.5s ease;
+    }
+    #photoOverlay.visible { opacity: 1; pointer-events: all; }
+    .photo-frame {
+      position: relative; max-width: 80vw; max-height: 70vh;
+      border-radius: 24px; overflow: hidden;
+      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
+      border: 3px solid rgba(255,255,255,0.15);
+    }
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; max-height: 65vh; }
+    .photo-caption {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 20px 24px;
+      background: linear-gradient(transparent, rgba(0,0,0,0.7));
+      font-family: "Cormorant Garamond", serif;
+      font-size: 24px; font-weight: 300;
+      letter-spacing: 2px; color: white; text-align: center;
+    }
+    .photo-close {
+      position: absolute; top: 16px; right: 16px;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(255,255,255,0.2); border: none;
+      color: white; font-size: 18px; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(10px); transition: background 0.2s;
+    }
+    .photo-close:hover { background: rgba(255,255,255,0.35); }
   </style>
 </head>
 <body>
@@ -313,6 +346,15 @@
     </div>
   </div>
 
+  <!-- Photo overlay -->
+  <div id="photoOverlay">
+    <div class="photo-frame">
+      <img id="photoImg" src="" alt="Family photo">
+      <div class="photo-caption" id="photoCaption"></div>
+      <button class="photo-close" onclick="closePhoto()">✕</button>
+    </div>
+  </div>
+
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
   <script type="module">
@@ -325,6 +367,28 @@
     let spotifyDeviceId = null;
     let isPlaying = false;
     let musicPollInterval = null;
+    let photoPollInterval = null;
+
+    function showPhoto(url, caption) {
+      document.getElementById("photoImg").src = url;
+      document.getElementById("photoCaption").textContent = caption || "";
+      document.getElementById("photoOverlay").classList.add("visible");
+      setTimeout(() => closePhoto(), 12000); // auto-close after 12s
+    }
+    window.closePhoto = function() {
+      document.getElementById("photoOverlay").classList.remove("visible");
+    };
+
+    function startPhotoPolling(patientId) {
+      if (photoPollInterval) clearInterval(photoPollInterval);
+      photoPollInterval = setInterval(async () => {
+        try {
+          const res = await fetch("https://rose-proxy.vercel.app/api/photos?patientId=" + patientId);
+          const data = await res.json();
+          if (data.url) showPhoto(data.url, "");
+        } catch(e) {}
+      }, 2000);
+    }
 
     window.speechSynthesis?.cancel();
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
@@ -431,6 +495,7 @@
 
     function startMusicQueuePolling(patientId) {
       if (musicPollInterval) clearInterval(musicPollInterval);
+      if (photoPollInterval) clearInterval(photoPollInterval);
       musicPollInterval = setInterval(async () => {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/music-queue?patientId=' + patientId);
@@ -550,6 +615,7 @@
 
         await initSpotify(patientId);
         startMusicQueuePolling(patientId);
+        startPhotoPolling(patientId);
 
       } catch (err) {
         console.error('LiveAvatar launch error:', err);
@@ -560,6 +626,7 @@
 
     window.endSession = async function() {
       if (musicPollInterval) clearInterval(musicPollInterval);
+      if (photoPollInterval) clearInterval(photoPollInterval);
       if (liveAvatarSession) {
         try { await liveAvatarSession.stop(); } catch(e) {}
         liveAvatarSession = null;
