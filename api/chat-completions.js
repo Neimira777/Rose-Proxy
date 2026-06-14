@@ -306,7 +306,8 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
-        if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${randomSong}" in your response.`;
+        const artistHint = favoriteArtists ? favoriteArtists.split(",")[0].trim() + " " : "";
+        if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the patient's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
     }
