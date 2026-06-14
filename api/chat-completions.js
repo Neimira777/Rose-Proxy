@@ -67,10 +67,8 @@ function getSeasonalContext(hometown) {
     fall: "Fall is arriving — changing leaves, cooler air, harvest time, Thanksgiving. Great topics: fall traditions, holiday cooking, family gatherings, football season.",
     winter: "It's winter — cozy indoors, holiday season, New Year's. Great topics: Christmas memories, holiday traditions, winter foods, family visits."
   };
-  // Calculate floating holidays for current year
   const yr = now.getFullYear();
   function nthWeekday(year, month, weekday, n) {
-    // Find nth occurrence of weekday (0=Sun) in month (1-12)
     const d = new Date(year, month - 1, 1);
     let count = 0;
     while (d.getMonth() === month - 1) {
@@ -80,7 +78,7 @@ function getSeasonalContext(hometown) {
     return 1;
   }
   function lastWeekday(year, month, weekday) {
-    const d = new Date(year, month, 0); // last day of month
+    const d = new Date(year, month, 0);
     while (d.getDay() !== weekday) d.setDate(d.getDate() - 1);
     return d.getDate();
   }
@@ -237,13 +235,10 @@ export default async function handler(req, res) {
     const body = req.body || {};
 
     // ── Extract patientId from messages ──
-    // LiveAvatar passes messages in OpenAI format
-    // We embed patientId in the first system message or extract from metadata
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
     let patientId = 'recMLLC4fJHBUhE5w'; // default to Scarlett
 
-    // Extract patientId if embedded in system message
     if (systemMsg?.content) {
       const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
       if (match) patientId = match[1];
@@ -254,18 +249,16 @@ export default async function handler(req, res) {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
 
-    const isFirstMessage = !messages.some(m => m.role === "assistant");
-
     // ── Load patient profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '', sportsContext = '';
-    let hometown = '', photoContext = '';
+    let hometown = '', photoContext = '', photoMap = {};
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
-         musicToAvoid, morningPlaylist, musicMemories, sportsContext, hometown, photoContext } = cache);
+         musicToAvoid, morningPlaylist, musicMemories, sportsContext, hometown, photoContext, photoMap } = cache);
     } else {
       try {
         const airtableRes = await fetch(
@@ -290,19 +283,13 @@ export default async function handler(req, res) {
         const photoLabels = f['Photo Labels'] || '';
         const attachments = f['Family Photos'] || [];
         if (photoLabels && attachments.length > 0) {
-          const photoList = photoLabels.split(",").map(p => p.trim()).filter(Boolean);
-          const photoNames = photoList.join(", ");
-          // Build photo map: label -> URL
-          const photoMap = {};
+          const photoList = photoLabels.split(',').map(p => p.trim()).filter(Boolean);
           attachments.forEach((att, idx) => {
             if (photoList[idx]) photoMap[photoList[idx]] = att.url || att.thumbnails?.large?.url || '';
           });
-          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos: ${photoNames}.\n\nEarly in the session, proactively bring up a photo as a reminiscence therapy tool. Say something warm like "I have a beautiful photo of Sara I'd love to show you!" then include SHOW_PHOTO:[name] to display it. After showing the photo, ask a gentle open-ended question to spark memory — like "Tell me about Sara. What is she like?" or "What's one of your favorite memories with her?" Listen warmly and follow their lead.\n\nIf there are multiple photos, you can show one per session. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
-          console.log('DEBUG attachments sample:', JSON.stringify(attachments[0]));
-          console.log('DEBUG photoMap:', JSON.stringify(photoMap));
-          // Store photo map in cache for frontend retrieval
-          if (!global._photoMaps) global._photoMaps = {};
-          global._photoMaps[patientId] = photoMap;
+          const photoNames = photoList.join(', ');
+          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nEarly in the session, proactively bring up a photo as a reminiscence therapy tool. Say something warm like "I have a beautiful photo of Sara I'd love to show you!" then include SHOW_PHOTO:Sara to display it. After showing the photo, ask a gentle open-ended question to spark memory — like "Tell me about Sara. What is she like?" or "What's one of your favorite memories with her?" Listen warmly and follow their lead.\n\nIf there are multiple photos, you can show one per session. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
+          console.log('DEBUG photoMap built:', JSON.stringify(photoMap));
         }
 
         patientProfile = `PATIENT PROFILE:
@@ -327,21 +314,21 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
 
       sportsContext = await buildSportsContext(favoriteTeamsRaw);
-      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, sportsContext, photoContext });
+      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, sportsContext, photoContext, photoMap });
     }
 
     // ── Seasonal context ──
     const seasonalContext = getSeasonalContext(hometown);
 
     // ── Morning music + clothing trigger ──
-    console.log("DEBUG morning:", { isFirstMessage, morningPlaylist, favoriteSongs, hometown });
+    console.log("DEBUG morning:", { morningPlaylist, favoriteSongs, hometown });
     let morningMusicInstruction = '';
     if (isMorningSession(hometown)) {
       const playlistSource = morningPlaylist || favoriteSongs;
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
-        const artistHint = favoriteArtists ? favoriteArtists.split(",")[0].trim() + " " : "";
+        const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
         if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the patient's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
@@ -393,11 +380,18 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
     const photoMatch = replyText.match(/SHOW_PHOTO:([^\n]+)/);
     if (photoMatch) {
       const photoLabel = photoMatch[1].trim();
-      const photoMap = global._photoMaps?.[patientId] || {};
       const photoUrl = photoMap[photoLabel];
       if (photoUrl) {
-        if (!global._photoQueue) global._photoQueue = {};
-        global._photoQueue[patientId] = photoUrl;
+        try {
+          await fetch('https://rose-proxy.vercel.app/api/photos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId, url: photoUrl, label: photoLabel })
+          });
+          console.log(`Photo queued: ${photoLabel} → ${photoUrl}`);
+        } catch (e) { console.error('Photo queue post failed:', e.message); }
+      } else {
+        console.warn(`SHOW_PHOTO signal received but no URL found for label: "${photoLabel}". Available: ${JSON.stringify(Object.keys(photoMap))}`);
       }
     }
 
@@ -414,7 +408,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
 
-    // ── Return in OpenAI-compatible format (streaming + non-streaming) ──
+    // ── Clean reply ──
     const cleanReply = replyText.replace(/PLAY_MUSIC:[^\n]+/g, '').replace(/SHOW_PHOTO:[^\n]+/g, '').trim();
     const isStreaming = req.body && req.body.stream === true;
 
@@ -430,7 +424,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
         object: 'chat.completion.chunk',
         created: created,
         model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: { role: "assistant", content: cleanReply }, finish_reason: null }]
+        choices: [{ index: 0, delta: { role: 'assistant', content: cleanReply }, finish_reason: null }]
       });
       res.write('data: ' + chunk + '\n\n');
       const finalChunk = JSON.stringify({
@@ -438,7 +432,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
         object: 'chat.completion.chunk',
         created: created,
         model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: {}, finish_reason: "stop" }]
+        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
       });
       res.write('data: ' + finalChunk + '\n\n');
       res.write('data: [DONE]\n\n');
@@ -453,10 +447,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       model: 'claude-haiku-4-5-20251001',
       choices: [{
         index: 0,
-        message: {
-          role: 'assistant',
-          content: cleanReply
-        },
+        message: { role: 'assistant', content: cleanReply },
         finish_reason: 'stop'
       }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
