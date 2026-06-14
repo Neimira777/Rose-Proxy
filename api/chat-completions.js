@@ -297,7 +297,7 @@ export default async function handler(req, res) {
           attachments.forEach((att, idx) => {
             if (photoList[idx]) photoMap[photoList[idx]] = att.url || att.thumbnails?.large?.url || '';
           });
-          photoContext = `FAMILY PHOTOS:\nFamily photos are available to show on screen. Photos: ${photoNames}.\nOnce per session, warmly mention the person and include SHOW_PHOTO:[name] to display their photo. Example: "Let me show you Sara's beautiful photo! SHOW_PHOTO:Daughter Sara". Only show each photo once. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}.`;
+          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos: ${photoNames}.\n\nEarly in the session, proactively bring up a photo as a reminiscence therapy tool. Say something warm like "I have a beautiful photo of Sara I'd love to show you!" then include SHOW_PHOTO:[name] to display it. After showing the photo, ask a gentle open-ended question to spark memory — like "Tell me about Sara. What is she like?" or "What's one of your favorite memories with her?" Listen warmly and follow their lead.\n\nIf there are multiple photos, you can show one per session. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
           // Store photo map in cache for frontend retrieval
           if (!global._photoMaps) global._photoMaps = {};
           global._photoMaps[patientId] = photoMap;
