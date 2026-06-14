@@ -290,7 +290,9 @@ export default async function handler(req, res) {
         const photoLabels = f['Photo Labels'] || '';
         const attachments = f['Family Photos'] || [];
         if (photoLabels && attachments.length > 0) {
-          photoContext = `FAMILY PHOTOS:\nThe patient has ${attachments.length} family photo(s). The people in these photos are: ${photoLabels}.\nReference family members by name naturally. Never mention the photos directly as if reading from a list.`;
+          const photoList = photoLabels.split(",").map(p => p.trim()).filter(Boolean);
+          const photoNames = photoList.join(", ");
+          photoContext = `FAMILY PHOTOS:\nScanned family photos are on display nearby showing: ${photoNames}.\nOnce per session, naturally say something like "I love having Sara's photo here with us" or "It's so nice to see Sara's smiling face" — weave it in warmly as if the photo is physically present in the room. Never read from a list. Only mention each person once per session.`;
         }
 
         patientProfile = `PATIENT PROFILE:
