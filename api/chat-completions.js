@@ -292,7 +292,15 @@ export default async function handler(req, res) {
         if (photoLabels && attachments.length > 0) {
           const photoList = photoLabels.split(",").map(p => p.trim()).filter(Boolean);
           const photoNames = photoList.join(", ");
-          photoContext = `FAMILY PHOTOS:\nScanned family photos are on display nearby showing: ${photoNames}.\nOnce per session, naturally say something like "I love having Sara's photo here with us" or "It's so nice to see Sara's smiling face" — weave it in warmly as if the photo is physically present in the room. Never read from a list. Only mention each person once per session.`;
+          // Build photo map: label -> URL
+          const photoMap = {};
+          attachments.forEach((att, idx) => {
+            if (photoList[idx]) photoMap[photoList[idx]] = att.url || att.thumbnails?.large?.url || '';
+          });
+          photoContext = `FAMILY PHOTOS:\nFamily photos are available to show on screen. Photos: ${photoNames}.\nOnce per session, warmly mention the person and include SHOW_PHOTO:[name] to display their photo. Example: "Let me show you Sara's beautiful photo! SHOW_PHOTO:Daughter Sara". Only show each photo once. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}.`;
+          // Store photo map in cache for frontend retrieval
+          if (!global._photoMaps) global._photoMaps = {};
+          global._photoMaps[patientId] = photoMap;
         }
 
         patientProfile = `PATIENT PROFILE:
