@@ -14,7 +14,7 @@ function setCache(patientId, data) { sessionCache[patientId] = { ...data, cached
 function isCacheValid(patientId) {
   const cache = sessionCache[patientId];
   if (!cache) return false;
-  return (Date.now() - cache.cachedAt) < 30 * 60 * 1000;
+  return (Date.now() - cache.cachedAt) < 5 * 60 * 1000; // 5 min cache
 }
 
 // ── Timezone detection ──
