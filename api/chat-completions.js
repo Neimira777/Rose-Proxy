@@ -413,7 +413,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
     }
 
     // ── Return in OpenAI-compatible format (streaming + non-streaming) ──
-    const cleanReply = replyText.replace(/PLAY_MUSIC:[^\n]+/g, '').trim();
+    const cleanReply = replyText.replace(/PLAY_MUSIC:[^\n]+/g, '').replace(/SHOW_PHOTO:[^\n]+/g, '').trim();
     const isStreaming = req.body && req.body.stream === true;
 
     if (isStreaming) {
