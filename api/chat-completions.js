@@ -67,13 +67,36 @@ function getSeasonalContext(hometown) {
     fall: "Fall is arriving — changing leaves, cooler air, harvest time, Thanksgiving. Great topics: fall traditions, holiday cooking, family gatherings, football season.",
     winter: "It's winter — cozy indoors, holiday season, New Year's. Great topics: Christmas memories, holiday traditions, winter foods, family visits."
   };
+  // Calculate floating holidays for current year
+  const yr = now.getFullYear();
+  function nthWeekday(year, month, weekday, n) {
+    // Find nth occurrence of weekday (0=Sun) in month (1-12)
+    const d = new Date(year, month - 1, 1);
+    let count = 0;
+    while (d.getMonth() === month - 1) {
+      if (d.getDay() === weekday) { count++; if (count === n) return d.getDate(); }
+      d.setDate(d.getDate() + 1);
+    }
+    return 1;
+  }
+  function lastWeekday(year, month, weekday) {
+    const d = new Date(year, month, 0); // last day of month
+    while (d.getDay() !== weekday) d.setDate(d.getDate() - 1);
+    return d.getDate();
+  }
   const holidays = [
-    { month: 1, day: 1, name: "New Year's Day" }, { month: 2, day: 14, name: "Valentine's Day" },
-    { month: 3, day: 17, name: "St. Patrick's Day" }, { month: 5, day: 11, name: "Mother's Day" },
-    { month: 5, day: 26, name: "Memorial Day" }, { month: 6, day: 15, name: "Father's Day" },
-    { month: 7, day: 4, name: "Independence Day" }, { month: 9, day: 1, name: "Labor Day" },
-    { month: 10, day: 31, name: "Halloween" }, { month: 11, day: 11, name: "Veterans Day" },
-    { month: 11, day: 27, name: "Thanksgiving" }, { month: 12, day: 25, name: "Christmas" },
+    { month: 1, day: 1, name: "New Year's Day" },
+    { month: 2, day: 14, name: "Valentine's Day" },
+    { month: 3, day: 17, name: "St. Patrick's Day" },
+    { month: 5, day: nthWeekday(yr, 5, 0, 2), name: "Mother's Day" },
+    { month: 5, day: lastWeekday(yr, 5, 1), name: "Memorial Day" },
+    { month: 6, day: nthWeekday(yr, 6, 0, 3), name: "Father's Day" },
+    { month: 7, day: 4, name: "Independence Day" },
+    { month: 9, day: nthWeekday(yr, 9, 1, 1), name: "Labor Day" },
+    { month: 10, day: 31, name: "Halloween" },
+    { month: 11, day: 11, name: "Veterans Day" },
+    { month: 11, day: nthWeekday(yr, 11, 4, 4), name: "Thanksgiving" },
+    { month: 12, day: 25, name: "Christmas" },
     { month: 12, day: 31, name: "New Year's Eve" },
   ];
   const upcoming = holidays.filter(h => {
