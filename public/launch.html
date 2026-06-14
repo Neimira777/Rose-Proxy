@@ -368,6 +368,7 @@
     let isPlaying = false;
     let musicPollInterval = null;
     let photoPollInterval = null;
+    let photoShown = false; // track if photo already shown this session
 
     function showPhoto(url, caption) {
       document.getElementById("photoImg").src = url;
@@ -381,11 +382,23 @@
 
     function startPhotoPolling(patientId) {
       if (photoPollInterval) clearInterval(photoPollInterval);
+      photoShown = false;
       photoPollInterval = setInterval(async () => {
+        if (photoShown) return; // already shown one photo this session
         try {
-          const res = await fetch("https://rose-proxy.vercel.app/api/photos?patientId=" + patientId);
+          const res = await fetch("https://rose-proxy.vercel.app/api/photos?patientId=" + patientId + "&t=" + Date.now());
           const data = await res.json();
-          if (data.url) showPhoto(data.url, "");
+          if (data.photoMap) {
+            const entries = Object.entries(data.photoMap);
+            if (entries.length > 0) {
+              const [label, url] = entries[0];
+              if (url) {
+                photoShown = true;
+                clearInterval(photoPollInterval);
+                showPhoto(url, label);
+              }
+            }
+          }
         } catch(e) {}
       }, 2000);
     }
@@ -470,7 +483,6 @@
           if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
         }
         if (!uri) {
-          // Add genre hint to avoid wrong versions (e.g. 'My Way' → Sinatra not Limp Bizkit)
           const genreHint = ' jazz OR sinatra OR classical OR oldies';
           const enrichedQuery = query.length < 30 ? query + genreHint : query;
           const searchRes = await fetch(
@@ -480,7 +492,6 @@
           const searchData = await searchRes.json();
           const tracks = searchData.tracks?.items || [];
           if (tracks.length === 0) return;
-          // Prefer tracks by well-known artists (avoid tribute bands etc)
           const preferred = tracks.filter(t => !t.artists[0].name.toLowerCase().includes('tribute') && !t.artists[0].name.toLowerCase().includes('karaoke'));
           const pool = preferred.length > 0 ? preferred : tracks;
           uri = pool[Math.floor(Math.random() * Math.min(pool.length, 5))].uri;
@@ -495,7 +506,6 @@
 
     function startMusicQueuePolling(patientId) {
       if (musicPollInterval) clearInterval(musicPollInterval);
-      if (photoPollInterval) clearInterval(photoPollInterval);
       musicPollInterval = setInterval(async () => {
         try {
           const res = await fetch('https://rose-proxy.vercel.app/api/music-queue?patientId=' + patientId);
@@ -569,7 +579,7 @@
         // 2. Create LiveAvatar session
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        // 3. Wire video — use session.stream_ready + session.attach()
+        // 3. Wire video
         liveAvatarSession.on('session.stream_ready', () => {
           console.log('session.stream_ready fired — attaching video');
           const video = document.getElementById('roseVideo');
@@ -594,7 +604,7 @@
           if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
         });
 
-        // 5. Start — SDK may throw even on success, so we catch and continue
+        // 5. Start session
         try {
           await liveAvatarSession.start();
         } catch (startErr) {
@@ -635,6 +645,7 @@
       video.srcObject = null;
       setSpeaking(false);
       setListening(false);
+      photoShown = false;
       showSelectionScreen();
     };
 
