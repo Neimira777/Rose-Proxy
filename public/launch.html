@@ -406,14 +406,20 @@
           if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
         }
         if (!uri) {
+          // Add genre hint to avoid wrong versions (e.g. 'My Way' → Sinatra not Limp Bizkit)
+          const genreHint = ' jazz OR sinatra OR classical OR oldies';
+          const enrichedQuery = query.length < 30 ? query + genreHint : query;
           const searchRes = await fetch(
-            'https://api.spotify.com/v1/search?q=' + encodeURIComponent(query) + '&type=track&limit=5',
+            'https://api.spotify.com/v1/search?q=' + encodeURIComponent(enrichedQuery) + '&type=track&limit=10',
             { headers: { 'Authorization': 'Bearer ' + access_token } }
           );
           const searchData = await searchRes.json();
           const tracks = searchData.tracks?.items || [];
           if (tracks.length === 0) return;
-          uri = tracks[Math.floor(Math.random() * tracks.length)].uri;
+          // Prefer tracks by well-known artists (avoid tribute bands etc)
+          const preferred = tracks.filter(t => !t.artists[0].name.toLowerCase().includes('tribute') && !t.artists[0].name.toLowerCase().includes('karaoke'));
+          const pool = preferred.length > 0 ? preferred : tracks;
+          uri = pool[Math.floor(Math.random() * Math.min(pool.length, 5))].uri;
         }
         await fetch('https://api.spotify.com/v1/me/player/play?device_id=' + spotifyDeviceId, {
           method: 'PUT',
