@@ -387,6 +387,18 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
     const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
+    // ── Check for SHOW_PHOTO signal ──
+    const photoMatch = replyText.match(/SHOW_PHOTO:([^\n]+)/);
+    if (photoMatch) {
+      const photoLabel = photoMatch[1].trim();
+      const photoMap = global._photoMaps?.[patientId] || {};
+      const photoUrl = photoMap[photoLabel];
+      if (photoUrl) {
+        if (!global._photoQueue) global._photoQueue = {};
+        global._photoQueue[patientId] = photoUrl;
+      }
+    }
+
     // ── Check for PLAY_MUSIC signal ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
