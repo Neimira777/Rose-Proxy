@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neimira — Share Photos with Rose</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #1A237E;
+      --cyan: #00BCD4;
+      --blue: #2979FF;
+      --bg: #F5F6F8;
+      --white: #FFFFFF;
+      --text: #1A237E;
+      --text-body: #37474F;
+      --text-muted: #90A4AE;
+      --border: #E0E7EF;
+      --success: #4CAF50;
+      --error: #F44336;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--text-body); min-height: 100vh; padding: 0 0 80px; }
+
+    .header {
+      background: var(--white); border-bottom: 1px solid var(--border);
+      padding: 32px 40px; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      box-shadow: 0 2px 12px rgba(26,35,126,0.06);
+    }
+    .header-left { display: none; }
+    .header-right { display: none; }
+    .header-center { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+    .logo-name {
+      font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 400;
+      letter-spacing: 14px; text-transform: uppercase; color: var(--navy);
+    }
+    .logo-tag { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--cyan); font-weight: 500; }
+    .header-sub { font-size: 11px; letter-spacing: 2px; color: var(--text-muted); text-transform: uppercase; margin-top: 2px; }
+
+    .hero {
+      background: linear-gradient(135deg, var(--navy) 0%, #2979FF 100%);
+      padding: 60px 40px; text-align: center; color: white;
+    }
+    .hero h1 { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; letter-spacing: 2px; margin-bottom: 16px; line-height: 1.2; }
+    .hero p { font-size: 16px; font-weight: 300; color: rgba(255,255,255,0.8); max-width: 520px; margin: 0 auto; line-height: 1.7; }
+    .hero p span { color: #80DEEA; font-weight: 500; }
+
+    .steps { display: flex; justify-content: center; background: var(--white); border-bottom: 1px solid var(--border); }
+    .step { flex: 1; max-width: 200px; padding: 20px 16px; text-align: center; border-right: 1px solid var(--border); }
+    .step:last-child { border-right: none; }
+    .step-number { width: 28px; height: 28px; border-radius: 50%; background: var(--border); color: var(--text-muted); font-size: 13px; font-weight: 600; display: flex; align-items: center; justify-content: center; margin: 0 auto 8px; transition: all 0.3s; }
+    .step.active .step-number { background: linear-gradient(135deg, var(--cyan), var(--blue)); color: white; }
+    .step.done .step-number { background: var(--success); color: white; }
+    .step-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); font-weight: 500; }
+    .step.active .step-label { color: var(--navy); }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 40px 24px; }
+
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(26,35,126,0.06); }
+    .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--navy); margin-bottom: 6px; }
+    .card-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+    .section-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); margin-bottom: 20px; font-weight: 600; }
+
+    .input-group { margin-bottom: 20px; }
+    .input-group label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--navy); margin-bottom: 8px; text-transform: uppercase; font-weight: 600; }
+    .input-group input { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text-body); font-family: 'Jost', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .input-group input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,188,212,0.1); background: white; }
+    .input-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+
+    .btn-primary { width: 100%; background: linear-gradient(135deg, var(--cyan), var(--blue)); border: none; border-radius: 12px; padding: 16px; color: white; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 20px rgba(0,188,212,0.3); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,188,212,0.4); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-secondary { width: 100%; background: white; border: 1.5px solid var(--border); border-radius: 12px; padding: 14px; color: var(--navy); font-family: 'Jost', sans-serif; font-size: 13px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; margin-top: 12px; }
+    .btn-secondary:hover { border-color: var(--cyan); color: var(--cyan); }
+
+    .patient-confirmed { display: none; background: rgba(0,188,212,0.06); border: 1.5px solid rgba(0,188,212,0.3); border-radius: 10px; padding: 14px 18px; margin-top: 16px; align-items: center; gap: 12px; font-size: 14px; color: var(--navy); }
+    .patient-confirmed.visible { display: flex; }
+    .patient-confirmed .check { width: 28px; height: 28px; border-radius: 50%; background: var(--success); color: white; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+
+    .upload-section { display: none; }
+    .upload-section.visible { display: block; }
+
+    .drop-zone { border: 2px dashed var(--border); border-radius: 16px; padding: 48px 24px; text-align: center; cursor: pointer; transition: all 0.3s; margin-bottom: 24px; background: var(--bg); }
+    .drop-zone:hover, .drop-zone.dragover { border-color: var(--cyan); background: rgba(0,188,212,0.04); }
+    .drop-icon { font-size: 48px; margin-bottom: 16px; }
+    .drop-title { font-size: 16px; color: var(--navy); font-weight: 500; margin-bottom: 8px; }
+    .drop-sub { font-size: 13px; color: var(--text-muted); }
+    .drop-sub span { color: var(--cyan); font-weight: 500; cursor: pointer; }
+    #fileInput { display: none; }
+
+    .photo-preview { display: none; margin-bottom: 24px; border-radius: 16px; overflow: hidden; border: 1.5px solid var(--border); box-shadow: 0 4px 16px rgba(26,35,126,0.08); }
+    .photo-preview.visible { display: block; }
+    .photo-preview img { width: 100%; max-height: 280px; object-fit: cover; display: block; }
+    .photo-preview-bar { background: white; padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; border-top: 1px solid var(--border); }
+    .photo-preview-name { font-size: 13px; color: var(--text-muted); }
+    .photo-change { font-size: 11px; color: var(--cyan); cursor: pointer; letter-spacing: 1px; text-transform: uppercase; background: none; border: none; font-family: 'Jost', sans-serif; font-weight: 600; }
+
+    .status-message { display: none; border-radius: 14px; padding: 18px 22px; margin-bottom: 24px; align-items: flex-start; gap: 14px; }
+    .status-message.visible { display: flex; }
+    .status-message.loading { background: rgba(0,188,212,0.06); border: 1.5px solid rgba(0,188,212,0.25); }
+    .status-message.success { background: rgba(76,175,80,0.06); border: 1.5px solid rgba(76,175,80,0.25); }
+    .status-message.error { background: rgba(244,67,54,0.06); border: 1.5px solid rgba(244,67,54,0.25); }
+    .spinner { width: 22px; height: 22px; flex-shrink: 0; margin-top: 2px; border: 2px solid rgba(0,188,212,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .status-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+    .status-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
+    .status-desc { font-size: 13px; color: var(--text-body); line-height: 1.5; }
+
+    .footer-quote { text-align: center; margin-top: 48px; padding-top: 32px; border-top: 1px solid var(--border); }
+    .footer-quote p { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; color: var(--navy); line-height: 1.6; font-style: italic; opacity: 0.7; }
+    .footer-quote cite { display: block; margin-top: 10px; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); font-style: normal; font-weight: 600; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="header-center">
+      <svg width="120" height="120" viewBox="0 0 200 200" role="img">
+        <title>Neimira logo</title>
+        <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+        <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+        <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+        <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+        <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
+        <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
+        <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+        <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+        <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
+        <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
+        <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
+        <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
+        <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#gh)" stroke-width="4" stroke-linecap="round"/>
+        <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
+        <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
+        <defs>
+          <linearGradient id="gh" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#00BCD4"/>
+            <stop offset="100%" style="stop-color:#2979FF"/>
+          </linearGradient>
+        </defs>
+      </svg>
+      <div>
+        <div class="logo-name">Neimira</div>
+        <div class="logo-tag">AI Companion Technology</div>
+      </div>
+      <div class="header-sub">Family Portal</div>
+    </div>
+  </div>
+
+  <div class="hero">
+    <h1>Share Your Family Photos</h1>
+    <p>Help Rose get to know your loved one better. Upload a few cherished photos and Rose will use them to spark <span>warm memories and meaningful conversations.</span></p>
+  </div>
+
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="step-number">1</div>
+      <div class="step-label">Find Patient</div>
+    </div>
+    <div class="step" id="step2">
+      <div class="step-number">2</div>
+      <div class="step-label">Upload Photo</div>
+    </div>
+    <div class="step" id="step3">
+      <div class="step-number">3</div>
+      <div class="step-label">Done</div>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <div class="status-message" id="statusMessage">
+      <div class="spinner" id="statusSpinner"></div>
+      <div class="status-icon" id="statusIcon" style="display:none"></div>
+      <div>
+        <div class="status-title" id="statusTitle"></div>
+        <div class="status-desc" id="statusDesc"></div>
+      </div>
+    </div>
+
+    <div class="card" id="patientCard">
+      <div class="section-label">Step 1 — Find Your Loved One</div>
+      <div class="card-title">Enter Your Patient ID</div>
+      <div class="card-subtitle">You received this ID in your welcome email from Neimira. It looks like NMR-001.</div>
+      <div class="input-group">
+        <label>Patient ID</label>
+        <input type="text" id="patientIdInput" placeholder="e.g. NMR-001"/>
+      </div>
+      <button class="btn-primary" onclick="lookupPatient()">Find My Loved One</button>
+      <div class="patient-confirmed" id="patientConfirmed">
+        <div class="check">✓</div>
+        <span id="patientConfirmedName"></span>
+      </div>
+    </div>
+
+    <div class="upload-section" id="uploadSection">
+      <div class="card">
+        <div class="section-label">Step 2 — Share a Photo</div>
+        <div class="card-title">Choose a Photo</div>
+        <div class="card-subtitle">Rose will study this photo carefully and use it to start a warm, personal conversation about the people and memories in it.</div>
+
+        <div class="drop-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+          <div class="drop-icon">🌸</div>
+          <div class="drop-title">Drop a photo here</div>
+          <div class="drop-sub">or <span>browse your files</span></div>
+        </div>
+        <input type="file" id="fileInput" accept="image/*">
+
+        <div class="photo-preview" id="photoPreview">
+          <img id="previewImg" src="" alt="Preview">
+          <div class="photo-preview-bar">
+            <span class="photo-preview-name" id="previewName"></span>
+            <button class="photo-change" onclick="document.getElementById('fileInput').click()">Change Photo</button>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label>Who is in this photo?</label>
+          <input type="text" id="peopleNames" placeholder="e.g. Sara left, Michael right, Scarlett center"/>
+          <div class="input-hint">List each person and where they appear. Rose will use this to recognize everyone.</div>
+        </div>
+
+        <div class="input-group">
+          <label>Occasion or event <span style="font-weight:300;text-transform:none;letter-spacing:0">(optional)</span></label>
+          <input type="text" id="occasion" placeholder="e.g. Sara's wedding, Christmas 1987, Family reunion"/>
+        </div>
+
+        <button class="btn-primary" id="submitBtn" onclick="uploadPhoto()">Share with Rose 🌹</button>
+        <button class="btn-secondary" onclick="resetForNextPhoto()" id="addAnotherBtn" style="display:none">+ Add Another Photo</button>
+      </div>
+    </div>
+
+    <div class="footer-quote">
+      <p>"Every photo holds a story waiting to be remembered."</p>
+      <cite>— Rose</cite>
+    </div>
+
+  </div>
+
+  <script>
+    let currentPatientId = null;
+    let selectedFile = null;
+
+    const dropZone = document.getElementById('dropZone');
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault(); dropZone.classList.remove('dragover');
+      const file = e.dataTransfer.files[0];
+      if (file && file.type.startsWith('image/')) handleFile(file);
+    });
+    document.getElementById('fileInput').addEventListener('change', (e) => {
+      if (e.target.files[0]) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      selectedFile = file;
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        document.getElementById('previewImg').src = e.target.result;
+        document.getElementById('previewName').textContent = file.name;
+        document.getElementById('photoPreview').classList.add('visible');
+        document.getElementById('dropZone').style.display = 'none';
+      };
+      reader.readAsDataURL(file);
+    }
+
+    async function lookupPatient() {
+      const input = document.getElementById('patientIdInput').value.trim();
+      if (!input) return showStatus('error', '⚠️', 'Please enter a Patient ID', 'You can find this in your welcome email from Neimira.');
+      showStatus('loading', '', 'Looking up patient…', 'Just a moment.');
+      try {
+        const res = await fetch('https://rose-proxy.vercel.app/api/patients?nmrtId=' + encodeURIComponent(input));
+        const data = await res.json();
+        if (!data || data.error || !data.id) return showStatus('error', '⚠️', 'Patient not found', 'Please check the Patient ID and try again.');
+        currentPatientId = data.id;
+        document.getElementById('patientConfirmedName').textContent = 'Found: ' + data.name;
+        document.getElementById('patientConfirmed').classList.add('visible');
+        document.getElementById('uploadSection').classList.add('visible');
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step1').classList.add('done');
+        document.getElementById('step2').classList.add('active');
+        hideStatus();
+      } catch (e) {
+        showStatus('error', '⚠️', 'Connection error', 'Please check your internet connection and try again.');
+      }
+    }
+
+    async function uploadPhoto() {
+      if (!selectedFile) return showStatus('error', '⚠️', 'No photo selected', 'Please choose a photo to share with Rose.');
+      if (!currentPatientId) return showStatus('error', '⚠️', 'No patient selected', 'Please look up the patient first.');
+      const peopleNames = document.getElementById('peopleNames').value.trim();
+      const occasion = document.getElementById('occasion').value.trim();
+      document.getElementById('submitBtn').disabled = true;
+      showStatus('loading', '', 'Sharing photo with Rose…', 'Rose is getting to know this photo. This may take 10–15 seconds.');
+      try {
+        const base64 = await fileToBase64(selectedFile);
+        const base64Data = base64.split(',')[1];
+        const res = await fetch('https://rose-proxy.vercel.app/api/photo-upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: currentPatientId, photoBase64: base64Data, photoName: selectedFile.name, mimeType: selectedFile.type, peopleNames, occasion })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
+        showStatus('success', '🌹', 'Rose has your photo!', data.description
+          ? '"' + data.description.substring(0, 150) + (data.description.length > 150 ? '…' : '') + '"'
+          : 'The photo has been saved. Rose will use it in her next conversation.');
+        document.getElementById('step2').classList.remove('active');
+        document.getElementById('step2').classList.add('done');
+        document.getElementById('step3').classList.add('active');
+        document.getElementById('addAnotherBtn').style.display = 'block';
+        document.getElementById('submitBtn').disabled = false;
+      } catch (e) {
+        showStatus('error', '⚠️', 'Something went wrong', e.message || 'Please try again.');
+        document.getElementById('submitBtn').disabled = false;
+      }
+    }
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function resetForNextPhoto() {
+      selectedFile = null;
+      document.getElementById('fileInput').value = '';
+      document.getElementById('previewImg').src = '';
+      document.getElementById('photoPreview').classList.remove('visible');
+      document.getElementById('dropZone').style.display = 'block';
+      document.getElementById('peopleNames').value = '';
+      document.getElementById('occasion').value = '';
+      document.getElementById('addAnotherBtn').style.display = 'none';
+      document.getElementById('step2').classList.remove('done');
+      document.getElementById('step2').classList.add('active');
+      document.getElementById('step3').classList.remove('active');
+      hideStatus();
+    }
+
+    function showStatus(type, icon, title, desc) {
+      const el = document.getElementById('statusMessage');
+      el.className = 'status-message visible ' + type;
+      const spinner = document.getElementById('statusSpinner');
+      const iconEl = document.getElementById('statusIcon');
+      if (type === 'loading') { spinner.style.display = 'block'; iconEl.style.display = 'none'; }
+      else { spinner.style.display = 'none'; iconEl.style.display = 'block'; iconEl.textContent = icon; }
+      document.getElementById('statusTitle').textContent = title;
+      document.getElementById('statusDesc').textContent = desc;
+    }
+
+    function hideStatus() {
+      document.getElementById('statusMessage').className = 'status-message';
+    }
+  </script>
+
+</body>
+</html>
