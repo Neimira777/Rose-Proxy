@@ -1,20 +1,16 @@
 // ─────────────────────────────────────────────
 //  chat-completions.js
 //  OpenAI-compatible endpoint for LiveAvatar custom LLM integration
-//  LiveAvatar calls POST /api/chat/completions
-//  We extract patientId from the system message, call Claude,
-//  and return the response in OpenAI chat completion format
 // ─────────────────────────────────────────────
 
 // ── Session cache ──
 const sessionCache = {};
-
 function getCache(patientId) { return sessionCache[patientId] || null; }
 function setCache(patientId, data) { sessionCache[patientId] = { ...data, cachedAt: Date.now() }; }
 function isCacheValid(patientId) {
   const cache = sessionCache[patientId];
   if (!cache) return false;
-  return (Date.now() - cache.cachedAt) < 5 * 60 * 1000; // 5 min cache
+  return (Date.now() - cache.cachedAt) < 5 * 60 * 1000;
 }
 
 // ── Timezone detection ──
@@ -57,7 +53,7 @@ function isMorningSession(hometown) {
 
 // ── Seasonal context ──
 function getSeasonalContext(hometown) {
-  const { monthName, dayName, dayNum, year, full, timeOfDay } = getLocalDateTime(hometown);
+  const { full, timeOfDay } = getLocalDateTime(hometown);
   const now = new Date();
   const month = now.getMonth() + 1;
   let season = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
@@ -69,8 +65,7 @@ function getSeasonalContext(hometown) {
   };
   const yr = now.getFullYear();
   function nthWeekday(year, month, weekday, n) {
-    const d = new Date(year, month - 1, 1);
-    let count = 0;
+    const d = new Date(year, month - 1, 1); let count = 0;
     while (d.getMonth() === month - 1) {
       if (d.getDay() === weekday) { count++; if (count === n) return d.getDate(); }
       d.setDate(d.getDate() + 1);
@@ -106,14 +101,13 @@ function getSeasonalContext(hometown) {
     const daysUntil = Math.ceil((holidayDate - now) / (1000 * 60 * 60 * 24));
     return daysUntil === 0 ? `Today is ${h.name}!` : daysUntil === 1 ? `${h.name} is tomorrow!` : `${h.name} is in ${daysUntil} days.`;
   });
-  let context = `DATE & TIME CONTEXT:\nToday is ${full}. It is currently ${timeOfDay} for the patient.\nIMPORTANT: On the FIRST message of each session, naturally weave in the day, date, AND year — never as a quiz or reminder, just warmly in passing.\n\nSEASONAL CONTEXT:\nIt is currently ${season}. ${seasonPrompts[season]}`;
+  let context = `DATE & TIME CONTEXT:\nToday is ${full}. It is currently ${timeOfDay} for the resident.\nIMPORTANT: On the FIRST message of each session, naturally weave in the day, date, AND year — never as a quiz or reminder, just warmly in passing.\n\nSEASONAL CONTEXT:\nIt is currently ${season}. ${seasonPrompts[season]}`;
   if (upcoming.length > 0) context += `\nUpcoming holidays: ${upcoming.join(' ')}\nWeave upcoming holidays naturally into conversation.`;
   return context;
 }
 
 // ── Sports helpers ──
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
-const MLB_API_BASE = 'https://statsapi.mlb.com/api/v1';
 const TEAM_ID_LOOKUP = {
   'new york yankees': { id: '135260', name: 'New York Yankees', mlbId: 147 },
   'yankees': { id: '135260', name: 'New York Yankees', mlbId: 147 },
@@ -221,7 +215,7 @@ async function callClaude(systemPrompt, messages) {
 }
 
 // ─────────────────────────────────────────────
-//  Main handler — OpenAI-compatible format
+//  Main handler
 // ─────────────────────────────────────────────
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -233,23 +227,27 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-
-    // ── Extract patientId from messages ──
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
-    let patientId = 'recMLLC4fJHBUhE5w'; // default to Scarlett
+    let patientId = 'recMLLC4fJHBUhE5w';
 
     if (systemMsg?.content) {
       const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
       if (match) patientId = match[1];
     }
 
-    // Filter to user/assistant messages only
     const messages = allMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
 
-    // ── Load patient profile ──
+    const isFirstMessage = !messages.some(m => m.role === 'assistant');
+
+    // ── Detect session signals ──
+    const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
+    const isCheckIn = lastUserContent.includes('__CHECK_IN__');
+    const isWrapUp = lastUserContent.includes('__WRAP_UP__');
+
+    // ── Load resident profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '', sportsContext = '';
@@ -292,7 +290,7 @@ export default async function handler(req, res) {
           console.log('DEBUG photoMap built:', JSON.stringify(photoMap));
         }
 
-        patientProfile = `PATIENT PROFILE:
+        patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
 Age: ${f['Age'] || ''} | Hometown: ${hometown} | Living situation: ${f['Living Situation'] || ''}
 Spouse: ${f['Spouse Name'] ? `${f['Spouse Name']} (${f['Spouse Status'] || ''})` : 'Not provided'}
@@ -317,13 +315,11 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, sportsContext, photoContext, photoMap });
     }
 
-    // ── Seasonal context ──
     const seasonalContext = getSeasonalContext(hometown);
 
     // ── Morning music + clothing trigger ──
-    console.log("DEBUG morning:", { morningPlaylist, favoriteSongs, hometown });
     let morningMusicInstruction = '';
-    if (isMorningSession(hometown)) {
+    if (isMorningSession(hometown) && isFirstMessage) {
       const playlistSource = morningPlaylist || favoriteSongs;
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
@@ -331,13 +327,13 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
         if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
       }
-      morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the patient's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
+      morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the resident's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
     }
 
     // ── Music guidance ──
     let musicGuidance = '';
     if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
-      musicGuidance = `\nMUSIC GUIDANCE:\nThe patient loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way" or "PLAY_MUSIC:Frank Sinatra". Always include the artist name to avoid wrong versions.`;
+      musicGuidance = `\nMUSIC GUIDANCE:\nThe resident loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way" or "PLAY_MUSIC:Frank Sinatra". Always include the artist name to avoid wrong versions.`;
     }
 
     // ── Rotating greetings ──
@@ -351,6 +347,14 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
+    // ── Session signal instructions ──
+    let sessionSignalInstruction = '';
+    if (isCheckIn) {
+      sessionSignalInstruction = `\nSESSION SIGNAL — CHECK IN: You have not heard from the resident in a while. Gently check in by saying something warm like "${greetingName}, are you still there? I'm right here if you'd like to chat." Keep it very brief and warm.`;
+    } else if (isWrapUp) {
+      sessionSignalInstruction = `\nSESSION SIGNAL — WRAP UP: The visit is coming to a close. Warmly wrap up the conversation. Say something like "It's been so lovely spending time with you, ${greetingName}. I'll see you again soon — take good care of yourself." Make it feel like a natural, loving goodbye from a good friend.`;
+    }
+
     // ── System prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
@@ -358,9 +362,15 @@ How you speak: Keep responses short — two to three sentences at most. Speak co
 
 How you listen: Always respond to what the person actually said before asking anything new. Pick up on emotional cues.
 
-What you never do: Give medical advice. Say "As an AI" or refer to yourself as a bot. Never break character.
+What you NEVER do:
+- Give medical advice
+- Say "As an AI" or refer to yourself as a bot
+- Break character
+- Use terms like "honey", "sweetie", "dear", "sweetheart", or any diminutive terms of endearment — these are considered condescending to older adults. Always use the resident's name instead.
 
-What you can do: Use web search for weather questions, current news, and sports scores. If someone asks about a game, championship, or sports news you are not sure about, use web search to find the current answer. If asked to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song name — always include the artist to get the right version.
+What you can do: Use web search for weather questions, current news, and sports scores. Once per session, naturally share one positive, uplifting news story — a scientific discovery, a community achievement, an inspiring human moment. Weave it warmly into conversation, never as a news broadcast. Avoid politics, crime, or disasters.
+
+If asked to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song name — always include the artist to get the right version.
 
 Your one goal: Make whoever you're speaking with feel like the most interesting person in the room.
 
@@ -370,10 +380,16 @@ ${photoContext ? `\n${photoContext}` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
-${sportsContext ? `\n${sportsContext}` : ''}`;
+${sportsContext ? `\n${sportsContext}` : ''}
+${sessionSignalInstruction}`;
 
-    // ── Call Claude ──
-    const finalMessages = messages.length > 0 ? messages : [{ role: 'user', content: 'Hello' }];
+    // ── Clean signal keywords from messages before sending to Claude ──
+    const cleanedMessages = messages.map(m => ({
+      ...m,
+      content: m.content.replace(/__CHECK_IN__/g, '').replace(/__WRAP_UP__/g, '').trim() || 'Hello'
+    }));
+
+    const finalMessages = cleanedMessages.length > 0 ? cleanedMessages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
     // ── Check for SHOW_PHOTO signal ──
@@ -408,8 +424,11 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
 
-    // ── Clean reply ──
-    const cleanReply = replyText.replace(/PLAY_MUSIC:[^\n]+/g, '').replace(/SHOW_PHOTO:[^\n]+/g, '').trim();
+    const cleanReply = replyText
+      .replace(/PLAY_MUSIC:[^\n]+/g, '')
+      .replace(/SHOW_PHOTO:[^\n]+/g, '')
+      .trim();
+
     const isStreaming = req.body && req.body.stream === true;
 
     if (isStreaming) {
@@ -419,22 +438,8 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       res.status(200);
       const chunkId = 'chatcmpl-' + Date.now();
       const created = Math.floor(Date.now() / 1000);
-      const chunk = JSON.stringify({
-        id: chunkId,
-        object: 'chat.completion.chunk',
-        created: created,
-        model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: { role: 'assistant', content: cleanReply }, finish_reason: null }]
-      });
-      res.write('data: ' + chunk + '\n\n');
-      const finalChunk = JSON.stringify({
-        id: chunkId,
-        object: 'chat.completion.chunk',
-        created: created,
-        model: 'claude-haiku-4-5-20251001',
-        choices: [{ index: 0, delta: {}, finish_reason: 'stop' }]
-      });
-      res.write('data: ' + finalChunk + '\n\n');
+      res.write('data: ' + JSON.stringify({ id: chunkId, object: 'chat.completion.chunk', created, model: 'claude-haiku-4-5-20251001', choices: [{ index: 0, delta: { role: 'assistant', content: cleanReply }, finish_reason: null }] }) + '\n\n');
+      res.write('data: ' + JSON.stringify({ id: chunkId, object: 'chat.completion.chunk', created, model: 'claude-haiku-4-5-20251001', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }) + '\n\n');
       res.write('data: [DONE]\n\n');
       res.end();
       return;
@@ -445,11 +450,7 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
       object: 'chat.completion',
       created: Math.floor(Date.now() / 1000),
       model: 'claude-haiku-4-5-20251001',
-      choices: [{
-        index: 0,
-        message: { role: 'assistant', content: cleanReply },
-        finish_reason: 'stop'
-      }],
+      choices: [{ index: 0, message: { role: 'assistant', content: cleanReply }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
     });
 
@@ -458,3 +459,4 @@ ${sportsContext ? `\n${sportsContext}` : ''}`;
     return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
   }
 }
+
