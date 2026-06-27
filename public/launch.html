@@ -416,9 +416,47 @@
     let photoPollInterval = null;
     let photoShown = false;
     let sessionTimer = null;
+    let silenceTimer = null;
+    let checkInTimer = null;
+    let checkInSent = false;
     let scheduleCheckInterval = null;
     let clientProfile = null;
     let sessionActive = false;
+
+    const SILENCE_BEFORE_CHECKIN = 2 * 60 * 1000;  // 2 min silence → check in
+    const SILENCE_BEFORE_END = 60 * 1000;            // 60 sec no response → end session
+
+    function resetSilenceTimer() {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      if (checkInTimer) clearTimeout(checkInTimer);
+      checkInSent = false;
+      silenceTimer = setTimeout(sendCheckIn, SILENCE_BEFORE_CHECKIN);
+    }
+
+    function clearSilenceTimers() {
+      if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+      if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; }
+      checkInSent = false;
+    }
+
+    async function sendCheckIn() {
+      if (!sessionActive || checkInSent) return;
+      checkInSent = true;
+      console.log('Silence detected — sending check-in signal');
+      try {
+        await fetch(`${API}/api/music-queue`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, query: '__CHECK_IN__' })
+        });
+      } catch(e) {}
+      // If no response in 60 seconds, end session
+      checkInTimer = setTimeout(() => {
+        if (sessionActive) {
+          console.log('No response after check-in — ending session');
+          endSession();
+        }
+      }, SILENCE_BEFORE_END);
+    }
 
     // ── Clock ──
     function updateClock() {
@@ -623,7 +661,14 @@
         try {
           const res = await fetch(`${API}/api/music-queue?patientId=${patientId}`);
           const data = await res.json();
-          if (data.query) spotifyPlayBySearch(data.query);
+          if (data.query === '__CHECK_IN__') {
+            // Already handled by chat-completions.js system prompt signal
+            console.log('Check-in signal received');
+          } else if (data.query === '__WRAP_UP__') {
+            console.log('Wrap-up signal received');
+          } else if (data.query) {
+            spotifyPlayBySearch(data.query);
+          }
         } catch(e) {}
       }, 2000);
     }
@@ -666,18 +711,26 @@
         liveAvatarSession.on('avatar.speak_started', () => {
           setSpeaking(true);
           if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+          resetSilenceTimer(); // Rose speaking resets silence timer
         });
         liveAvatarSession.on('avatar.speak_ended', () => {
           setSpeaking(false); setListening(true);
           if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
+          resetSilenceTimer(); // Start counting silence after Rose finishes
         });
         liveAvatarSession.on('user.speak_started', () => {
           setListening(true);
           if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+          resetSilenceTimer(); // Resident speaking resets silence timer
+          if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; } // Cancel end-session if they responded
         });
         liveAvatarSession.on('user.speak_ended', () => {
           setListening(false);
           if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
+        });
+        liveAvatarSession.on('user.silence', () => {
+          console.log('user.silence event fired');
+          // Handled by our own timer, but log it for debugging
         });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
@@ -690,6 +743,7 @@
         await initSpotify(PATIENT_ID);
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
+        resetSilenceTimer(); // Start silence detection
 
         // ── Auto-end session after Visit Duration ──
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
@@ -719,6 +773,7 @@
       if (sessionTimer) { clearTimeout(sessionTimer); sessionTimer = null; }
       if (musicPollInterval) { clearInterval(musicPollInterval); musicPollInterval = null; }
       if (photoPollInterval) { clearInterval(photoPollInterval); photoPollInterval = null; }
+      clearSilenceTimers();
       if (liveAvatarSession) {
         try { await liveAvatarSession.stop(); } catch(e) {}
         liveAvatarSession = null;
@@ -747,4 +802,3 @@
 
 </body>
 </html>
-   
