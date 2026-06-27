@@ -425,7 +425,7 @@
     let clientProfile = null;
     let sessionActive = false;
 
-    const SILENCE_BEFORE_CHECKIN = 2 * 90 * 1000;
+    const SILENCE_BEFORE_CHECKIN = 45 * 1000;
     const SILENCE_BEFORE_END = 60 * 1000;
 
     function resetSilenceTimer() {
@@ -678,6 +678,7 @@
         liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
         liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); });
         liveAvatarSession.on('user.silence', () => { console.log('user.silence event fired'); });
+        liveAvatarSession.on('session.stopped', () => { console.log('HeyGen session stopped'); if (sessionActive) endSession(); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
         try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
