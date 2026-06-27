@@ -797,7 +797,7 @@
     };
 
     // ── Manual launch (tap logo on waiting screen) ──
-    document.getElementById('waitingScreen').addEventListener('dblclick', () => {
+    document.querySelector('.waiting-logo').addEventListener('click', () => {
       if (!sessionActive) launchRose();
     });
 
