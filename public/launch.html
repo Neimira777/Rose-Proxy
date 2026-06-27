@@ -439,24 +439,36 @@
       checkInSent = false;
     }
 
+    function playChime() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        // Three gentle ascending tones
+        [523.25, 659.25, 783.99].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          const start = ctx.currentTime + i * 0.35;
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(0.18, start + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.8);
+          osc.start(start);
+          osc.stop(start + 0.8);
+        });
+      } catch(e) { console.warn('Chime failed:', e); }
+    }
+
     async function sendCheckIn() {
       if (!sessionActive || checkInSent) return;
       checkInSent = true;
-      console.log('Silence detected — sending check-in via avatar.speak_response');
-      try {
-        // Use LiveAvatar's speak_response to make Rose generate and speak a check-in
-        await liveAvatarSession.sendCommand('agent-control', {
-          event_type: 'avatar.speak_response',
-          text: '__CHECK_IN__'
-        });
-      } catch(e) {
-        console.error('Check-in speak_response failed:', e);
-        // Fallback: just end session after timeout
-      }
-      // If no response in 60 seconds, end session
+      console.log('Silence detected — playing gentle chime');
+      playChime();
+      // If no response in 60 seconds, end session silently
       checkInTimer = setTimeout(() => {
         if (sessionActive) {
-          console.log('No response after check-in — ending session');
+          console.log('No response after chime — ending session');
           endSession();
         }
       }, SILENCE_BEFORE_END);
@@ -753,19 +765,11 @@
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
         const warnTime = duration - (2 * 60 * 1000); // 2 min warning
 
-        // Signal Rose to wrap up 2 minutes before end
+        // Auto-end session after Visit Duration
         sessionTimer = setTimeout(async () => {
-          try {
-            await liveAvatarSession.sendCommand('agent-control', {
-              event_type: 'avatar.speak_response',
-              text: '__WRAP_UP__'
-            });
-          } catch(e) {
-            console.error('Wrap-up speak_response failed:', e);
-          }
-          // End session after 2 more minutes
-          setTimeout(() => endSession(), 2 * 60 * 1000);
-        }, warnTime > 0 ? warnTime : duration);
+          console.log('Session duration reached — ending session');
+          endSession();
+        }, duration);
 
       } catch(err) {
         console.error('Launch error:', err);
