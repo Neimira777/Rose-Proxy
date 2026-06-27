@@ -399,21 +399,23 @@
     </div>
   </div>
 
+
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
   <script type="module">
     import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
 
-    // ── Config ──
-    const PATIENT_ID = 'recMLLC4fJHBUhE5w'; // Scarlett — will be dynamic later
+    const PATIENT_ID = 'recMLLC4fJHBUhE5w';
     const API = 'https://rose-proxy.vercel.app';
 
     let liveAvatarSession = null;
+    let currentSessionId = null;
     let spotifyPlayer = null;
     let spotifyDeviceId = null;
     let isPlaying = false;
     let musicPollInterval = null;
     let photoPollInterval = null;
+    let keepAliveInterval = null;
     let photoShown = false;
     let sessionTimer = null;
     let silenceTimer = null;
@@ -423,8 +425,8 @@
     let clientProfile = null;
     let sessionActive = false;
 
-    const SILENCE_BEFORE_CHECKIN = 2 * 60 * 1000;  // 2 min silence → check in
-    const SILENCE_BEFORE_END = 60 * 1000;            // 60 sec no response → end session
+    const SILENCE_BEFORE_CHECKIN = 2 * 60 * 1000;
+    const SILENCE_BEFORE_END = 60 * 1000;
 
     function resetSilenceTimer() {
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -442,7 +444,6 @@
     function playChime() {
       try {
         const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        // Three gentle ascending tones
         [523.25, 659.25, 783.99].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -465,13 +466,28 @@
       checkInSent = true;
       console.log('Silence detected — playing gentle chime');
       playChime();
-      // If no response in 60 seconds, end session silently
       checkInTimer = setTimeout(() => {
         if (sessionActive) {
           console.log('No response after chime — ending session');
           endSession();
         }
       }, SILENCE_BEFORE_END);
+    }
+
+    // ── Keep-alive ping every 25 seconds ──
+    function startKeepAlive(sessionId) {
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      keepAliveInterval = setInterval(async () => {
+        if (!sessionActive || !sessionId) { clearInterval(keepAliveInterval); return; }
+        try {
+          await fetch(`${API}/api/liveavatar-keepalive`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId })
+          });
+          console.log('Keep-alive sent for session:', sessionId);
+        } catch(e) { console.warn('Keep-alive failed:', e); }
+      }, 25000);
     }
 
     // ── Clock ──
@@ -485,8 +501,6 @@
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
       document.getElementById('waitingDate').textContent = `${days[now.getDay()]}, ${months[now.getMonth()]} ${now.getDate()}, ${now.getFullYear()}`;
-
-      // Time of day greeting
       const greetingEl = document.getElementById('waitingGreeting');
       if (h >= 5 && h < 12) greetingEl.textContent = 'Good morning';
       else if (h >= 12 && h < 17) greetingEl.textContent = 'Good afternoon';
@@ -494,39 +508,27 @@
       else greetingEl.textContent = 'Good night';
     }
 
-    // ── Load client profile ──
     async function loadClientProfile() {
       try {
         const res = await fetch(`${API}/api/patients?id=${PATIENT_ID}`);
         const data = await res.json();
         clientProfile = data;
-        const name = data.name || '';
-        document.getElementById('waitingName').textContent = name;
+        document.getElementById('waitingName').textContent = data.name || '';
         updateNextVisitTime();
       } catch(e) { console.error('Profile load error:', e); }
     }
 
-    // ── Next visit time display ──
     function updateNextVisitTime() {
-      if (!clientProfile?.visitTimes) {
-        document.getElementById('waitingNext').style.display = 'none';
-        return;
-      }
+      if (!clientProfile?.visitTimes) { document.getElementById('waitingNext').style.display = 'none'; return; }
       const times = clientProfile.visitTimes.split(',').map(t => t.trim()).filter(Boolean);
       const now = new Date();
       const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
       let nextTime = null;
-      for (const t of times) {
-        const parsed = parseTime(t);
-        if (parsed > nowMinutes) { nextTime = t; break; }
-      }
-      if (!nextTime) nextTime = times[0]; // wrap to first visit tomorrow
-
+      for (const t of times) { const p = parseTime(t); if (p > nowMinutes) { nextTime = t; break; } }
+      if (!nextTime) nextTime = times[0];
       document.getElementById('nextVisitTime').textContent = nextTime;
     }
 
-    // ── Parse time string to minutes since midnight ──
     function parseTime(timeStr) {
       const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
       if (!match) return -1;
@@ -538,7 +540,6 @@
       return h * 60 + m;
     }
 
-    // ── Schedule checker ──
     function startScheduleChecker() {
       scheduleCheckInterval = setInterval(() => {
         if (sessionActive) return;
@@ -546,19 +547,11 @@
         const times = clientProfile.visitTimes.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        for (const t of times) {
-          const parsed = parseTime(t);
-          if (parsed === nowMinutes) {
-            console.log('Scheduled visit time reached:', t);
-            launchRose();
-            break;
-          }
-        }
+        for (const t of times) { if (parseTime(t) === nowMinutes) { launchRose(); break; } }
         updateNextVisitTime();
-      }, 60000); // check every minute
+      }, 60000);
     }
 
-    // ── Show/hide screens ──
     function showRoseScreen() {
       document.getElementById('waitingScreen').classList.add('hidden');
       document.getElementById('roseScreen').classList.remove('hidden');
@@ -568,9 +561,7 @@
       document.getElementById('waitingScreen').classList.remove('hidden');
       updateNextVisitTime();
     }
-    function showLoading(show) {
-      document.getElementById('loadingOverlay').classList.toggle('active', show);
-    }
+    function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
     function setListening(on) {
       document.getElementById('listenIndicator').classList.toggle('active', on);
       if (on) document.getElementById('speakingIndicator').classList.remove('active');
@@ -580,16 +571,14 @@
       if (on) document.getElementById('listenIndicator').classList.remove('active');
     }
 
-    // ── Photo ──
     function showPhoto(url, caption) {
       document.getElementById('photoImg').src = url;
       document.getElementById('photoCaption').textContent = caption || '';
       document.getElementById('photoOverlay').classList.add('visible');
       setTimeout(() => closePhoto(), 12000);
     }
-    window.closePhoto = function() {
-      document.getElementById('photoOverlay').classList.remove('visible');
-    };
+    window.closePhoto = function() { document.getElementById('photoOverlay').classList.remove('visible'); };
+
     function startPhotoPolling(patientId) {
       if (photoPollInterval) clearInterval(photoPollInterval);
       photoShown = false;
@@ -598,40 +587,25 @@
         try {
           const res = await fetch(`${API}/api/photos?patientId=${patientId}&t=${Date.now()}`);
           const data = await res.json();
-          if (data.url) {
-            photoShown = true;
-            clearInterval(photoPollInterval);
-            showPhoto(data.url, data.label || '');
-          }
+          if (data.url) { photoShown = true; clearInterval(photoPollInterval); showPhoto(data.url, data.label || ''); }
         } catch(e) {}
       }, 2000);
     }
 
-    // ── Spotify ──
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
 
     async function initSpotify(patientId) {
       try {
-        const res = await fetch(`${API}/api/spotify-token`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId })
-        });
+        const res = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId }) });
         const data = await res.json();
         if (!data.access_token) return;
-        spotifyPlayer = new Spotify.Player({
-          name: 'Neimira — Companion',
-          getOAuthToken: cb => cb(data.access_token),
-          volume: 0.35
-        });
+        spotifyPlayer = new Spotify.Player({ name: 'Neimira — Companion', getOAuthToken: cb => cb(data.access_token), volume: 0.35 });
         spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; });
         spotifyPlayer.addListener('player_state_changed', state => {
           if (!state) return;
           isPlaying = !state.paused;
           const track = state.track_window?.current_track;
-          if (track) {
-            document.getElementById('nowPlayingText').textContent = track.name + ' — ' + track.artists.map(a => a.name).join(', ');
-            document.getElementById('musicBar').classList.add('visible');
-          }
+          if (track) { document.getElementById('nowPlayingText').textContent = track.name + ' — ' + track.artists.map(a => a.name).join(', '); document.getElementById('musicBar').classList.add('visible'); }
           document.getElementById('playPauseBtn').textContent = isPlaying ? '⏸' : '▶';
         });
         spotifyPlayer.connect();
@@ -640,10 +614,7 @@
 
     async function spotifyPlayBySearch(query) {
       try {
-        const tokenRes = await fetch(`${API}/api/spotify-token`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: PATIENT_ID })
-        });
+        const tokenRes = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
         const tokenData = await tokenRes.json();
         const access_token = tokenData.access_token;
         if (!access_token) return;
@@ -653,21 +624,16 @@
         const artist = artistData.artists?.items?.[0];
         if (artist) {
           const topRes = await fetch(`https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=US`, { headers: { 'Authorization': 'Bearer ' + access_token } });
-          const topData = await topRes.json();
-          const tracks = topData.tracks || [];
+          const tracks = (await topRes.json()).tracks || [];
           if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
         }
         if (!uri) {
           const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query + ' jazz OR oldies')}&type=track&limit=10`, { headers: { 'Authorization': 'Bearer ' + access_token } });
-          const searchData = await searchRes.json();
-          const tracks = (searchData.tracks?.items || []).filter(t => !t.artists[0].name.toLowerCase().includes('tribute'));
+          const tracks = ((await searchRes.json()).tracks?.items || []).filter(t => !t.artists[0].name.toLowerCase().includes('tribute'));
           if (tracks.length === 0) return;
           uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 5))].uri;
         }
-        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, {
-          method: 'PUT', headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uris: [uri] })
-        });
+        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ uris: [uri] }) });
       } catch(e) { console.error('Spotify play error:', e); }
     }
 
@@ -677,14 +643,7 @@
         try {
           const res = await fetch(`${API}/api/music-queue?patientId=${patientId}`);
           const data = await res.json();
-          if (data.query === '__CHECK_IN__') {
-            // Already handled by chat-completions.js system prompt signal
-            console.log('Check-in signal received');
-          } else if (data.query === '__WRAP_UP__') {
-            console.log('Wrap-up signal received');
-          } else if (data.query) {
-            spotifyPlayBySearch(data.query);
-          }
+          if (data.query && data.query !== '__CHECK_IN__' && data.query !== '__WRAP_UP__') spotifyPlayBySearch(data.query);
         } catch(e) {}
       }, 2000);
     }
@@ -693,61 +652,32 @@
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
-    // ── Launch Rose ──
     async function launchRose() {
       if (sessionActive) return;
       sessionActive = true;
       showLoading(true);
 
-      try {
-        await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' });
-      } catch(e) {}
+      try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       try {
-        const tokenRes = await fetch(`${API}/api/liveavatar-session`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: PATIENT_ID })
-        });
+        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
         const tokenData = await tokenRes.json();
 
         if (!tokenData.session_token) {
           console.error('No session token:', tokenData);
-          showLoading(false);
-          sessionActive = false;
-          return;
+          showLoading(false); sessionActive = false; return;
         }
 
+        currentSessionId = tokenData.session_id;
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
-        liveAvatarSession.on('session.stream_ready', () => {
-          const video = document.getElementById('roseVideo');
-          liveAvatarSession.attach(video);
-        });
+        liveAvatarSession.on('session.stream_ready', () => { liveAvatarSession.attach(document.getElementById('roseVideo')); });
 
-        liveAvatarSession.on('avatar.speak_started', () => {
-          setSpeaking(true);
-          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
-          resetSilenceTimer(); // Rose speaking resets silence timer
-        });
-        liveAvatarSession.on('avatar.speak_ended', () => {
-          setSpeaking(false); setListening(true);
-          if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
-          resetSilenceTimer(); // Start counting silence after Rose finishes
-        });
-        liveAvatarSession.on('user.speak_started', () => {
-          setListening(true);
-          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
-          resetSilenceTimer(); // Resident speaking resets silence timer
-          if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; } // Cancel end-session if they responded
-        });
-        liveAvatarSession.on('user.speak_ended', () => {
-          setListening(false);
-          if (spotifyPlayer) spotifyPlayer.setVolume(0.35);
-        });
-        liveAvatarSession.on('user.silence', () => {
-          console.log('user.silence event fired');
-          // Handled by our own timer, but log it for debugging
-        });
+        liveAvatarSession.on('avatar.speak_started', () => { setSpeaking(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); });
+        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); resetSilenceTimer(); });
+        liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
+        liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); });
+        liveAvatarSession.on('user.silence', () => { console.log('user.silence event fired'); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
         try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
@@ -759,49 +689,34 @@
         await initSpotify(PATIENT_ID);
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
-        resetSilenceTimer(); // Start silence detection
+        resetSilenceTimer();
+        startKeepAlive(currentSessionId);
 
-        // ── Auto-end session after Visit Duration ──
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
-        const warnTime = duration - (2 * 60 * 1000); // 2 min warning
-
-        // Auto-end session after Visit Duration
-        sessionTimer = setTimeout(async () => {
-          console.log('Session duration reached — ending session');
-          endSession();
-        }, duration);
+        sessionTimer = setTimeout(() => { console.log('Session duration reached'); endSession(); }, duration);
 
       } catch(err) {
         console.error('Launch error:', err);
-        showLoading(false);
-        sessionActive = false;
+        showLoading(false); sessionActive = false;
       }
     }
 
-    // ── End session ──
     window.endSession = async function() {
       if (sessionTimer) { clearTimeout(sessionTimer); sessionTimer = null; }
       if (musicPollInterval) { clearInterval(musicPollInterval); musicPollInterval = null; }
       if (photoPollInterval) { clearInterval(photoPollInterval); photoPollInterval = null; }
+      if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
       clearSilenceTimers();
-      if (liveAvatarSession) {
-        try { await liveAvatarSession.stop(); } catch(e) {}
-        liveAvatarSession = null;
-      }
+      if (liveAvatarSession) { try { await liveAvatarSession.stop(); } catch(e) {} liveAvatarSession = null; }
       document.getElementById('roseVideo').srcObject = null;
       document.getElementById('musicBar').classList.remove('visible');
       setSpeaking(false); setListening(false);
-      photoShown = false;
-      sessionActive = false;
+      photoShown = false; sessionActive = false; currentSessionId = null;
       showWaitingScreen();
     };
 
-    // ── Manual launch (tap logo on waiting screen) ──
-    document.querySelector('.waiting-logo').addEventListener('click', () => {
-      if (!sessionActive) launchRose();
-    });
+    document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive) launchRose(); });
 
-    // ── Init ──
     window.speechSynthesis?.cancel();
     updateClock();
     setInterval(updateClock, 1000);
