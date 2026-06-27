@@ -442,13 +442,17 @@
     async function sendCheckIn() {
       if (!sessionActive || checkInSent) return;
       checkInSent = true;
-      console.log('Silence detected — sending check-in signal');
+      console.log('Silence detected — sending check-in via avatar.speak_response');
       try {
-        await fetch(`${API}/api/music-queue`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: PATIENT_ID, query: '__CHECK_IN__' })
+        // Use LiveAvatar's speak_response to make Rose generate and speak a check-in
+        await liveAvatarSession.sendCommand('agent-control', {
+          event_type: 'avatar.speak_response',
+          text: '__CHECK_IN__'
         });
-      } catch(e) {}
+      } catch(e) {
+        console.error('Check-in speak_response failed:', e);
+        // Fallback: just end session after timeout
+      }
       // If no response in 60 seconds, end session
       checkInTimer = setTimeout(() => {
         if (sessionActive) {
@@ -752,11 +756,13 @@
         // Signal Rose to wrap up 2 minutes before end
         sessionTimer = setTimeout(async () => {
           try {
-            await fetch(`${API}/api/music-queue`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ patientId: PATIENT_ID, query: '__WRAP_UP__' })
+            await liveAvatarSession.sendCommand('agent-control', {
+              event_type: 'avatar.speak_response',
+              text: '__WRAP_UP__'
             });
-          } catch(e) {}
+          } catch(e) {
+            console.error('Wrap-up speak_response failed:', e);
+          }
           // End session after 2 more minutes
           setTimeout(() => endSession(), 2 * 60 * 1000);
         }, warnTime > 0 ? warnTime : duration);
