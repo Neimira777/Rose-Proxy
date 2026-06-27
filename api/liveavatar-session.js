@@ -15,7 +15,7 @@ export default async function handler(req, res) {
     const sessionPayload = {
       mode: 'FULL',
       avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
-      max_session_duration: 1800, // 1 hour — prevents HeyGen idle timeout during silence
+       // 1 hour — prevents HeyGen idle timeout during silence
       avatar_persona: {
         voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232',
         context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
