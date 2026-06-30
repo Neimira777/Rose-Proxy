@@ -103,9 +103,10 @@
       letter-spacing: -2px;
     }
     .waiting-date {
-      font-size: 14px; letter-spacing: 4px;
+      font-size: 20px; letter-spacing: 4px;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.5);
+      font-weight: 500;
+      color: rgba(255,255,255,0.75);
       text-align: center; margin-bottom: 80px;
     }
 
@@ -648,7 +649,24 @@
       }, 2000);
     }
 
-    window.spotifyPlayPause = () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); };
+    // ── Morning song selection (rotates by day of week) ──
+    function getMorningSong() {
+      const songs = [
+        'Frank Sinatra Fly Me to the Moon',
+        'Frank Sinatra New York New York',
+        'Fred Astaire Cheek to Cheek',
+        'Frank Sinatra Fly Me to the Moon',
+        'Frank Sinatra New York New York',
+        'Fred Astaire Cheek to Cheek',
+        'Frank Sinatra Fly Me to the Moon'
+      ];
+      return songs[new Date().getDay()]; // 0=Sun through 6=Sat
+    }
+
+    function isMorningHour() {
+      const h = new Date().getHours();
+      return h >= 6 && h <= 11;
+    }
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
@@ -681,17 +699,32 @@
         liveAvatarSession.on('session.stopped', () => { console.log('HeyGen session stopped'); if (sessionActive) endSession(); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
-        try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
 
         showLoading(false);
         showRoseScreen();
-        setListening(true);
+        setListening(false);
 
         await initSpotify(PATIENT_ID);
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
-        resetSilenceTimer();
         startKeepAlive(currentSessionId);
+
+        // ── Morning music intro — play before Rose speaks ──
+        if (isMorningHour()) {
+          const morningSong = getMorningSong();
+          console.log('Morning music intro:', morningSong);
+          // Wait for Spotify device to be ready then play
+          await new Promise(resolve => setTimeout(resolve, 1500));
+          await spotifyPlayBySearch(morningSong);
+          // Let music play for 12 seconds before Rose greets
+          await new Promise(resolve => setTimeout(resolve, 12000));
+        }
+
+        // ── Start voice chat (Rose begins speaking after music intro) ──
+        try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
+
+        setListening(true);
+        resetSilenceTimer();
 
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
         sessionTimer = setTimeout(() => { console.log('Session duration reached'); endSession(); }, duration);
