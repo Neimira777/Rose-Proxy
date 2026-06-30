@@ -11,11 +11,10 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
-    const { patientId } = req.body || {};
+    const { patientId, visitCountToday } = req.body || {};
     const sessionPayload = {
       mode: 'FULL',
       avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
-       // 1 hour — prevents HeyGen idle timeout during silence
       avatar_persona: {
         voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232',
         context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
@@ -33,7 +32,8 @@ export default async function handler(req, res) {
       interactivity_type: 'CONVERSATIONAL',
       llm_configuration_id: process.env.LIVEAVATAR_LLM_CONFIG_ID,
       dynamic_variables: {
-        patient_id: patientId || 'recMLLC4fJHBUhE5w'
+        patient_id: patientId || 'recMLLC4fJHBUhE5w',
+        visit_count_today: String(visitCountToday || 1)
       },
       video_settings: {
         quality: 'high',
