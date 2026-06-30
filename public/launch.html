@@ -63,6 +63,31 @@
     #waitingScreen {
       gap: 0;
       background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%);
+      position: relative;
+    }
+
+    #waitingBg {
+      position: absolute; inset: 0; z-index: 0;
+      background-size: cover; background-position: center;
+      background-repeat: no-repeat;
+      transition: opacity 1.5s ease;
+      opacity: 0;
+    }
+    #waitingBg.loaded { opacity: 1; }
+    #waitingBgOverlay {
+      position: absolute; inset: 0; z-index: 1;
+      background: linear-gradient(160deg, rgba(26,35,126,0.72) 0%, rgba(13,71,161,0.65) 50%, rgba(26,35,126,0.72) 100%);
+    }
+    .waiting-content {
+      position: relative; z-index: 2;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 100%; height: 100%;
+    }
+    .photo-credit {
+      position: absolute; bottom: 16px; right: 16px;
+      font-size: 10px; color: rgba(255,255,255,0.3);
+      letter-spacing: 1px; z-index: 3;
     }
 
     .waiting-logo {
@@ -309,8 +334,11 @@
 
   <!-- Waiting screen -->
   <div class="screen" id="waitingScreen">
-    <div class="waiting-logo">
-      <svg width="100" height="100" viewBox="0 0 200 200" role="img">
+    <div id="waitingBg"></div>
+    <div id="waitingBgOverlay"></div>
+    <div class="waiting-content">
+      <div class="waiting-logo">
+        <svg width="100" height="100" viewBox="0 0 200 200" role="img">
         <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
         <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
         <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
@@ -344,8 +372,10 @@
     <div class="waiting-date" id="waitingDate"></div>
 
     <div class="waiting-next" id="waitingNext">
-      Rose visits at <span id="nextVisitTime">—</span>
+        Rose visits at <span id="nextVisitTime">—</span>
+      </div>
     </div>
+    <div class="photo-credit" id="photoCredit"></div>
   </div>
 
   <!-- Rose screen -->
@@ -507,6 +537,26 @@
       else if (h >= 12 && h < 17) greetingEl.textContent = 'Good afternoon';
       else if (h >= 17 && h < 21) greetingEl.textContent = 'Good evening';
       else greetingEl.textContent = 'Good night';
+    }
+
+    // ── Unsplash background ──
+    async function loadBackgroundPhoto() {
+      try {
+        const res = await fetch(`${API}/api/unsplash-photo`);
+        const data = await res.json();
+        if (data.url) {
+          const bg = document.getElementById('waitingBg');
+          const img = new Image();
+          img.onload = () => {
+            bg.style.backgroundImage = `url(${data.url})`;
+            bg.classList.add('loaded');
+            if (data.photographer) {
+              document.getElementById('photoCredit').textContent = `Photo by ${data.photographer} on Unsplash`;
+            }
+          };
+          img.src = data.url;
+        }
+      } catch(e) { console.warn('Background photo failed:', e); }
     }
 
     async function loadClientProfile() {
@@ -755,6 +805,8 @@
     updateClock();
     setInterval(updateClock, 1000);
     loadClientProfile();
+    loadBackgroundPhoto();
+    setInterval(loadBackgroundPhoto, 5 * 60 * 1000); // rotate every 5 minutes
     startScheduleChecker();
 
   </script>
