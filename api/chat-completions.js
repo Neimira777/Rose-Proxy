@@ -236,6 +236,12 @@ export default async function handler(req, res) {
       if (match) patientId = match[1];
     }
 
+    // ── Read visit count from dynamic variables ──
+    const visitCountMatch = systemMsg?.content?.match(/visit_count_today:([^\s]+)/);
+    const visitCountToday = visitCountMatch ? parseInt(visitCountMatch[1]) : 1;
+    const isFirstVisit = visitCountToday <= 1;
+    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
+
     const messages = allMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
@@ -376,7 +382,7 @@ Your one goal: Make whoever you're speaking with feel like the most interesting 
 
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Never reveal you are reading from a profile.` : ''}
-${photoContext ? `\n${photoContext}` : ''}
+${photoContext && !isFirstVisit ? `\n${photoContext}` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
@@ -459,4 +465,3 @@ ${sessionSignalInstruction}`;
     return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
   }
 }
-
