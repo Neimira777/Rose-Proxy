@@ -1,7 +1,3 @@
-
-
-
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -43,6 +39,32 @@ export default async function handler(req, res) {
 
       const tokenData = await tokenRes.json();
 
+      // ── Handle invalid_grant — token expired or revoked ──
+      if (tokenData.error === 'invalid_grant') {
+        console.error('Spotify invalid_grant — refresh token expired. Reauthorization required.');
+        // Discard the stored refresh token so we don't keep retrying
+        await fetch(
+          'https://api.airtable.com/v0/appnW28KnOAO9UI9K/tblWZWMZNWfpbVVRX/' + patientId,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': 'Bearer ' + process.env.AIRTABLE_WRITE_TOKEN,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              fields: {
+                'SpotifyRefreshToken': '',
+                'Spotify Access Token': ''
+              }
+            })
+          }
+        );
+        return res.status(401).json({
+          error: 'spotify_reauth_required',
+          message: 'Spotify authorization has expired. Please reauthorize at /api/spotify-login'
+        });
+      }
+
       if (tokenData.access_token) {
         // Save new access token and rotate refresh token if Spotify issued a new one
         await fetch(
@@ -61,11 +83,10 @@ export default async function handler(req, res) {
             })
           }
         );
-
         return res.status(200).json({ access_token: tokenData.access_token });
       }
 
-      // Refresh attempt failed — log and fall through to existing token
+      // Refresh attempt failed for another reason — log and fall through
       console.error('Spotify refresh failed:', tokenData);
     }
 
@@ -77,3 +98,5 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 }
+
+
