@@ -644,6 +644,12 @@
       try {
         const res = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId }) });
         const data = await res.json();
+        if (data.error === 'spotify_reauth_required') {
+          console.warn('Spotify reauth required — visit /api/spotify-login');
+          document.getElementById('nowPlayingText').textContent = 'Music needs reauthorization';
+          document.getElementById('musicBar').classList.add('visible');
+          return;
+        }
         if (!data.access_token) return;
         spotifyPlayer = new Spotify.Player({ name: 'Neimira — Companion', getOAuthToken: cb => cb(data.access_token), volume: 0.35 });
         spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; });
