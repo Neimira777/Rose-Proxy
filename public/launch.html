@@ -728,8 +728,21 @@
 
       try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
+      // ── Increment visit count for today ──
+      let visitCountToday = 1;
       try {
-        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
+        const visitRes = await fetch(`${API}/api/patients`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID })
+        });
+        const visitData = await visitRes.json();
+        visitCountToday = visitData.visitCount || 1;
+        console.log('Visit count today:', visitCountToday);
+      } catch(e) { console.warn('Visit count failed:', e); }
+
+      try {
+        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday }) });
         const tokenData = await tokenRes.json();
 
         if (!tokenData.session_token) {
