@@ -68,14 +68,6 @@
       width: 100vw;
     }
 
-    #waitingBg {
-      position: fixed; inset: 0; z-index: 0;
-      background-size: cover; background-position: center;
-      background-repeat: no-repeat;
-      transition: opacity 1.5s ease;
-      opacity: 0;
-    }
-    #waitingBg.loaded { opacity: 1; }
     #waitingBgOverlay {
       position: fixed; inset: 0; z-index: 1;
       background: linear-gradient(160deg, rgba(26,35,126,0.72) 0%, rgba(13,71,161,0.65) 50%, rgba(26,35,126,0.72) 100%);
@@ -336,8 +328,11 @@
 
   <!-- Waiting screen -->
   <div class="screen" id="waitingScreen">
-    <div id="waitingBg"></div>
     <div id="waitingBgOverlay"></div>
+    <video id="waitingBgVideo" autoplay muted loop playsinline
+      style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;transition:opacity 1.5s ease;">
+    </video>
+    <div class="photo-credit" id="photoCredit"></div>
     <div class="waiting-content">
       <div class="waiting-logo">
         <svg width="100" height="100" viewBox="0 0 200 200" role="img">
@@ -377,7 +372,6 @@
         Rose visits at <span id="nextVisitTime">—</span>
       </div>
     </div>
-    <div class="photo-credit" id="photoCredit"></div>
   </div>
 
   <!-- Rose screen -->
@@ -541,24 +535,23 @@
       else greetingEl.textContent = 'Good night';
     }
 
-    // ── Unsplash background ──
-    async function loadBackgroundPhoto() {
+    // ── Pexels background video ──
+    async function loadBackgroundVideo() {
       try {
-        const res = await fetch(`${API}/api/unsplash-photo`);
+        const res = await fetch(`${API}/api/pexels-video`);
         const data = await res.json();
         if (data.url) {
-          const bg = document.getElementById('waitingBg');
-          const img = new Image();
-          img.onload = () => {
-            bg.style.backgroundImage = `url(${data.url})`;
-            bg.classList.add('loaded');
-            if (data.photographer) {
-              document.getElementById('photoCredit').textContent = `Photo by ${data.photographer} on Unsplash`;
-            }
+          const video = document.getElementById('waitingBgVideo');
+          video.src = data.url;
+          video.oncanplay = () => {
+            video.style.opacity = '1';
+            video.play().catch(e => console.warn('Video autoplay blocked:', e));
           };
-          img.src = data.url;
+          if (data.photographer) {
+            document.getElementById('photoCredit').textContent = `Video by ${data.photographer} on Pexels`;
+          }
         }
-      } catch(e) { console.warn('Background photo failed:', e); }
+      } catch(e) { console.warn('Background video failed:', e); }
     }
 
     async function loadClientProfile() {
@@ -807,8 +800,8 @@
     updateClock();
     setInterval(updateClock, 1000);
     loadClientProfile();
-    loadBackgroundPhoto();
-    setInterval(loadBackgroundPhoto, 5 * 60 * 1000); // rotate every 5 minutes
+    loadBackgroundVideo();
+    setInterval(loadBackgroundVideo, 10 * 60 * 1000); // rotate every 10 minutes
     startScheduleChecker();
 
   </script>
