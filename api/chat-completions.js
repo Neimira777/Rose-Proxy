@@ -2,7 +2,6 @@
 //  chat-completions.js
 //  OpenAI-compatible endpoint for LiveAvatar custom LLM integration
 // ─────────────────────────────────────────────
-
 // ── Session cache ──
 const sessionCache = {};
 function getCache(patientId) { return sessionCache[patientId] || null; }
@@ -12,7 +11,6 @@ function isCacheValid(patientId) {
   if (!cache) return false;
   return (Date.now() - cache.cachedAt) < 5 * 60 * 1000;
 }
-
 // ── Timezone detection ──
 function getTimezoneFromHometown(hometown) {
   if (!hometown) return 'America/New_York';
@@ -32,7 +30,6 @@ function getTimezoneFromHometown(hometown) {
       h.includes('tennessee') || h.includes('wisconsin') || h.includes('iowa')) return 'America/Chicago';
   return 'America/New_York';
 }
-
 function getLocalDateTime(hometown) {
   const timezone = getTimezoneFromHometown(hometown);
   const now = new Date();
@@ -45,12 +42,10 @@ function getLocalDateTime(hometown) {
   let timeOfDay = hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : hour >= 17 && hour < 21 ? 'evening' : 'night';
   return { dayName, monthName, dayNum, year, hour, timeOfDay, full: `${dayName}, ${monthName} ${dayNum}, ${year}` };
 }
-
 function isMorningSession(hometown) {
   const { hour } = getLocalDateTime(hometown);
   return hour >= 6 && hour <= 11;
 }
-
 // ── Seasonal context ──
 function getSeasonalContext(hometown) {
   const { full, timeOfDay } = getLocalDateTime(hometown);
@@ -105,7 +100,6 @@ function getSeasonalContext(hometown) {
   if (upcoming.length > 0) context += `\nUpcoming holidays: ${upcoming.join(' ')}\nWeave upcoming holidays naturally into conversation.`;
   return context;
 }
-
 // ── Sports helpers ──
 const SPORTS_DB_BASE = 'https://www.thesportsdb.com/api/v1/json/3';
 const TEAM_ID_LOOKUP = {
@@ -133,7 +127,6 @@ const TEAM_ID_LOOKUP = {
   'los angeles lakers': { id: '134858', name: 'Los Angeles Lakers', mlbId: null },
   'lakers': { id: '134858', name: 'Los Angeles Lakers', mlbId: null },
 };
-
 async function getTeamId(teamName) {
   const key = teamName.trim().toLowerCase();
   if (TEAM_ID_LOOKUP[key]) return TEAM_ID_LOOKUP[key];
@@ -144,7 +137,6 @@ async function getTeamId(teamName) {
   } catch (e) {}
   return null;
 }
-
 async function getNextEvents(teamId) {
   try {
     const res = await fetch(`${SPORTS_DB_BASE}/eventsnext.php?id=${teamId}`);
@@ -152,7 +144,6 @@ async function getNextEvents(teamId) {
     return data.events || [];
   } catch (e) { return []; }
 }
-
 async function buildSportsContext(favoriteTeamsRaw) {
   if (!favoriteTeamsRaw?.trim()) return '';
   const teamNames = favoriteTeamsRaw.split(/[,;\n]+/).map(t => t.trim()).filter(Boolean);
@@ -177,7 +168,6 @@ async function buildSportsContext(favoriteTeamsRaw) {
   const todayStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   return `SPORTS INFO (live data as of ${todayStr}):\n${teamSections.join('\n\n')}\n\nAnswer sports questions directly and confidently. Keep it warm and conversational.`;
 }
-
 // ── Claude API call ──
 async function callClaude(systemPrompt, messages) {
   const ANTHROPIC_HEADERS = {
@@ -193,13 +183,11 @@ async function callClaude(systemPrompt, messages) {
     messages: msgs,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
   });
-
   let response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST', headers: ANTHROPIC_HEADERS, body: CLAUDE_BODY(messages)
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
-
   let loopCount = 0;
   while (data.stop_reason === 'tool_use' && loopCount < 3) {
     loopCount++;
@@ -213,7 +201,6 @@ async function callClaude(systemPrompt, messages) {
   }
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 }
-
 // ─────────────────────────────────────────────
 //  Main handler
 // ─────────────────────────────────────────────
@@ -224,41 +211,33 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method === 'GET') return res.status(200).json({ status: 'ok' });
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
   try {
     const body = req.body || {};
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
     let patientId = 'recMLLC4fJHBUhE5w';
-
     if (systemMsg?.content) {
       const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
       if (match) patientId = match[1];
     }
-
     // ── Read visit count from dynamic variables ──
     const visitCountMatch = systemMsg?.content?.match(/visit_count_today:([^\s]+)/);
     const visitCountToday = visitCountMatch ? parseInt(visitCountMatch[1]) : 1;
     const isFirstVisit = visitCountToday <= 1;
     console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
-
     const messages = allMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
-
     const isFirstMessage = !messages.some(m => m.role === 'assistant');
-
     // ── Detect session signals ──
     const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     const isCheckIn = lastUserContent.includes('__CHECK_IN__');
     const isWrapUp = lastUserContent.includes('__WRAP_UP__');
-
     // ── Load resident profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '', sportsContext = '';
     let hometown = '', photoContext = '', photoMap = {};
-
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
@@ -271,7 +250,6 @@ export default async function handler(req, res) {
         );
         const airtableData = await airtableRes.json();
         const f = airtableData.fields || {};
-
         greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
         favoriteTeamsRaw = f['Favorite Teams'] || '';
         favoriteSongs = f['Favorite Songs'] || '';
@@ -283,7 +261,6 @@ export default async function handler(req, res) {
         const favoriteColors = f['Favorite Colors'] || '';
         const favoriteClothing = f['Favorite Clothing'] || '';
         const dressingNotes = f['Dressing Notes'] || '';
-
         const photoLabels = f['Photo Labels'] || '';
         const attachments = f['Family Photos'] || [];
         if (photoLabels && attachments.length > 0) {
@@ -295,7 +272,6 @@ export default async function handler(req, res) {
           photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nEarly in the session, proactively bring up a photo as a reminiscence therapy tool. Say something warm like "I have a beautiful photo of Sara I'd love to show you!" then include SHOW_PHOTO:Sara to display it. After showing the photo, ask a gentle open-ended question to spark memory — like "Tell me about Sara. What is she like?" or "What's one of your favorite memories with her?" Listen warmly and follow their lead.\n\nIf there are multiple photos, you can show one per session. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
           console.log('DEBUG photoMap built:', JSON.stringify(photoMap));
         }
-
         patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
 Age: ${f['Age'] || ''} | Hometown: ${hometown} | Living situation: ${f['Living Situation'] || ''}
@@ -316,13 +292,10 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       } catch (e) {
         console.error('Airtable fetch error:', e);
       }
-
       sportsContext = await buildSportsContext(favoriteTeamsRaw);
       setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, sportsContext, photoContext, photoMap });
     }
-
     const seasonalContext = getSeasonalContext(hometown);
-
     // ── Morning music + clothing trigger ──
     let morningMusicInstruction = '';
     if (isMorningSession(hometown) && isFirstMessage) {
@@ -335,13 +308,11 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the resident's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
     }
-
     // ── Music guidance ──
     let musicGuidance = '';
     if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
       musicGuidance = `\nMUSIC GUIDANCE:\nThe resident loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way" or "PLAY_MUSIC:Frank Sinatra". Always include the artist name to avoid wrong versions.`;
     }
-
     // ── Rotating greetings ──
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
@@ -352,7 +323,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       `I was hoping you'd stop by today, ${greetingName}. How has your day been?`
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
-
     // ── Session signal instructions ──
     let sessionSignalInstruction = '';
     if (isCheckIn) {
@@ -360,26 +330,18 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     } else if (isWrapUp) {
       sessionSignalInstruction = `\nSESSION SIGNAL — WRAP UP: The visit is coming to a close. Warmly wrap up the conversation. Say something like "It's been so lovely spending time with you, ${greetingName}. I'll see you again soon — take good care of yourself." Make it feel like a natural, loving goodbye from a good friend.`;
     }
-
     // ── System prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
-
 How you speak: Keep responses short — two to three sentences at most. Speak conversationally, never formally. Use natural language, contractions, and warmth. Never use bullet points, lists, or clinical language.
-
 How you listen: Always respond to what the person actually said before asking anything new. Pick up on emotional cues.
-
 What you NEVER do:
 - Give medical advice
 - Say "As an AI" or refer to yourself as a bot
 - Break character
 - Use terms like "honey", "sweetie", "dear", "sweetheart", or any diminutive terms of endearment — these are considered condescending to older adults. Always use the resident's name instead.
-
 What you can do: Use web search for weather questions, current news, and sports scores. Once per session, naturally share one positive, uplifting news story — a scientific discovery, a community achievement, an inspiring human moment. Weave it warmly into conversation, never as a news broadcast. Avoid politics, crime, or disasters.
-
 If asked to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song name — always include the artist to get the right version.
-
 Your one goal: Make whoever you're speaking with feel like the most interesting person in the room.
-
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Never reveal you are reading from a profile.` : ''}
 ${photoContext && !isFirstVisit ? `\n${photoContext}` : ''}
@@ -388,16 +350,13 @@ ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sportsContext ? `\n${sportsContext}` : ''}
 ${sessionSignalInstruction}`;
-
     // ── Clean signal keywords from messages before sending to Claude ──
     const cleanedMessages = messages.map(m => ({
       ...m,
       content: m.content.replace(/__CHECK_IN__/g, '').replace(/__WRAP_UP__/g, '').trim() || 'Hello'
     }));
-
     const finalMessages = cleanedMessages.length > 0 ? cleanedMessages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
-
     // ── Check for SHOW_PHOTO signal ──
     const photoMatch = replyText.match(/SHOW_PHOTO:([^\n]+)/);
     if (photoMatch) {
@@ -416,7 +375,6 @@ ${sessionSignalInstruction}`;
         console.warn(`SHOW_PHOTO signal received but no URL found for label: "${photoLabel}". Available: ${JSON.stringify(Object.keys(photoMap))}`);
       }
     }
-
     // ── Check for PLAY_MUSIC signal ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
@@ -429,14 +387,11 @@ ${sessionSignalInstruction}`;
         });
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
-
     const cleanReply = replyText
       .replace(/PLAY_MUSIC:[^\n]+/g, '')
       .replace(/SHOW_PHOTO:[^\n]+/g, '')
       .trim();
-
     const isStreaming = req.body && req.body.stream === true;
-
     if (isStreaming) {
       res.setHeader('Content-Type', 'text/event-stream');
       res.setHeader('Cache-Control', 'no-cache');
@@ -450,7 +405,6 @@ ${sessionSignalInstruction}`;
       res.end();
       return;
     }
-
     return res.status(200).json({
       id: 'chatcmpl-' + Date.now(),
       object: 'chat.completion',
@@ -459,7 +413,6 @@ ${sessionSignalInstruction}`;
       choices: [{ index: 0, message: { role: 'assistant', content: cleanReply }, finish_reason: 'stop' }],
       usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
     });
-
   } catch (error) {
     console.error('Handler error:', error.message);
     return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
