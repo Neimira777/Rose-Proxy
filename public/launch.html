@@ -416,6 +416,7 @@
         <button class="music-ctrl" onclick="spotifyPrevious()">⏮</button>
         <button class="music-ctrl play" id="playPauseBtn" onclick="spotifyPlayPause()">⏸</button>
         <button class="music-ctrl" onclick="spotifyNext()">⏭</button>
+        <button class="music-ctrl" onclick="spotifyStop()" style="font-size:11px;letter-spacing:1px;">✕</button>
       </div>
     </div>
     <div class="end-btn-wrap">
@@ -700,7 +701,19 @@
         try {
           const res = await fetch(`${API}/api/music-queue?patientId=${patientId}`);
           const data = await res.json();
-          if (data.query && data.query !== '__CHECK_IN__' && data.query !== '__WRAP_UP__') spotifyPlayBySearch(data.query);
+          if (data.query === '__STOP_MUSIC__') {
+            console.log('Stop music signal received');
+            if (spotifyPlayer) {
+              spotifyPlayer.pause();
+              document.getElementById('musicBar').classList.remove('visible');
+            }
+          } else if (data.query === '__CHECK_IN__') {
+            console.log('Check-in signal received');
+          } else if (data.query === '__WRAP_UP__') {
+            console.log('Wrap-up signal received');
+          } else if (data.query) {
+            spotifyPlayBySearch(data.query);
+          }
         } catch(e) {}
       }, 2000);
     }
@@ -723,6 +736,8 @@
       const h = new Date().getHours();
       return h >= 6 && h <= 11;
     }
+    window.spotifyPlayPause = () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); };
+    window.spotifyStop = () => { if (spotifyPlayer) { spotifyPlayer.pause(); document.getElementById('musicBar').classList.remove('visible'); } };
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
