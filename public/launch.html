@@ -645,7 +645,6 @@
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
-
     async function initSpotify(patientId) {
       try {
         const res = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId }) });
@@ -774,6 +773,13 @@
         showRoseScreen();
         setListening(false);
 
+        // ── Wait for Spotify SDK to be ready ──
+        await new Promise(resolve => {
+          if (window.Spotify) { resolve(); return; }
+          window.onSpotifyWebPlaybackSDKReady = resolve;
+          setTimeout(resolve, 5000); // timeout after 5s
+        });
+
         await initSpotify(PATIENT_ID);
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
@@ -784,7 +790,7 @@
           const morningSong = getMorningSong();
           console.log('Morning music intro:', morningSong);
           // Wait for Spotify device to be ready then play
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 2000));
           await spotifyPlayBySearch(morningSong);
           // Let music play for 12 seconds before Rose greets
           await new Promise(resolve => setTimeout(resolve, 12000));
