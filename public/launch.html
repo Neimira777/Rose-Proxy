@@ -287,8 +287,83 @@
     }
     .end-btn:hover { background: rgba(255,255,255,0.18); color: white; }
 
+    /* ── Splash screen ── */
+    #splashScreen {
+      position: fixed; inset: 0; z-index: 50;
+      background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 32px;
+      cursor: pointer;
+      transition: opacity 0.8s ease;
+    }
+    #splashScreen.hidden { opacity: 0; pointer-events: none; }
+    .splash-logo-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 42px; font-weight: 300;
+      letter-spacing: 14px; text-transform: uppercase; color: white;
+    }
+    .splash-logo-tag {
+      font-size: 10px; letter-spacing: 4px;
+      text-transform: uppercase; color: #00BCD4;
+      margin-top: -20px; font-weight: 500;
+    }
+    .splash-tap {
+      font-size: 13px; letter-spacing: 4px;
+      text-transform: uppercase; color: rgba(255,255,255,0.5);
+      animation: pulse-tap 2s ease-in-out infinite;
+      margin-top: 40px;
+    }
+    @keyframes pulse-tap {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 1; }
+    }
+
     /* ── Photo overlay ── */
     #photoOverlay {
+    <svg width="100" height="100" viewBox="0 0 200 200" role="img">
+      <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+      <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+      <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+      <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+      <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
+      <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
+      <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+      <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+      <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
+      <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
+      <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
+      <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
+      <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#sg)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
+      <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#00BCD4"/>
+          <stop offset="100%" style="stop-color:#2979FF"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div>
+      <div class="splash-logo-name">Neimira</div>
+      <div class="splash-logo-tag">AI Companion Technology</div>
+    </div>
+    <div class="splash-tap">Tap to Begin</div>
+  </div>
+
+  <div class="ambient"></div>
+
+  <!-- Loading overlay -->
+  <div id="loadingOverlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-msg">Rose is on her way…</div>
+  </div>
+
+  <!-- Waiting screen -->
+  <div class="screen" id="waitingScreen">
+    <div id="waitingBgOverlay"></div>
+    <video id="waitingBgVideo" autoplay muted loop playsinline
+      style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;transition:opacity 1.5s ease;">
+    </video>
       position: fixed; inset: 0; z-index: 30;
       display: flex; align-items: center; justify-content: center;
       background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
@@ -323,6 +398,38 @@
   </style>
 </head>
 <body>
+
+  <!-- Splash screen — one tap unlocks video autoplay + microphone -->
+  <div id="splashScreen" onclick="dismissSplash()">
+    <svg width="100" height="100" viewBox="0 0 200 200">
+      <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+      <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+      <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+      <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+      <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
+      <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
+      <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+      <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+      <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
+      <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
+      <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
+      <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
+      <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#sg)" stroke-width="4" stroke-linecap="round"/>
+      <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
+      <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
+      <defs>
+        <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" style="stop-color:#00BCD4"/>
+          <stop offset="100%" style="stop-color:#2979FF"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div style="text-align:center;">
+      <div class="splash-logo-name">Neimira</div>
+      <div class="splash-logo-tag">AI Companion Technology</div>
+    </div>
+    <div class="splash-tap">Tap to Begin</div>
+  </div>
 
   <div class="ambient"></div>
 
@@ -842,11 +949,19 @@
 
     document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive) launchRose(); });
 
+    // ── Splash screen dismiss ──
+    window.dismissSplash = function() {
+      const splash = document.getElementById('splashScreen');
+      splash.classList.add('hidden');
+      setTimeout(() => splash.remove(), 900);
+      // Start background video now that user has interacted
+      loadBackgroundVideo();
+    };
+
     window.speechSynthesis?.cancel();
     updateClock();
     setInterval(updateClock, 1000);
     loadClientProfile();
-    loadBackgroundVideo();
     setInterval(loadBackgroundVideo, 10 * 60 * 1000); // rotate every 10 minutes
     startScheduleChecker();
 
