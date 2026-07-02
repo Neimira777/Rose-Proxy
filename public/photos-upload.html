@@ -356,6 +356,16 @@
     function hideStatus() {
       document.getElementById('statusMessage').className = 'status-message';
     }
+
+    // ── Auto-fill patient ID from URL parameter ──
+    // Families receive a personal link like: /photos-upload.html?patient=NMR-001
+    const urlParams = new URLSearchParams(window.location.search);
+    const patientParam = urlParams.get('patient');
+    if (patientParam) {
+      document.getElementById('patientIdInput').value = patientParam;
+      // Auto-trigger lookup so family skips step 1 entirely
+      lookupPatient();
+    }
   </script>
 
 </body>
