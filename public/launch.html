@@ -907,15 +907,24 @@
         startPhotoPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
 
-        // ── Morning music intro — play before Rose speaks ──
+        // ── Morning music intro — wait for Spotify device then play ──
         if (isMorningHour()) {
           const morningSong = getMorningSong();
           console.log('Morning music intro:', morningSong);
-          // Wait for Spotify device to be ready then play
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          await spotifyPlayBySearch(morningSong);
-          // Let music play for 12 seconds before Rose greets
-          await new Promise(resolve => setTimeout(resolve, 12000));
+          // Wait up to 10 seconds for Spotify device to register
+          let waited = 0;
+          while (!spotifyDeviceId && waited < 10000) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+            waited += 500;
+          }
+          if (spotifyDeviceId) {
+            await spotifyPlayBySearch(morningSong);
+            console.log('Morning music playing on device:', spotifyDeviceId);
+            // Let music play for 12 seconds before Rose greets
+            await new Promise(resolve => setTimeout(resolve, 12000));
+          } else {
+            console.warn('Morning music skipped — Spotify device not ready');
+          }
         }
 
         // ── Start voice chat (Rose begins speaking after music intro) ──
