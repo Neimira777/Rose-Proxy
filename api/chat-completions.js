@@ -153,41 +153,31 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
-    
-    // ── Debug: log what HeyGen is sending us ──
-    console.log('Request body keys:', Object.keys(body));
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
-    console.log('System message preview:', systemMsg?.content?.substring(0, 300));
-    console.log('Body session_id:', body.session_id || body.sessionId || 'none');
-    
+
     let patientId = 'recMLLC4fJHBUhE5w';
 
+    // ── Try to get patientId from system message first ──
     if (systemMsg?.content) {
       const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
       if (match) patientId = match[1];
     }
 
-    // ── Try to look up patientId from session ID mapping ──
-    const sessionId = body.session_id || body.sessionId || body.context?.session_id;
-    if (sessionId && patientId === 'recMLLC4fJHBUhE5w') {
-      try {
-        const mappingRes = await fetch(`https://rose-proxy.vercel.app/api/liveavatar-session?sessionId=${sessionId}`);
-        if (mappingRes.ok) {
-          const mapping = await mappingRes.json();
-          if (mapping.patientId) {
-            patientId = mapping.patientId;
-            console.log(`Resolved patientId from session mapping: ${patientId}`);
-          }
-        }
-      } catch(e) { console.warn('Session mapping lookup failed:', e.message); }
+    // ── Fall back to global session store if still default ──
+    // HeyGen doesn't pass session IDs or substitute dynamic variables reliably
+    // so we use a shared in-memory store set by liveavatar-session.js
+    if (patientId === 'recMLLC4fJHBUhE5w' && global._latestSession?.patientId) {
+      patientId = global._latestSession.patientId;
+      console.log('Using global session patientId:', patientId);
     }
 
     console.log('Final patientId:', patientId);
 
-    // ── Read visit count from dynamic variables ──
-    const visitCountMatch = systemMsg?.content?.match(/visit_count_today:([^\s]+)/);
-    const visitCountToday = visitCountMatch ? parseInt(visitCountMatch[1]) : 1;
+    // ── Read visit count from global session store ──
+    const visitCountToday = global._latestSession?.visitCountToday 
+      ? parseInt(global._latestSession.visitCountToday) 
+      : 1;
     const isFirstVisit = visitCountToday <= 1;
     console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
 
