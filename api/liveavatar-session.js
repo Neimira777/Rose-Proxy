@@ -4,12 +4,23 @@
 //  Called by launch.html before starting the avatar stream
 //  Returns: { session_id, session_token } for the web SDK
 // ─────────────────────────────────────────────
+// ── Session ID to Patient ID mapping ──
+// Since HeyGen doesn't reliably pass dynamic variables to our LLM,
+// we maintain our own mapping of session_id → patientId
+const sessionPatientMap = {};
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+  if (req.method === 'GET') {
+    const { sessionId } = req.query || {};
+    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId' });
+    const mapping = sessionPatientMap[sessionId];
+    if (!mapping) return res.status(404).json({ error: 'Session not found' });
+    return res.status(200).json(mapping);
+  }
   try {
     const { patientId, visitCountToday } = req.body || {};
     const resolvedPatientId = patientId || 'recMLLC4fJHBUhE5w';
@@ -72,8 +83,16 @@ export default async function handler(req, res) {
       });
     }
 
+    // ── Store session ID → patientId mapping for chat-completions.js ──
+    const sessionId = data.data.session_id;
+    sessionPatientMap[sessionId] = {
+      patientId: resolvedPatientId,
+      visitCountToday: resolvedVisitCount
+    };
+    console.log(`Mapped session ${sessionId} → patientId: ${resolvedPatientId}`);
+
     return res.status(200).json({
-      session_id: data.data.session_id,
+      session_id: sessionId,
       session_token: data.data.session_token
     });
   } catch (error) {
