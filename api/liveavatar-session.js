@@ -83,6 +83,10 @@ export default async function handler(req, res) {
       });
     }
 
+    // ── Store patientId globally for chat-completions.js to pick up ──
+    global._latestSession = { patientId: resolvedPatientId, visitCountToday: resolvedVisitCount };
+    console.log(`Stored global session: patientId=${resolvedPatientId}, visitCount=${resolvedVisitCount}`);
+
     // ── Store session ID → patientId mapping for chat-completions.js ──
     const sessionId = data.data.session_id;
     sessionPatientMap[sessionId] = {
