@@ -83,9 +83,19 @@ export default async function handler(req, res) {
       });
     }
 
-    // ── Store patientId globally for chat-completions.js to pick up ──
-    global._latestSession = { patientId: resolvedPatientId, visitCountToday: resolvedVisitCount };
-    console.log(`Stored global session: patientId=${resolvedPatientId}, visitCount=${resolvedVisitCount}`);
+    // ── Store patientId in session-store for chat-completions.js ──
+    try {
+      await fetch('https://rose-proxy.vercel.app/api/session-store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionKey: 'latest',
+          patientId: resolvedPatientId,
+          visitCountToday: resolvedVisitCount
+        })
+      });
+      console.log(`Session store updated: latest → ${resolvedPatientId}`);
+    } catch(e) { console.warn('Session store failed:', e.message); }
 
     // ── Store session ID → patientId mapping for chat-completions.js ──
     const sessionId = data.data.session_id;
