@@ -1,0 +1,38 @@
+// ─────────────────────────────────────────────
+//  session-store.js
+//  Stores patientId for active sessions
+//  POST → store patientId
+//  GET  → retrieve patientId
+// ─────────────────────────────────────────────
+let sessionStore = {};
+
+export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
+  if (req.method === 'POST') {
+    const { sessionKey, patientId, visitCountToday } = req.body || {};
+    if (!sessionKey || !patientId) return res.status(400).json({ error: 'Missing sessionKey or patientId' });
+    sessionStore[sessionKey] = { patientId, visitCountToday: String(visitCountToday || 1), storedAt: Date.now() };
+    console.log(`Session store: ${sessionKey} → ${patientId}`);
+    return res.status(200).json({ ok: true });
+  }
+
+  if (req.method === 'GET') {
+    const { sessionKey } = req.query || {};
+    if (!sessionKey) return res.status(400).json({ error: 'Missing sessionKey' });
+    const session = sessionStore[sessionKey] || null;
+    return res.status(200).json(session || { patientId: null });
+  }
+
+  if (req.method === 'DELETE') {
+    const { sessionKey } = req.query || {};
+    if (sessionKey) delete sessionStore[sessionKey];
+    return res.status(200).json({ ok: true });
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}
