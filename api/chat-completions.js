@@ -164,20 +164,31 @@ export default async function handler(req, res) {
       if (match) patientId = match[1];
     }
 
-    // ── Fall back to global session store if still default ──
-    // HeyGen doesn't pass session IDs or substitute dynamic variables reliably
-    // so we use a shared in-memory store set by liveavatar-session.js
-    if (patientId === 'recMLLC4fJHBUhE5w' && global._latestSession?.patientId) {
-      patientId = global._latestSession.patientId;
-      console.log('Using global session patientId:', patientId);
+    // ── Fall back to session-store if still default ──
+    if (patientId === 'recMLLC4fJHBUhE5w') {
+      try {
+        const storeRes = await fetch('https://rose-proxy.vercel.app/api/session-store?sessionKey=latest');
+        if (storeRes.ok) {
+          const stored = await storeRes.json();
+          if (stored?.patientId && stored.patientId !== 'recMLLC4fJHBUhE5w') {
+            patientId = stored.patientId;
+            console.log('Using session-store patientId:', patientId);
+          }
+        }
+      } catch(e) { console.warn('Session store lookup failed:', e.message); }
     }
 
     console.log('Final patientId:', patientId);
 
-    // ── Read visit count from global session store ──
-    const visitCountToday = global._latestSession?.visitCountToday 
-      ? parseInt(global._latestSession.visitCountToday) 
-      : 1;
+    // ── Read visit count from session-store ──
+    let visitCountToday = 1;
+    try {
+      const storeRes = await fetch('https://rose-proxy.vercel.app/api/session-store?sessionKey=latest');
+      if (storeRes.ok) {
+        const stored = await storeRes.json();
+        if (stored?.visitCountToday) visitCountToday = parseInt(stored.visitCountToday);
+      }
+    } catch(e) {}
     const isFirstVisit = visitCountToday <= 1;
     console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
 
@@ -417,3 +428,4 @@ ${sessionSignalInstruction}`;
     return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
   }
 }
+
