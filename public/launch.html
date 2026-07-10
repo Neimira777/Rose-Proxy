@@ -546,7 +546,8 @@
   <script type="module">
     import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
 
-    const PATIENT_ID = 'recMLLC4fJHBUhE5w';
+    const _urlParams = new URLSearchParams(window.location.search);
+    const PATIENT_ID = _urlParams.get('member') || _urlParams.get('patient') || 'recMLLC4fJHBUhE5w';
     const API = 'https://rose-proxy.vercel.app';
 
     let liveAvatarSession = null;
