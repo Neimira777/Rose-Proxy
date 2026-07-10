@@ -12,11 +12,19 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
   try {
     const { patientId, visitCountToday } = req.body || {};
+    const resolvedPatientId = patientId || 'recMLLC4fJHBUhE5w';
+    const resolvedVisitCount = String(visitCountToday || 1);
+
+    console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}`);
+
     const sessionPayload = {
       mode: 'FULL',
       avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
       avatar_persona: {
         voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232',
+        // ── Embed patientId directly in context_id system message ──
+        // Instead of relying on HeyGen dynamic_variables substitution,
+        // we pass the IDs directly in the system prompt sent to our LLM
         context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
         language: 'en',
         voice_settings: {
@@ -31,15 +39,21 @@ export default async function handler(req, res) {
       },
       interactivity_type: 'CONVERSATIONAL',
       llm_configuration_id: process.env.LIVEAVATAR_LLM_CONFIG_ID,
+      // ── Pass IDs as dynamic variables AND embed in system prompt ──
       dynamic_variables: {
-        patient_id: patientId || 'recMLLC4fJHBUhE5w',
-        visit_count_today: String(visitCountToday || 1)
+        patient_id: resolvedPatientId,
+        visit_count_today: resolvedVisitCount
       },
+      // ── Override system prompt to hardcode the IDs directly ──
+      // This ensures chat-completions.js always receives the correct IDs
+      // regardless of whether HeyGen substitutes {{variables}} correctly
+      system_message: `You are Rose, a warm and caring AI companion. Follow the instructions provided by the custom LLM system. PATIENT_ID:${resolvedPatientId} visit_count_today:${resolvedVisitCount}`,
       video_settings: {
         quality: 'high',
         encoding: 'H264'
       }
     };
+
     const response = await fetch('https://api.liveavatar.com/v1/sessions/token', {
       method: 'POST',
       headers: {
@@ -48,6 +62,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify(sessionPayload)
     });
+
     const data = await response.json();
     if (!response.ok || !data.data) {
       console.error('LiveAvatar session error:', JSON.stringify(data));
@@ -56,6 +71,7 @@ export default async function handler(req, res) {
         details: data
       });
     }
+
     return res.status(200).json({
       session_id: data.data.session_id,
       session_token: data.data.session_token
