@@ -10,396 +10,107 @@
   <title>Neimira — Rose</title>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
-    :root {
-      --navy: #1A237E;
-      --cyan: #00BCD4;
-      --blue: #2979FF;
-      --green: #1DB954;
-    }
-
+    :root { --navy: #1A237E; --cyan: #00BCD4; --blue: #2979FF; --green: #1DB954; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Jost', sans-serif; background: var(--navy); color: white; height: 100vh; width: 100vw; overflow: hidden; position: relative; }
 
-    body {
-      font-family: 'Jost', sans-serif;
-      background: var(--navy);
-      color: white;
-      height: 100vh;
-      width: 100vw;
-      overflow: hidden;
-      position: relative;
-    }
-
-    /* ── Ambient background ── */
     .ambient { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
-    .ambient::before {
-      content: '';
-      position: absolute;
-      top: -20%; left: -10%;
-      width: 70%; height: 70%;
-      background: radial-gradient(ellipse, rgba(0,188,212,0.15) 0%, transparent 70%);
-      animation: drift1 12s ease-in-out infinite alternate;
-    }
-    .ambient::after {
-      content: '';
-      position: absolute;
-      bottom: -20%; right: -10%;
-      width: 70%; height: 70%;
-      background: radial-gradient(ellipse, rgba(41,121,255,0.15) 0%, transparent 70%);
-      animation: drift2 15s ease-in-out infinite alternate;
-    }
+    .ambient::before { content: ''; position: absolute; top: -20%; left: -10%; width: 70%; height: 70%; background: radial-gradient(ellipse, rgba(0,188,212,0.15) 0%, transparent 70%); animation: drift1 12s ease-in-out infinite alternate; }
+    .ambient::after { content: ''; position: absolute; bottom: -20%; right: -10%; width: 70%; height: 70%; background: radial-gradient(ellipse, rgba(41,121,255,0.15) 0%, transparent 70%); animation: drift2 15s ease-in-out infinite alternate; }
     @keyframes drift1 { from { transform: translate(0,0); } to { transform: translate(3%,5%); } }
     @keyframes drift2 { from { transform: translate(0,0); } to { transform: translate(-3%,-5%); } }
 
-    /* ── Screens ── */
-    .screen {
-      position: fixed; inset: 0; z-index: 1;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      transition: opacity 0.8s ease;
-    }
+    .screen { position: fixed; inset: 0; z-index: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; transition: opacity 0.8s ease; }
     .screen.hidden { opacity: 0; pointer-events: none; }
 
     /* ── Waiting screen ── */
-    #waitingScreen {
-      gap: 0;
-      background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%);
-      position: relative;
-      min-height: 100vh;
-      width: 100vw;
-    }
-
-    #waitingBgOverlay {
-      position: fixed; inset: 0; z-index: 1;
-      background: linear-gradient(160deg, rgba(26,35,126,0.72) 0%, rgba(13,71,161,0.65) 50%, rgba(26,35,126,0.72) 100%);
-    }
-    .waiting-content {
-      position: relative; z-index: 2;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      width: 100%; height: 100%;
-    }
-    .photo-credit {
-      position: absolute; bottom: 16px; right: 16px;
-      font-size: 10px; color: rgba(255,255,255,0.3);
-      letter-spacing: 1px; z-index: 3;
-    }
-
-    .waiting-logo {
-      display: flex; flex-direction: column;
-      align-items: center; margin-bottom: 48px;
-    }
+    #waitingScreen { gap: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); position: relative; min-height: 100vh; width: 100vw; }
+    #waitingBgOverlay { position: fixed; inset: 0; z-index: 1; background: linear-gradient(160deg, rgba(26,35,126,0.72) 0%, rgba(13,71,161,0.65) 50%, rgba(26,35,126,0.72) 100%); }
+    .waiting-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+    .photo-credit { position: absolute; bottom: 16px; right: 16px; font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 1px; z-index: 3; }
+    .waiting-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 48px; }
     .waiting-logo svg { margin-bottom: 20px; }
-    .waiting-logo-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 36px; font-weight: 300;
-      letter-spacing: 14px; text-transform: uppercase;
-      color: white;
-    }
-    .waiting-logo-tag {
-      font-size: 11px; letter-spacing: 4px;
-      text-transform: uppercase; color: #80DEEA;
-      margin-top: 6px; font-weight: 600;
-      text-shadow: 0 1px 8px rgba(0,0,0,0.6);
-    }
-
-    .waiting-greeting {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 52px; font-weight: 300;
-      color: white; text-align: center;
-      margin-bottom: 16px; line-height: 1.2;
-      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
-    }
-    .waiting-subgreeting {
-      font-size: 22px; font-weight: 500;
-      color: white;
-      letter-spacing: 2px; text-align: center;
-      margin-bottom: 64px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.7);
-    }
-
-    .waiting-time {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 80px; font-weight: 300;
-      color: white; text-align: center;
-      line-height: 1; margin-bottom: 8px;
-      letter-spacing: -2px;
-      text-shadow: 0 2px 12px rgba(0,0,0,0.5);
-    }
-    .waiting-date {
-      font-size: 20px; letter-spacing: 4px;
-      text-transform: uppercase;
-      font-weight: 500;
-      color: white;
-      text-align: center; margin-bottom: 80px;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.6);
-    }
-
-    .waiting-next {
-      font-size: 14px; letter-spacing: 3px;
-      text-transform: uppercase;
-      color: white; font-weight: 500;
-      text-align: center;
-      text-shadow: 0 1px 8px rgba(0,0,0,0.7);
-    }
+    .waiting-logo-name { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; letter-spacing: 14px; text-transform: uppercase; color: white; }
+    .waiting-logo-tag { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #80DEEA; margin-top: 6px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
+    .waiting-greeting { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: white; text-align: center; margin-bottom: 16px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    .waiting-subgreeting { font-size: 22px; font-weight: 500; color: white; letter-spacing: 2px; text-align: center; margin-bottom: 64px; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
+    .waiting-time { font-family: 'Cormorant Garamond', serif; font-size: 80px; font-weight: 300; color: white; text-align: center; line-height: 1; margin-bottom: 8px; letter-spacing: -2px; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    .waiting-date { font-size: 20px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500; color: white; text-align: center; margin-bottom: 80px; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
+    .waiting-next { font-size: 14px; letter-spacing: 3px; text-transform: uppercase; color: white; font-weight: 500; text-align: center; text-shadow: 0 1px 8px rgba(0,0,0,0.7); }
     .waiting-next span { color: #80DEEA; font-weight: 700; }
 
+    /* ── Splash screen ── */
+    #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; }
+    #splashScreen.hidden { opacity: 0; pointer-events: none; }
+    .splash-logo-name { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; letter-spacing: 14px; text-transform: uppercase; color: white; }
+    .splash-logo-tag { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #00BCD4; margin-top: -20px; font-weight: 500; }
+    .splash-tap { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.5); animation: pulse-tap 2s ease-in-out infinite; margin-top: 40px; }
+    @keyframes pulse-tap { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+
     /* ── Loading overlay ── */
-    #loadingOverlay {
-      position: fixed; inset: 0;
-      background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%);
-      z-index: 20;
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 20px;
-      opacity: 0; pointer-events: none; transition: opacity 0.4s ease;
-    }
+    #loadingOverlay { position: fixed; inset: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
     #loadingOverlay.active { opacity: 1; pointer-events: all; }
-    .loading-spinner {
-      width: 48px; height: 48px;
-      border: 3px solid rgba(0,188,212,0.2);
-      border-top-color: var(--cyan);
-      border-radius: 50%; animation: spin 0.9s linear infinite;
-    }
+    .loading-spinner { width: 48px; height: 48px; border: 3px solid rgba(0,188,212,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.9s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .loading-msg {
-      font-size: 13px; letter-spacing: 3px;
-      text-transform: uppercase; color: var(--cyan);
-    }
+    .loading-msg { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
 
     /* ── Rose screen ── */
     #roseScreen { background: #000; }
-
-    #roseVideo {
-      position: fixed; inset: 0;
-      width: 100%; height: 100%;
-      object-fit: cover; z-index: 0;
-    }
-
-    .vignette {
-      position: fixed; inset: 0;
-      background:
-        radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%),
-        linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.5) 100%);
-      z-index: 1; pointer-events: none;
-    }
-
-    .rose-topbar {
-      position: fixed; top: 0; left: 0; right: 0;
-      padding: 24px 32px; display: flex;
-      align-items: center; justify-content: center; z-index: 10;
-    }
-    .rose-logo {
-      font-family: 'Cormorant Garamond', serif; font-size: 20px;
-      font-weight: 300; letter-spacing: 8px;
-      text-transform: uppercase; color: rgba(255,255,255,0.7);
-    }
+    #roseVideo { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; }
+    .vignette { position: fixed; inset: 0; background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.4) 100%), linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.5) 100%); z-index: 1; pointer-events: none; }
+    .rose-topbar { position: fixed; top: 0; left: 0; right: 0; padding: 24px 32px; display: flex; align-items: center; justify-content: center; z-index: 10; }
+    .rose-logo { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 300; letter-spacing: 8px; text-transform: uppercase; color: rgba(255,255,255,0.7); }
 
     /* ── Status indicators ── */
-    .status-indicator {
-      position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      z-index: 10;
-      display: flex; flex-direction: column; align-items: center; gap: 10px;
-      opacity: 0; transition: opacity 0.4s ease;
-      pointer-events: none;
-    }
+    .status-indicator { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 10px; opacity: 0; transition: opacity 0.4s ease; pointer-events: none; }
     .status-indicator.active { opacity: 1; }
-
-    .listen-rings {
-      position: relative; width: 60px; height: 60px;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .listen-ring {
-      position: absolute; border-radius: 50%;
-      border: 2px solid var(--cyan);
-      animation: pulse-ring 1.8s ease-out infinite;
-    }
+    .listen-rings { position: relative; width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; }
+    .listen-ring { position: absolute; border-radius: 50%; border: 2px solid var(--cyan); animation: pulse-ring 1.8s ease-out infinite; }
     .listen-ring:nth-child(1) { width: 60px; height: 60px; animation-delay: 0s; }
     .listen-ring:nth-child(2) { width: 60px; height: 60px; animation-delay: 0.6s; }
     .listen-ring:nth-child(3) { width: 60px; height: 60px; animation-delay: 1.2s; }
-    @keyframes pulse-ring {
-      0% { transform: scale(0.5); opacity: 1; }
-      100% { transform: scale(2); opacity: 0; }
-    }
-    .mic-icon {
-      width: 28px; height: 28px; background: var(--cyan);
-      border-radius: 50%; display: flex; align-items: center;
-      justify-content: center; font-size: 14px; z-index: 1;
-    }
-    .status-label {
-      font-size: 11px; letter-spacing: 3px;
-      text-transform: uppercase; color: var(--cyan);
-    }
-
+    @keyframes pulse-ring { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2); opacity: 0; } }
+    .mic-icon { width: 28px; height: 28px; background: var(--cyan); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 14px; z-index: 1; }
+    .status-label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
     .sound-bars { display: flex; align-items: flex-end; gap: 4px; height: 30px; }
-    .sound-bar {
-      width: 4px; background: var(--cyan); border-radius: 2px;
-      animation: sound-wave 0.8s ease-in-out infinite alternate;
-    }
+    .sound-bar { width: 4px; background: var(--cyan); border-radius: 2px; animation: sound-wave 0.8s ease-in-out infinite alternate; }
     .sound-bar:nth-child(1) { height: 8px; animation-delay: 0s; }
     .sound-bar:nth-child(2) { height: 20px; animation-delay: 0.15s; }
     .sound-bar:nth-child(3) { height: 30px; animation-delay: 0.3s; }
     .sound-bar:nth-child(4) { height: 20px; animation-delay: 0.45s; }
     .sound-bar:nth-child(5) { height: 8px; animation-delay: 0.6s; }
-    @keyframes sound-wave {
-      from { transform: scaleY(0.4); opacity: 0.6; }
-      to { transform: scaleY(1); opacity: 1; }
-    }
+    @keyframes sound-wave { from { transform: scaleY(0.4); opacity: 0.6; } to { transform: scaleY(1); opacity: 1; } }
 
     /* ── Music bar ── */
-    #musicBar {
-      position: fixed; top: 0; left: 0; right: 0;
-      background: rgba(10,14,26,0.85); backdrop-filter: blur(20px);
-      border-bottom: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20;
-      transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1);
-      display: flex; align-items: center; gap: 16px;
-    }
+    #musicBar { position: fixed; top: 0; left: 0; right: 0; background: rgba(10,14,26,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20; transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 16px; }
     #musicBar.visible { transform: translateY(0); }
-    .music-icon {
-      width: 36px; height: 36px;
-      background: linear-gradient(135deg, var(--green), #158a3a);
-      border-radius: 8px; display: flex; align-items: center;
-      justify-content: center; font-size: 16px; flex-shrink: 0;
-    }
+    .music-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--green), #158a3a); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
     .music-info { flex: 1; min-width: 0; }
     .music-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--green); margin-bottom: 3px; }
     #nowPlayingText { font-size: 14px; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .music-controls { display: flex; gap: 8px; flex-shrink: 0; }
-    .music-ctrl {
-      background: rgba(255,255,255,0.08); border: none; border-radius: 8px;
-      width: 34px; height: 34px; color: white; font-size: 13px;
-      cursor: pointer; transition: background 0.2s;
-      display: flex; align-items: center; justify-content: center;
-    }
+    .music-ctrl { background: rgba(255,255,255,0.08); border: none; border-radius: 8px; width: 34px; height: 34px; color: white; font-size: 13px; cursor: pointer; transition: background 0.2s; display: flex; align-items: center; justify-content: center; }
     .music-ctrl:hover { background: rgba(255,255,255,0.15); }
     .music-ctrl.play { background: var(--green); width: 40px; height: 40px; border-radius: 10px; }
 
-    /* ── End Visit button — bottom of screen ── */
-    .end-btn-wrap {
-      position: fixed; bottom: 32px; left: 50%;
-      transform: translateX(-50%); z-index: 20;
-    }
-    .end-btn {
-      background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
-      border-radius: 20px; padding: 10px 28px; color: rgba(255,255,255,0.6);
-      font-family: 'Jost', sans-serif; font-size: 12px;
-      letter-spacing: 2px; text-transform: uppercase;
-      cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px);
-    }
+    /* ── End Visit button ── */
+    .end-btn-wrap { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 20; }
+    .end-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 10px 28px; color: rgba(255,255,255,0.6); font-family: 'Jost', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px); }
     .end-btn:hover { background: rgba(255,255,255,0.18); color: white; }
 
-    /* ── Splash screen ── */
-    #splashScreen {
-      position: fixed; inset: 0; z-index: 50;
-      background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%);
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center; gap: 32px;
-      cursor: pointer;
-      transition: opacity 0.8s ease;
-    }
-    #splashScreen.hidden { opacity: 0; pointer-events: none; }
-    .splash-logo-name {
-      font-family: 'Cormorant Garamond', serif;
-      font-size: 42px; font-weight: 300;
-      letter-spacing: 14px; text-transform: uppercase; color: white;
-    }
-    .splash-logo-tag {
-      font-size: 10px; letter-spacing: 4px;
-      text-transform: uppercase; color: #00BCD4;
-      margin-top: -20px; font-weight: 500;
-    }
-    .splash-tap {
-      font-size: 13px; letter-spacing: 4px;
-      text-transform: uppercase; color: rgba(255,255,255,0.5);
-      animation: pulse-tap 2s ease-in-out infinite;
-      margin-top: 40px;
-    }
-    @keyframes pulse-tap {
-      0%, 100% { opacity: 0.4; }
-      50% { opacity: 1; }
-    }
-
     /* ── Photo overlay ── */
-    #photoOverlay {
-    <svg width="100" height="100" viewBox="0 0 200 200" role="img">
-      <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
-      <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
-      <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
-      <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
-      <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
-      <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
-      <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
-      <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
-      <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
-      <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
-      <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
-      <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
-      <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#sg)" stroke-width="4" stroke-linecap="round"/>
-      <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
-      <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
-      <defs>
-        <linearGradient id="sg" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" style="stop-color:#00BCD4"/>
-          <stop offset="100%" style="stop-color:#2979FF"/>
-        </linearGradient>
-      </defs>
-    </svg>
-    <div>
-      <div class="splash-logo-name">Neimira</div>
-      <div class="splash-logo-tag">AI Companion Technology</div>
-    </div>
-    <div class="splash-tap">Tap to Begin</div>
-  </div>
-
-  <div class="ambient"></div>
-
-  <!-- Loading overlay -->
-  <div id="loadingOverlay">
-    <div class="loading-spinner"></div>
-    <div class="loading-msg">Rose is on her way…</div>
-  </div>
-
-  <!-- Waiting screen -->
-  <div class="screen" id="waitingScreen">
-    <div id="waitingBgOverlay"></div>
-    <video id="waitingBgVideo" autoplay muted loop playsinline
-      style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;transition:opacity 1.5s ease;">
-    </video>
-      position: fixed; inset: 0; z-index: 30;
-      display: flex; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.75); backdrop-filter: blur(8px);
-      opacity: 0; pointer-events: none;
-      transition: opacity 0.5s ease;
-    }
+    #photoOverlay { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.75); backdrop-filter: blur(8px); opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
     #photoOverlay.visible { opacity: 1; pointer-events: all; }
-    .photo-frame {
-      position: relative; max-width: 80vw; max-height: 70vh;
-      border-radius: 24px; overflow: hidden;
-      box-shadow: 0 32px 80px rgba(0,0,0,0.6);
-      border: 3px solid rgba(255,255,255,0.15);
-    }
+    .photo-frame { position: relative; max-width: 80vw; max-height: 70vh; border-radius: 24px; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.6); border: 3px solid rgba(255,255,255,0.15); }
     .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; max-height: 65vh; }
-    .photo-caption {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      padding: 20px 24px;
-      background: linear-gradient(transparent, rgba(0,0,0,0.7));
-      font-family: "Cormorant Garamond", serif;
-      font-size: 24px; font-weight: 300;
-      letter-spacing: 2px; color: white; text-align: center;
-    }
-    .photo-close {
-      position: absolute; top: 16px; right: 16px;
-      width: 36px; height: 36px; border-radius: 50%;
-      background: rgba(255,255,255,0.2); border: none;
-      color: white; font-size: 18px; cursor: pointer;
-      display: flex; align-items: center; justify-content: center;
-      backdrop-filter: blur(10px); transition: background 0.2s;
-    }
+    .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 24px; background: linear-gradient(transparent, rgba(0,0,0,0.7)); font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 300; letter-spacing: 2px; color: white; text-align: center; }
+    .photo-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: background 0.2s; }
     .photo-close:hover { background: rgba(255,255,255,0.35); }
   </style>
 </head>
 <body>
 
-  <!-- Splash screen — one tap unlocks video autoplay + microphone -->
+  <!-- Splash screen -->
   <div id="splashScreen" onclick="dismissSplash()">
     <svg width="100" height="100" viewBox="0 0 200 200">
       <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
@@ -449,39 +160,36 @@
     <div class="waiting-content">
       <div class="waiting-logo">
         <svg width="100" height="100" viewBox="0 0 200 200" role="img">
-        <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
-        <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
-        <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
-        <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
-        <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
-        <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
-        <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
-        <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
-        <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
-        <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
-        <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
-        <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
-        <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#wg)" stroke-width="4" stroke-linecap="round"/>
-        <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
-        <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
-        <defs>
-          <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" style="stop-color:#00BCD4"/>
-            <stop offset="100%" style="stop-color:#2979FF"/>
-          </linearGradient>
-        </defs>
-      </svg>
-      <div class="waiting-logo-name">Neimira</div>
-      <div class="waiting-logo-tag">AI Companion Technology</div>
-    </div>
-
-    <div class="waiting-greeting" id="waitingGreeting">Good morning</div>
-    <div class="waiting-subgreeting" id="waitingName"></div>
-
-    <div class="waiting-time" id="waitingTime">--:--</div>
-    <div class="waiting-date" id="waitingDate"></div>
-
-    <div class="waiting-next" id="waitingNext">
+          <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+          <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+          <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
+          <circle cx="58" cy="138" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
+          <circle cx="142" cy="138" r="90" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.15"/>
+          <circle cx="142" cy="138" r="110" fill="none" stroke="#2979FF" stroke-width="2" opacity="0.1"/>
+          <circle cx="100" cy="62" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+          <circle cx="58" cy="138" r="46" fill="none" stroke="#00BCD4" stroke-width="6"/>
+          <circle cx="142" cy="138" r="46" fill="none" stroke="#2979FF" stroke-width="6"/>
+          <circle cx="79" cy="102" r="6" fill="white" stroke="#00BCD4" stroke-width="2"/>
+          <circle cx="121" cy="102" r="6" fill="white" stroke="#2979FF" stroke-width="2"/>
+          <circle cx="100" cy="138" r="6" fill="white" stroke="#00ACC1" stroke-width="2"/>
+          <path d="M79 102 Q100 118 121 102" fill="none" stroke="url(#wg)" stroke-width="4" stroke-linecap="round"/>
+          <path d="M79 102 Q82 124 100 138" fill="none" stroke="#00BCD4" stroke-width="4" stroke-linecap="round"/>
+          <path d="M121 102 Q118 124 100 138" fill="none" stroke="#2979FF" stroke-width="4" stroke-linecap="round"/>
+          <defs>
+            <linearGradient id="wg" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" style="stop-color:#00BCD4"/>
+              <stop offset="100%" style="stop-color:#2979FF"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="waiting-logo-name">Neimira</div>
+        <div class="waiting-logo-tag">AI Companion Technology</div>
+      </div>
+      <div class="waiting-greeting" id="waitingGreeting">Good morning</div>
+      <div class="waiting-subgreeting" id="waitingName"></div>
+      <div class="waiting-time" id="waitingTime">--:--</div>
+      <div class="waiting-date" id="waitingDate"></div>
+      <div class="waiting-next" id="waitingNext">
         Rose visits at <span id="nextVisitTime">—</span>
       </div>
     </div>
@@ -491,25 +199,18 @@
   <div class="screen hidden" id="roseScreen">
     <video id="roseVideo" autoplay playsinline></video>
     <div class="vignette"></div>
-    <div class="rose-topbar">
-      <div class="rose-logo">Neimira</div>
-    </div>
+    <div class="rose-topbar"><div class="rose-logo">Neimira</div></div>
     <div class="status-indicator" id="listenIndicator">
       <div class="listen-rings">
-        <div class="listen-ring"></div>
-        <div class="listen-ring"></div>
-        <div class="listen-ring"></div>
+        <div class="listen-ring"></div><div class="listen-ring"></div><div class="listen-ring"></div>
         <div class="mic-icon">🎤</div>
       </div>
       <div class="status-label">Listening</div>
     </div>
     <div class="status-indicator" id="speakingIndicator">
       <div class="sound-bars">
-        <div class="sound-bar"></div>
-        <div class="sound-bar"></div>
-        <div class="sound-bar"></div>
-        <div class="sound-bar"></div>
-        <div class="sound-bar"></div>
+        <div class="sound-bar"></div><div class="sound-bar"></div><div class="sound-bar"></div>
+        <div class="sound-bar"></div><div class="sound-bar"></div>
       </div>
       <div class="status-label">Rose is speaking</div>
     </div>
@@ -540,7 +241,6 @@
     </div>
   </div>
 
-
   <script src="https://sdk.scdn.co/spotify-player.js"></script>
 
   <script type="module">
@@ -549,6 +249,8 @@
     const _urlParams = new URLSearchParams(window.location.search);
     const PATIENT_ID = _urlParams.get('member') || _urlParams.get('patient') || 'recMLLC4fJHBUhE5w';
     const API = 'https://rose-proxy.vercel.app';
+
+    console.log('PATIENT_ID from URL:', PATIENT_ID);
 
     let liveAvatarSession = null;
     let currentSessionId = null;
@@ -589,16 +291,13 @@
         [523.25, 659.25, 783.99].forEach((freq, i) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.type = 'sine';
-          osc.frequency.value = freq;
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq;
           const start = ctx.currentTime + i * 0.35;
           gain.gain.setValueAtTime(0, start);
           gain.gain.linearRampToValueAtTime(0.18, start + 0.05);
           gain.gain.exponentialRampToValueAtTime(0.001, start + 0.8);
-          osc.start(start);
-          osc.stop(start + 0.8);
+          osc.start(start); osc.stop(start + 0.8);
         });
       } catch(e) { console.warn('Chime failed:', e); }
     }
@@ -609,36 +308,25 @@
       console.log('Silence detected — playing gentle chime');
       playChime();
       checkInTimer = setTimeout(() => {
-        if (sessionActive) {
-          console.log('No response after chime — ending session');
-          endSession();
-        }
+        if (sessionActive) { console.log('No response after chime — ending session'); endSession(); }
       }, SILENCE_BEFORE_END);
     }
 
-    // ── Keep-alive ping every 25 seconds ──
     function startKeepAlive(sessionId) {
       if (keepAliveInterval) clearInterval(keepAliveInterval);
       keepAliveInterval = setInterval(async () => {
         if (!sessionActive || !sessionId) { clearInterval(keepAliveInterval); return; }
         try {
-          await fetch(`${API}/api/liveavatar-keepalive`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId })
-          });
+          await fetch(`${API}/api/liveavatar-keepalive`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sessionId }) });
           console.log('Keep-alive sent for session:', sessionId);
         } catch(e) { console.warn('Keep-alive failed:', e); }
       }, 25000);
     }
 
-    // ── Clock ──
     function updateClock() {
       const now = new Date();
-      const h = now.getHours();
-      const m = now.getMinutes().toString().padStart(2, '0');
-      const ampm = h >= 12 ? 'PM' : 'AM';
-      const h12 = h % 12 || 12;
+      const h = now.getHours(); const m = now.getMinutes().toString().padStart(2, '0');
+      const ampm = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12;
       document.getElementById('waitingTime').textContent = `${h12}:${m} ${ampm}`;
       const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
       const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
@@ -650,7 +338,6 @@
       else greetingEl.textContent = 'Good night';
     }
 
-    // ── Pexels background video ──
     async function loadBackgroundVideo() {
       try {
         const res = await fetch(`${API}/api/pexels-video`);
@@ -658,13 +345,8 @@
         if (data.url) {
           const video = document.getElementById('waitingBgVideo');
           video.src = data.url;
-          video.oncanplay = () => {
-            video.style.opacity = '1';
-            video.play().catch(e => console.warn('Video autoplay blocked:', e));
-          };
-          if (data.photographer) {
-            document.getElementById('photoCredit').textContent = `Video by ${data.photographer} on Pexels`;
-          }
+          video.oncanplay = () => { video.style.opacity = '1'; video.play().catch(e => console.warn('Video autoplay blocked:', e)); };
+          if (data.photographer) document.getElementById('photoCredit').textContent = `Video by ${data.photographer} on Pexels`;
         }
       } catch(e) { console.warn('Background video failed:', e); }
     }
@@ -682,8 +364,7 @@
     function updateNextVisitTime() {
       if (!clientProfile?.visitTimes) { document.getElementById('waitingNext').style.display = 'none'; return; }
       const times = clientProfile.visitTimes.split(',').map(t => t.trim()).filter(Boolean);
-      const now = new Date();
-      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const now = new Date(); const nowMinutes = now.getHours() * 60 + now.getMinutes();
       let nextTime = null;
       for (const t of times) { const p = parseTime(t); if (p > nowMinutes) { nextTime = t; break; } }
       if (!nextTime) nextTime = times[0];
@@ -693,9 +374,7 @@
     function parseTime(timeStr) {
       const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
       if (!match) return -1;
-      let h = parseInt(match[1]);
-      const m = parseInt(match[2]);
-      const ampm = match[3].toUpperCase();
+      let h = parseInt(match[1]); const m = parseInt(match[2]); const ampm = match[3].toUpperCase();
       if (ampm === 'PM' && h !== 12) h += 12;
       if (ampm === 'AM' && h === 12) h = 0;
       return h * 60 + m;
@@ -703,34 +382,19 @@
 
     function startScheduleChecker() {
       scheduleCheckInterval = setInterval(() => {
-        if (sessionActive) return;
-        if (!clientProfile?.visitTimes) return;
+        if (sessionActive || !clientProfile?.visitTimes) return;
         const times = clientProfile.visitTimes.split(',').map(t => t.trim()).filter(Boolean);
-        const now = new Date();
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const now = new Date(); const nowMinutes = now.getHours() * 60 + now.getMinutes();
         for (const t of times) { if (parseTime(t) === nowMinutes) { launchRose(); break; } }
         updateNextVisitTime();
       }, 60000);
     }
 
-    function showRoseScreen() {
-      document.getElementById('waitingScreen').classList.add('hidden');
-      document.getElementById('roseScreen').classList.remove('hidden');
-    }
-    function showWaitingScreen() {
-      document.getElementById('roseScreen').classList.add('hidden');
-      document.getElementById('waitingScreen').classList.remove('hidden');
-      updateNextVisitTime();
-    }
+    function showRoseScreen() { document.getElementById('waitingScreen').classList.add('hidden'); document.getElementById('roseScreen').classList.remove('hidden'); }
+    function showWaitingScreen() { document.getElementById('roseScreen').classList.add('hidden'); document.getElementById('waitingScreen').classList.remove('hidden'); updateNextVisitTime(); }
     function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
-    function setListening(on) {
-      document.getElementById('listenIndicator').classList.toggle('active', on);
-      if (on) document.getElementById('speakingIndicator').classList.remove('active');
-    }
-    function setSpeaking(on) {
-      document.getElementById('speakingIndicator').classList.toggle('active', on);
-      if (on) document.getElementById('listenIndicator').classList.remove('active');
-    }
+    function setListening(on) { document.getElementById('listenIndicator').classList.toggle('active', on); if (on) document.getElementById('speakingIndicator').classList.remove('active'); }
+    function setSpeaking(on) { document.getElementById('speakingIndicator').classList.toggle('active', on); if (on) document.getElementById('listenIndicator').classList.remove('active'); }
 
     function showPhoto(url, caption) {
       document.getElementById('photoImg').src = url;
@@ -754,12 +418,12 @@
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
+
     async function initSpotify(patientId) {
       try {
         const res = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId }) });
         const data = await res.json();
         if (data.error === 'spotify_reauth_required') {
-          console.warn('Spotify reauth required — visit /api/spotify-login');
           document.getElementById('nowPlayingText').textContent = 'Music needs reauthorization';
           document.getElementById('musicBar').classList.add('visible');
           return;
@@ -810,40 +474,21 @@
           const res = await fetch(`${API}/api/music-queue?patientId=${patientId}`);
           const data = await res.json();
           if (data.query === '__STOP_MUSIC__') {
-            console.log('Stop music signal received');
-            if (spotifyPlayer) {
-              spotifyPlayer.pause();
-              document.getElementById('musicBar').classList.remove('visible');
-            }
-          } else if (data.query === '__CHECK_IN__') {
-            console.log('Check-in signal received');
-          } else if (data.query === '__WRAP_UP__') {
-            console.log('Wrap-up signal received');
-          } else if (data.query) {
+            if (spotifyPlayer) { spotifyPlayer.pause(); document.getElementById('musicBar').classList.remove('visible'); }
+          } else if (data.query && data.query !== '__CHECK_IN__' && data.query !== '__WRAP_UP__') {
             spotifyPlayBySearch(data.query);
           }
         } catch(e) {}
       }, 2000);
     }
 
-    // ── Morning song selection (rotates by day of week) ──
     function getMorningSong() {
-      const songs = [
-        'Frank Sinatra Fly Me to the Moon',
-        'Frank Sinatra New York New York',
-        'Fred Astaire Cheek to Cheek',
-        'Frank Sinatra Fly Me to the Moon',
-        'Frank Sinatra New York New York',
-        'Fred Astaire Cheek to Cheek',
-        'Frank Sinatra Fly Me to the Moon'
-      ];
-      return songs[new Date().getDay()]; // 0=Sun through 6=Sat
+      const songs = ['Frank Sinatra Fly Me to the Moon','Frank Sinatra New York New York','Fred Astaire Cheek to Cheek','Frank Sinatra Fly Me to the Moon','Frank Sinatra New York New York','Fred Astaire Cheek to Cheek','Frank Sinatra Fly Me to the Moon'];
+      return songs[new Date().getDay()];
     }
 
-    function isMorningHour() {
-      const h = new Date().getHours();
-      return h >= 6 && h <= 11;
-    }
+    function isMorningHour() { const h = new Date().getHours(); return h >= 6 && h <= 11; }
+
     window.spotifyPlayPause = () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); };
     window.spotifyStop = () => { if (spotifyPlayer) { spotifyPlayer.pause(); document.getElementById('musicBar').classList.remove('visible'); } };
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
@@ -856,14 +501,9 @@
 
       try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
-      // ── Increment visit count for today ──
       let visitCountToday = 1;
       try {
-        const visitRes = await fetch(`${API}/api/patients`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ patientId: PATIENT_ID })
-        });
+        const visitRes = await fetch(`${API}/api/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
         const visitData = await visitRes.json();
         visitCountToday = visitData.visitCount || 1;
         console.log('Visit count today:', visitCountToday);
@@ -873,21 +513,16 @@
         const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday }) });
         const tokenData = await tokenRes.json();
 
-        if (!tokenData.session_token) {
-          console.error('No session token:', tokenData);
-          showLoading(false); sessionActive = false; return;
-        }
+        if (!tokenData.session_token) { console.error('No session token:', tokenData); showLoading(false); sessionActive = false; return; }
 
         currentSessionId = tokenData.session_id;
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
         liveAvatarSession.on('session.stream_ready', () => { liveAvatarSession.attach(document.getElementById('roseVideo')); });
-
         liveAvatarSession.on('avatar.speak_started', () => { setSpeaking(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); });
         liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); resetSilenceTimer(); });
         liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
         liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); });
-        liveAvatarSession.on('user.silence', () => { console.log('user.silence event fired'); });
         liveAvatarSession.on('session.stopped', () => { console.log('HeyGen session stopped'); if (sessionActive) endSession(); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
@@ -896,11 +531,10 @@
         showRoseScreen();
         setListening(false);
 
-        // ── Wait for Spotify SDK to be ready ──
         await new Promise(resolve => {
           if (window.Spotify) { resolve(); return; }
           window.onSpotifyWebPlaybackSDKReady = resolve;
-          setTimeout(resolve, 5000); // timeout after 5s
+          setTimeout(resolve, 5000);
         });
 
         await initSpotify(PATIENT_ID);
@@ -908,39 +542,27 @@
         startPhotoPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
 
-        // ── Morning music intro — wait for Spotify device then play ──
         if (isMorningHour()) {
           const morningSong = getMorningSong();
           console.log('Morning music intro:', morningSong);
-          // Wait up to 10 seconds for Spotify device to register
           let waited = 0;
-          while (!spotifyDeviceId && waited < 10000) {
-            await new Promise(resolve => setTimeout(resolve, 500));
-            waited += 500;
-          }
+          while (!spotifyDeviceId && waited < 10000) { await new Promise(r => setTimeout(r, 500)); waited += 500; }
           if (spotifyDeviceId) {
             await spotifyPlayBySearch(morningSong);
             console.log('Morning music playing on device:', spotifyDeviceId);
-            // Let music play for 12 seconds before Rose greets
-            await new Promise(resolve => setTimeout(resolve, 12000));
-          } else {
-            console.warn('Morning music skipped — Spotify device not ready');
-          }
+            await new Promise(r => setTimeout(r, 12000));
+          } else { console.warn('Morning music skipped — Spotify device not ready'); }
         }
 
-        // ── Start voice chat (Rose begins speaking after music intro) ──
         try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
 
         setListening(true);
         resetSilenceTimer();
 
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
-        sessionTimer = setTimeout(() => { console.log('Session duration reached'); endSession(); }, duration);
+        sessionTimer = setTimeout(() => endSession(), duration);
 
-      } catch(err) {
-        console.error('Launch error:', err);
-        showLoading(false); sessionActive = false;
-      }
+      } catch(err) { console.error('Launch error:', err); showLoading(false); sessionActive = false; }
     }
 
     window.endSession = async function() {
@@ -959,12 +581,10 @@
 
     document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive) launchRose(); });
 
-    // ── Splash screen dismiss ──
     window.dismissSplash = function() {
       const splash = document.getElementById('splashScreen');
       splash.classList.add('hidden');
       setTimeout(() => splash.remove(), 900);
-      // Start background video now that user has interacted
       loadBackgroundVideo();
     };
 
@@ -972,10 +592,9 @@
     updateClock();
     setInterval(updateClock, 1000);
     loadClientProfile();
-    setInterval(loadBackgroundVideo, 10 * 60 * 1000); // rotate every 10 minutes
+    setInterval(loadBackgroundVideo, 10 * 60 * 1000);
     startScheduleChecker();
 
   </script>
-
 </body>
 </html>
