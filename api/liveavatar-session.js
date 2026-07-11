@@ -83,6 +83,19 @@ export default async function handler(req, res) {
       });
     }
 
+    // ── Write patientId to Airtable for chat-completions.js to read ──
+    try {
+      await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${resolvedPatientId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}` } })
+        }
+      );
+      console.log(`Airtable Active Session updated: ${resolvedPatientId}`);
+    } catch(e) { console.warn('Airtable session write failed:', e.message); }
+
     // ── Store patientId in session-store for chat-completions.js ──
     try {
       await fetch('https://rose-proxy.vercel.app/api/session-store', {
