@@ -164,30 +164,39 @@ export default async function handler(req, res) {
       if (match) patientId = match[1];
     }
 
-    // ── Fall back to session-store if still default ──
+    // ── Fall back to Airtable Active Session if still default ──
     if (patientId === 'recMLLC4fJHBUhE5w') {
       try {
-        const storeRes = await fetch('https://rose-proxy.vercel.app/api/session-store?sessionKey=latest');
-        if (storeRes.ok) {
-          const stored = await storeRes.json();
-          if (stored?.patientId && stored.patientId !== 'recMLLC4fJHBUhE5w') {
-            patientId = stored.patientId;
-            console.log('Using session-store patientId:', patientId);
+        // Search for the most recently active session in Airtable
+        const searchRes = await fetch(
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&maxRecords=1`,
+          { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+        );
+        const searchData = await searchRes.json();
+        const record = searchData.records?.[0];
+        if (record?.fields?.['Active Session']) {
+          const [activePatientId, activeVisitCount] = record.fields['Active Session'].split('|');
+          if (activePatientId && activePatientId !== 'recMLLC4fJHBUhE5w') {
+            patientId = activePatientId;
+            console.log('Using Airtable Active Session patientId:', patientId);
           }
         }
-      } catch(e) { console.warn('Session store lookup failed:', e.message); }
+      } catch(e) { console.warn('Airtable session lookup failed:', e.message); }
     }
 
     console.log('Final patientId:', patientId);
 
-    // ── Read visit count from session-store ──
+    // ── Read visit count from Airtable Active Session ──
     let visitCountToday = 1;
     try {
-      const storeRes = await fetch('https://rose-proxy.vercel.app/api/session-store?sessionKey=latest');
-      if (storeRes.ok) {
-        const stored = await storeRes.json();
-        if (stored?.visitCountToday) visitCountToday = parseInt(stored.visitCountToday);
-      }
+      const sessionRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const sessionData = await sessionRes.json();
+      const activeSession = sessionData.fields?.['Active Session'] || '';
+      const parts = activeSession.split('|');
+      if (parts[1]) visitCountToday = parseInt(parts[1]) || 1;
     } catch(e) {}
     const isFirstVisit = visitCountToday <= 1;
     console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
@@ -428,4 +437,3 @@ ${sessionSignalInstruction}`;
     return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
   }
 }
-
