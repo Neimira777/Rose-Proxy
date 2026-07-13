@@ -81,7 +81,7 @@ Write it as notes Rose would use. Be specific and personal — use details from 
       {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { 'Session Notes': trimmedNotes } })
+        body: JSON.stringify({ fields: { 'SessionNotes': trimmedNotes } })
       }
     );
     const saveData = await saveRes.json();
