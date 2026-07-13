@@ -42,6 +42,10 @@
     /* ── Splash screen ── */
     #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; }
     #splashScreen.hidden { opacity: 0; pointer-events: none; }
+    #splashBg { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 1.5s ease; z-index: 0; }
+    #splashBg.loaded { opacity: 1; }
+    #splashOverlay { position: absolute; inset: 0; background: linear-gradient(160deg, rgba(26,35,126,0.75) 0%, rgba(13,71,161,0.68) 50%, rgba(26,35,126,0.75) 100%); z-index: 1; }
+    #splashContent { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 32px; }
     .splash-logo-name { font-family: 'Cormorant Garamond', serif; font-size: 42px; font-weight: 300; letter-spacing: 14px; text-transform: uppercase; color: white; }
     .splash-logo-tag { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: #00BCD4; margin-top: -20px; font-weight: 500; }
     .splash-tap { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.5); animation: pulse-tap 2s ease-in-out infinite; margin-top: 40px; }
@@ -112,7 +116,10 @@
 
   <!-- Splash screen -->
   <div id="splashScreen">
-    <svg width="100" height="100" viewBox="0 0 200 200">
+    <div id="splashBg"></div>
+    <div id="splashOverlay"></div>
+    <div id="splashContent">
+      <svg width="100" height="100" viewBox="0 0 200 200">
       <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
       <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
       <circle cx="58" cy="138" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
@@ -140,6 +147,7 @@
       <div class="splash-logo-tag">AI Companion Technology</div>
     </div>
     <div class="splash-tap">Tap to Begin</div>
+    </div>
   </div>
 
   <div class="ambient"></div>
@@ -611,6 +619,20 @@
     loadClientProfile();
     setInterval(loadBackgroundVideo, 10 * 60 * 1000);
     startScheduleChecker();
+
+    // ── Load Unsplash photo behind splash screen ──
+    (async () => {
+      try {
+        const res = await fetch(`${API}/api/unsplash-photo`);
+        const data = await res.json();
+        if (data.url) {
+          const bg = document.getElementById('splashBg');
+          const img = new Image();
+          img.onload = () => { bg.style.backgroundImage = `url(${data.url})`; bg.classList.add('loaded'); };
+          img.src = data.url;
+        }
+      } catch(e) {}
+    })();
 
   </script>
 </body>
