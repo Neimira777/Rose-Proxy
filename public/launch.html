@@ -588,6 +588,15 @@
       if (photoPollInterval) { clearInterval(photoPollInterval); photoPollInterval = null; }
       if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
       clearSilenceTimers();
+
+      // ── Generate session summary in background ──
+      fetch(`${API}/api/session-summary`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: PATIENT_ID })
+      }).then(() => console.log('Session summary generated'))
+        .catch(e => console.warn('Session summary failed:', e));
+
       if (liveAvatarSession) { try { await liveAvatarSession.stop(); } catch(e) {} liveAvatarSession = null; }
       document.getElementById('roseVideo').srcObject = null;
       document.getElementById('musicBar').classList.remove('visible');
