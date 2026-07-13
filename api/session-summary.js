@@ -17,21 +17,18 @@ export default async function handler(req, res) {
   if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
 
   try {
-    // ── Fetch conversation log from chat-completions ──
-    const logRes = await fetch(`https://rose-proxy.vercel.app/api/chat/completions?patientId=${patientId}`);
-    const logData = await logRes.json();
-    const messages = logData.messages || [];
+    // ── Read Conversation Buffer from Airtable ──
+    const bufferRes = await fetch(
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+      { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+    );
+    const bufferData = await bufferRes.json();
+    const conversationText = bufferData.fields?.['Conversation Buffer'] || '';
 
-    if (messages.length === 0) {
-      console.log('No conversation to summarize for', patientId);
+    if (!conversationText.trim()) {
+      console.log('No conversation buffer to summarize for', patientId);
       return res.status(200).json({ ok: true, message: 'No conversation to summarize' });
     }
-    // ── Build conversation text for Claude to summarize ──
-    const conversationText = messages
-      .filter(m => m.role === 'user' || m.role === 'assistant')
-      .map(m => `${m.role === 'user' ? 'Member' : 'Rose'}: ${m.content}`)
-      .join('\n');
-
     // ── Call Claude to generate summary ──
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -57,53 +54,41 @@ Please write a brief, warm summary (3-5 sentences) that Rose can use to remember
 - Emotional tone of the visit
 - Anything notable mentioned (family, upcoming events, concerns, happy moments)
 
-Write it as notes Rose would use, starting with the date context. Be specific and personal — use details from the actual conversation. Write in third person about the member.`
+Write it as notes Rose would use. Be specific and personal — use details from the actual conversation. Write in third person about the member.`
         }]
       })
     });
 
     const claudeData = await claudeRes.json();
     const summary = claudeData.content?.[0]?.text || '';
-
     if (!summary) throw new Error('No summary generated');
 
     // ── Format with date ──
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     const formattedSummary = `[${today}]\n${summary}`;
 
-    // ── Read existing Session Notes from Airtable ──
-    const airtableGetRes = await fetch(
-      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-      { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
-    );
-    const airtableData = await airtableGetRes.json();
-    const existingNotes = airtableData.fields?.['Session Notes'] || '';
-
-    // ── Prepend new summary (most recent first) and keep last 10 sessions ──
+    // ── Read existing Session Notes ──
+    const existingNotes = bufferData.fields?.['Session Notes'] || '';
     const allNotes = existingNotes
       ? formattedSummary + '\n\n---\n\n' + existingNotes
       : formattedSummary;
-
-    // Trim to last 10 session entries to avoid Airtable field size limits
     const sessions = allNotes.split('\n\n---\n\n');
     const trimmedNotes = sessions.slice(0, 10).join('\n\n---\n\n');
 
-    // ── Save back to Airtable ──
-    const airtablePatchRes = await fetch(
+    // ── Save summary and clear buffer ──
+    await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
       {
         method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`,
-          'Content-Type': 'application/json'
-        },
+        headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fields: { 'Session Notes': trimmedNotes }
+          fields: {
+            'Session Notes': trimmedNotes,
+            'Conversation Buffer': '' // Clear for next session
+          }
         })
       }
     );
-
-    if (!airtablePatchRes.ok) throw new Error('Airtable save failed');
 
     console.log(`Session summary saved for ${patientId}: ${summary.substring(0, 80)}...`);
     return res.status(200).json({ ok: true, summary });
