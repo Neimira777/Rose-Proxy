@@ -265,7 +265,7 @@ export default async function handler(req, res) {
           console.log('DEBUG photoMap built:', JSON.stringify(photoMap));
         }
 
-        const sessionNotes = f['Session Notes'] || '';
+        const sessionNotes = f['SessionNotes'] || '';
 
         patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
