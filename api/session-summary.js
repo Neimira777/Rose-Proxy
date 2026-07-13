@@ -13,11 +13,19 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { patientId, messages } = req.body || {};
+  const { patientId } = req.body || {};
   if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
-  if (!messages || messages.length === 0) return res.status(400).json({ error: 'No messages to summarize' });
 
   try {
+    // ── Fetch conversation log from chat-completions ──
+    const logRes = await fetch(`https://rose-proxy.vercel.app/api/chat/completions?patientId=${patientId}`);
+    const logData = await logRes.json();
+    const messages = logData.messages || [];
+
+    if (messages.length === 0) {
+      console.log('No conversation to summarize for', patientId);
+      return res.status(200).json({ ok: true, message: 'No conversation to summarize' });
+    }
     // ── Build conversation text for Claude to summarize ──
     const conversationText = messages
       .filter(m => m.role === 'user' || m.role === 'assistant')
