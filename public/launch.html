@@ -111,7 +111,7 @@
 <body>
 
   <!-- Splash screen -->
-  <div id="splashScreen" onclick="dismissSplash()">
+  <div id="splashScreen">
     <svg width="100" height="100" viewBox="0 0 200 200">
       <circle cx="100" cy="62" r="90" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.15"/>
       <circle cx="100" cy="62" r="110" fill="none" stroke="#00BCD4" stroke-width="2" opacity="0.1"/>
@@ -594,9 +594,16 @@
     window.dismissSplash = function() {
       const splash = document.getElementById('splashScreen');
       splash.classList.add('hidden');
-      setTimeout(() => splash.remove(), 900);
+      setTimeout(() => { if (splash.parentNode) splash.remove(); }, 900);
       loadBackgroundVideo();
     };
+
+    // Add both click and touchend for mobile compatibility
+    document.getElementById('splashScreen').addEventListener('click', window.dismissSplash);
+    document.getElementById('splashScreen').addEventListener('touchend', function(e) {
+      e.preventDefault();
+      window.dismissSplash();
+    });
 
     window.speechSynthesis?.cancel();
     updateClock();
