@@ -19,10 +19,10 @@ export default async function handler(req, res) {
   else season = 'winter';
 
   const seasonalQueries = {
-    spring: ['cherry blossom', 'spring flowers garden', 'tulips field', 'spring meadow', 'blooming garden'],
-    summer: ['peaceful beach sunset', 'sunflower field', 'summer lake', 'golden hour landscape', 'summer garden'],
-    fall: ['autumn leaves forest', 'fall foliage', 'harvest pumpkins', 'autumn landscape', 'fall colors nature'],
-    winter: ['snowy landscape peaceful', 'winter forest snow', 'cozy winter scene', 'snow covered trees', 'peaceful winter']
+    spring: ['cherry blossom pink', 'spring tulips blooming', 'spring meadow flowers', 'garden roses blooming', 'spring nature green'],
+    summer: ['tropical beach sunny', 'sunflower field summer', 'summer ocean waves', 'green forest summer sunlight', 'summer lake sunshine'],
+    fall: ['autumn leaves orange red', 'fall forest foliage', 'golden autumn trees', 'fall harvest pumpkins', 'autumn maple leaves'],
+    winter: ['snow falling peaceful', 'winter snow trees', 'snowy landscape quiet', 'christmas snow scene', 'winter frost nature']
   };
 
   const queries = seasonalQueries[season];
