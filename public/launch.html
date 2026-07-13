@@ -247,10 +247,12 @@
     import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
 
     const _urlParams = new URLSearchParams(window.location.search);
-    const PATIENT_ID = _urlParams.get('member') || _urlParams.get('patient') || 'recMLLC4fJHBUhE5w';
+    const urlMemberId = _urlParams.get('member') || _urlParams.get('patient');
+    if (urlMemberId) localStorage.setItem('neimira_member_id', urlMemberId);
+    const PATIENT_ID = urlMemberId || localStorage.getItem('neimira_member_id') || 'recMLLC4fJHBUhE5w';
     const API = 'https://rose-proxy.vercel.app';
 
-    console.log('PATIENT_ID from URL:', PATIENT_ID);
+    console.log('PATIENT_ID:', PATIENT_ID, '(from URL:', !!urlMemberId, ')');
 
     let liveAvatarSession = null;
     let currentSessionId = null;
