@@ -75,20 +75,32 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     const sessions = allNotes.split('\n\n---\n\n');
     const trimmedNotes = sessions.slice(0, 10).join('\n\n---\n\n');
 
-    // ── Save summary and clear buffer ──
-    await fetch(
+    // ── Save summary to Session Notes ──
+    const saveRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
       {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fields: {
-            'Session Notes': trimmedNotes,
-            'Conversation Buffer': '' // Clear for next session
-          }
-        })
+        body: JSON.stringify({ fields: { 'Session Notes': trimmedNotes } })
       }
     );
+    const saveData = await saveRes.json();
+    if (!saveRes.ok) {
+      console.error('Session Notes save failed:', JSON.stringify(saveData));
+      throw new Error('Airtable Session Notes save failed: ' + JSON.stringify(saveData));
+    }
+    console.log('Session Notes saved successfully');
+
+    // ── Clear Conversation Buffer ──
+    const clearRes = await fetch(
+      `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+      {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields: { 'Conversation Buffer': '' } })
+      }
+    );
+    if (!clearRes.ok) console.warn('Conversation Buffer clear failed');
 
     console.log(`Session summary saved for ${patientId}: ${summary.substring(0, 80)}...`);
     return res.status(200).json({ ok: true, summary });
