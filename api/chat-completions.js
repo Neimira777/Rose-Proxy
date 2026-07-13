@@ -421,13 +421,27 @@ ${sessionSignalInstruction}`;
       .replace(/STOP_MUSIC/g, '')
       .trim();
 
-    // ── Append to conversation log for session summary ──
-    if (!conversationLog[patientId]) conversationLog[patientId] = [];
-    const lastUserMsg = finalMessages[finalMessages.length - 1];
-    if (lastUserMsg?.role === 'user') conversationLog[patientId].push({ role: 'user', content: lastUserMsg.content });
-    conversationLog[patientId].push({ role: 'assistant', content: cleanReply });
-    // Keep last 50 exchanges to avoid memory bloat
-    if (conversationLog[patientId].length > 100) conversationLog[patientId] = conversationLog[patientId].slice(-100);
+    // ── Append to Airtable Conversation Buffer ──
+    try {
+      const bufferRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const bufferData = await bufferRes.json();
+      const existing = bufferData.fields?.['Conversation Buffer'] || '';
+      const lastUser = finalMessages.filter(m => m.role === 'user').pop()?.content || '';
+      const newEntry = existing
+        ? existing + `\nMember: ${lastUser}\nRose: ${cleanReply}`
+        : `Member: ${lastUser}\nRose: ${cleanReply}`;
+      await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fields: { 'Conversation Buffer': newEntry } })
+        }
+      );
+    } catch(e) { console.warn('Conversation buffer write failed:', e.message); }
 
     const isStreaming = req.body && req.body.stream === true;
     if (isStreaming) {
