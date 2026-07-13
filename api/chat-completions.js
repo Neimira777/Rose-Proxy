@@ -13,6 +13,9 @@ function isCacheValid(patientId) {
   return (Date.now() - cache.cachedAt) < 5 * 60 * 1000;
 }
 
+// ── Conversation log (accumulated per session for summary) ──
+const conversationLog = {};
+
 // ── Timezone detection ──
 function getTimezoneFromHometown(hometown) {
   if (!hometown) return 'America/New_York';
@@ -148,7 +151,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-api-key');
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method === 'GET') return res.status(200).json({ status: 'ok' });
+  if (req.method === 'GET') {
+    const { patientId: pid } = req.query || {};
+    if (!pid) return res.status(400).json({ error: 'Missing patientId' });
+    const log = conversationLog[pid] || [];
+    // Clear after reading so next session starts fresh
+    delete conversationLog[pid];
+    return res.status(200).json({ messages: log });
+  }
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   try {
@@ -216,12 +226,12 @@ export default async function handler(req, res) {
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '';
-    let hometown = '', photoContext = '', photoMap = {};
+    let hometown = '', photoContext = '', photoMap = {}, sessionNotes = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
-         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap } = cache);
+         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap, sessionNotes } = cache);
     } else {
       try {
         const airtableRes = await fetch(
@@ -255,6 +265,8 @@ export default async function handler(req, res) {
           console.log('DEBUG photoMap built:', JSON.stringify(photoMap));
         }
 
+        const sessionNotes = f['Session Notes'] || '';
+
         patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
 Age: ${f['Age'] || ''} | Hometown: ${hometown} | Living situation: ${f['Living Situation'] || ''}
@@ -277,7 +289,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
 
       // ── No more hardcoded sports context — Rose uses web search for all sports ──
-      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, photoContext, photoMap });
+      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, photoContext, photoMap, sessionNotes });
     }
 
     const seasonalContext = getSeasonalContext(hometown);
@@ -343,6 +355,7 @@ Your one goal: Make whoever you're speaking with feel like the most interesting 
 
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Never reveal you are reading from a profile.` : ''}
+${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits with this member. Use these naturally to show you remember them — but never read them out verbatim or make it obvious you are consulting notes:\n${sessionNotes}` : ''}
 ${photoContext && !isFirstVisit ? `\n${photoContext}` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
@@ -407,6 +420,14 @@ ${sessionSignalInstruction}`;
       .replace(/SHOW_PHOTO:[^\n]+/g, '')
       .replace(/STOP_MUSIC/g, '')
       .trim();
+
+    // ── Append to conversation log for session summary ──
+    if (!conversationLog[patientId]) conversationLog[patientId] = [];
+    const lastUserMsg = finalMessages[finalMessages.length - 1];
+    if (lastUserMsg?.role === 'user') conversationLog[patientId].push({ role: 'user', content: lastUserMsg.content });
+    conversationLog[patientId].push({ role: 'assistant', content: cleanReply });
+    // Keep last 50 exchanges to avoid memory bloat
+    if (conversationLog[patientId].length > 100) conversationLog[patientId] = conversationLog[patientId].slice(-100);
 
     const isStreaming = req.body && req.body.stream === true;
     if (isStreaming) {
