@@ -79,12 +79,12 @@ export default async function handler(req, res) {
     // ── Single patient fetch by NMR ID (for family photo upload portal) ──
     if (nmrtId) {
       const airtableRes = await fetch(
-        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula={Patient ID}="${nmrtId}"`,
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula={Client ID}="${nmrtId}"`,
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
       );
       const data = await airtableRes.json();
       const record = data.records?.[0];
-      if (!record) return res.status(404).json({ error: 'Client not found' });
+      if (!record) return res.status(404).json({ error: 'Member not found' });
       const f = record.fields || {};
       return res.status(200).json({
         id: record.id,
