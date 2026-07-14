@@ -67,8 +67,8 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     const formattedSummary = `[${today}]\n${summary}`;
 
-    // ── Read existing Session Notes ──
-    const existingNotes = bufferData.fields?.['Session Notes'] || '';
+    // ── Read existing SessionNotes for stacking ──
+    const existingNotes = bufferData.fields?.['SessionNotes'] || '';
     const allNotes = existingNotes
       ? formattedSummary + '\n\n---\n\n' + existingNotes
       : formattedSummary;
