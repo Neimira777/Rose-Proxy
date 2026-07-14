@@ -226,12 +226,13 @@ export default async function handler(req, res) {
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '';
-    let hometown = '', photoContext = '', photoMap = {}, sessionNotes = '';
+    let hometown = '', photoContext = '', photoMap = {};
+    let sessionNotes = ''; // Always fetched fresh — never cached
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
-         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap, sessionNotes } = cache);
+         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap } = cache);
     } else {
       try {
         const airtableRes = await fetch(
@@ -266,6 +267,7 @@ export default async function handler(req, res) {
         }
 
         const sessionNotes = f['SessionNotes'] || '';
+        // Note: SessionNotes is intentionally NOT cached so Rose always has latest memories
 
         patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
@@ -289,8 +291,18 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
 
       // ── No more hardcoded sports context — Rose uses web search for all sports ──
-      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, photoContext, photoMap, sessionNotes });
+      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, photoContext, photoMap });
     }
+
+    // ── Always fetch SessionNotes fresh (not cached) ──
+    try {
+      const notesRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const notesData = await notesRes.json();
+      sessionNotes = notesData.fields?.['SessionNotes'] || '';
+    } catch(e) { console.warn('SessionNotes fetch failed:', e.message); }
 
     const seasonalContext = getSeasonalContext(hometown);
 
