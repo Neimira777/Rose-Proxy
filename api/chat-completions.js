@@ -287,7 +287,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     photoMap = {};
     try {
       const photosRes = await fetch(
-        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Photos?filterByFormula=FIND("${patientId}",ARRAYJOIN({Patient}))`,
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Photos?filterByFormula=FIND("${patientId}",ARRAYJOIN({Patient's Table}))`,
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
       );
       const photosData = await photosRes.json();
