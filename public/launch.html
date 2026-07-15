@@ -510,8 +510,18 @@
     }
 
     function getMorningSong() {
-      const songs = ['Frank Sinatra Fly Me to the Moon','Frank Sinatra New York New York','Fred Astaire Cheek to Cheek','Frank Sinatra Fly Me to the Moon','Frank Sinatra New York New York','Fred Astaire Cheek to Cheek','Frank Sinatra Fly Me to the Moon'];
-      return songs[new Date().getDay()];
+      // Use the member's own Morning Playlist (or Favorite Songs as backup).
+      // Previously this was a hardcoded Frank Sinatra/Fred Astaire list that
+      // played for every member regardless of their own preferences.
+      const playlistSource = clientProfile?.morningPlaylist || clientProfile?.favoriteSongs || '';
+      const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
+      if (songs.length > 0) {
+        const song = songs[Math.floor(Math.random() * songs.length)];
+        const artist = (clientProfile?.favoriteArtists || '').split(',')[0].trim();
+        return artist ? `${artist} ${song}` : song;
+      }
+      // Generic fallback only if the member has no music preferences on file at all
+      return 'relaxing instrumental morning music';
     }
 
     function isMorningHour() { const h = new Date().getHours(); return h >= 6 && h <= 11; }
@@ -570,6 +580,10 @@
         startKeepAlive(currentSessionId);
 
         if (isMorningHour()) {
+          // Guard against a slow/unresolved profile fetch — clientProfile is
+          // normally already loaded by page-load time, but this keeps the
+          // morning song personalized even in a rare slow-network case.
+          if (!clientProfile) { try { await loadClientProfile(); } catch(e) {} }
           const morningSong = getMorningSong();
           console.log('Morning music intro:', morningSong);
           let waited = 0;
