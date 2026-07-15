@@ -34,7 +34,7 @@ export default async function handler(req, res) {
             'Photo Name': photoName,
             'People': peopleNames || '',
             'Occasion': occasion || '',
-            'Patient': [patientId],
+            "Patient's Table": [patientId],
             'Photo': [
               {
                 filename: photoName,
