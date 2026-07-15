@@ -72,7 +72,10 @@ export default async function handler(req, res) {
         visitDuration: f['Visit Duration'] || 15,
         visitCountToday,
         photoUrls: (f['Family Photos'] || []).map(a => a.url),
-        photoLabels: f['Photo Labels'] || ''
+        photoLabels: f['Photo Labels'] || '',
+        morningPlaylist: f['Morning Playlist'] || '',
+        favoriteSongs: f['Favorite Songs'] || '',
+        favoriteArtists: f['Favorite Artists'] || ''
       });
     }
 
