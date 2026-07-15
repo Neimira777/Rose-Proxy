@@ -298,11 +298,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       );
       const photosData = await photosRes.json();
       const allPhotoRecords = photosData.records || [];
-      // TEMP DEBUG — remove once photo matching is confirmed working
-      if (allPhotoRecords.length > 0) {
-        console.log('DEBUG photo record field keys:', JSON.stringify(Object.keys(allPhotoRecords[0].fields)));
-        console.log('DEBUG photo record raw fields:', JSON.stringify(allPhotoRecords[0].fields));
-      }
       const photoRecords = allPhotoRecords.filter(record => {
         const linked = record.fields["Patient's Table"] || [];
         return linked.includes(patientId);
