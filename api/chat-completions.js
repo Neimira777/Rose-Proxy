@@ -286,12 +286,22 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     photoContext = '';
     photoMap = {};
     try {
+      // NOTE: We fetch all records and filter in JS rather than using a
+      // filterByFormula. Airtable formulas resolve linked-record fields to
+      // their *display name* (e.g. "Linda Licameli"), not the record ID —
+      // so a formula like FIND(patientId, ARRAYJOIN({Patient's Table}))
+      // can never match. The raw REST API response, by contrast, does
+      // return actual linked record IDs in fields["Patient's Table"].
       const photosRes = await fetch(
-        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Photos?filterByFormula=FIND("${patientId}",ARRAYJOIN({Patient's Table}))`,
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Photos`,
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
       );
       const photosData = await photosRes.json();
-      const photoRecords = photosData.records || [];
+      const allPhotoRecords = photosData.records || [];
+      const photoRecords = allPhotoRecords.filter(record => {
+        const linked = record.fields["Patient's Table"] || [];
+        return linked.includes(patientId);
+      });
       console.log(`Photos table: found ${photoRecords.length} photos for ${patientId}`);
 
       if (photoRecords.length > 0) {
