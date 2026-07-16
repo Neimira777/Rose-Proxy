@@ -196,8 +196,9 @@ export default async function handler(req, res) {
 
     console.log('Final patientId:', patientId);
 
-    // ── Read visit count from Airtable Active Session ──
+    // ── Read visit count + demo flag from Airtable Active Session ──
     let visitCountToday = 1;
+    let isDemo = false;
     try {
       const sessionRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
@@ -207,9 +208,10 @@ export default async function handler(req, res) {
       const activeSession = sessionData.fields?.['Active Session'] || '';
       const parts = activeSession.split('|');
       if (parts[1]) visitCountToday = parseInt(parts[1]) || 1;
+      if (parts[2] === 'demo') isDemo = true;
     } catch(e) {}
     const isFirstVisit = visitCountToday <= 1;
-    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit);
+    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit, '— isDemo:', isDemo);
 
     const messages = allMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -397,6 +399,7 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
 ${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits. Use these confidently and naturally — you genuinely remember these things. Reference specific details warmly, as a good friend would. For example: "Last time you told me about being thrown in the pool in Italy — that made me smile!" Do not say you are unsure or might be misremembering. Trust your notes and use them:\n${sessionNotes}` : ''}
 ${photoContext ? `\n${photoContext}` : ''}
 ${photoContext && !isFirstVisit ? `\nSince this isn't the first visit today, feel free to proactively bring up a photo early in the conversation as a reminiscence therapy moment, rather than waiting to be asked.` : ''}
+${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (Rose) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
