@@ -315,7 +315,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
 
         const photoNames = Object.keys(photoMap).join(', ');
         if (photoNames) {
-          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nEarly in the session, proactively bring up a photo as a reminiscence therapy tool. Say something warm like "I have a beautiful photo I'd love to show you!" then include SHOW_PHOTO:[photo name] to display it. After showing the photo, ask a gentle open-ended question to spark memory. Listen warmly and follow their lead.\n\nIf there are multiple photos, you can show one per session. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
+          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nIf asked to see or show a photo, warmly say something like "I have a beautiful photo I'd love to show you!" then include SHOW_PHOTO:[photo name] to display it. After showing the photo, ask a gentle open-ended question to spark memory. Listen warmly and follow their lead. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
           console.log('Photos table photoMap:', JSON.stringify(Object.keys(photoMap)));
         }
       }
@@ -395,7 +395,8 @@ Your one goal: Make whoever you're speaking with feel like the most interesting 
 Your opening greeting for this session: "${greeting}"
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Never reveal you are reading from a profile.` : ''}
 ${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits. Use these confidently and naturally — you genuinely remember these things. Reference specific details warmly, as a good friend would. For example: "Last time you told me about being thrown in the pool in Italy — that made me smile!" Do not say you are unsure or might be misremembering. Trust your notes and use them:\n${sessionNotes}` : ''}
-${photoContext && !isFirstVisit ? `\n${photoContext}` : ''}
+${photoContext ? `\n${photoContext}` : ''}
+${photoContext && !isFirstVisit ? `\nSince this isn't the first visit today, feel free to proactively bring up a photo early in the conversation as a reminiscence therapy moment, rather than waiting to be asked.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
