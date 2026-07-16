@@ -63,6 +63,52 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     const summary = claudeData.content?.[0]?.text || '';
     if (!summary) throw new Error('No summary generated');
 
+    // ── If this member's profile is still incomplete, also try to extract
+    // favorites and personality notes from this same conversation. Runs on
+    // every session until the Personality Profile field is filled in, rather
+    // than only the very first visit — a rushed first chat might not cover
+    // much, so Rose keeps gently gathering this over a few visits instead.
+    const existingPersonality = bufferData.fields?.['Personality Profile'] || '';
+    let onboardingFields = {};
+    if (!existingPersonality.trim()) {
+      try {
+        const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': process.env.ANTHROPIC_API_KEY,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 500,
+            messages: [{
+              role: 'user',
+              content: `Read this conversation between Rose (an AI companion) and an aging adult member. Extract anything the member shared about their own preferences and personality — do NOT guess or invent anything not actually said.
+
+Conversation:
+${conversationText}
+
+Respond with ONLY a JSON object, no other text, no markdown fences:
+{
+  "favoriteSongs": "comma-separated song titles the member mentioned liking, or empty string",
+  "favoriteArtists": "comma-separated artists/musicians mentioned, or empty string",
+  "favoriteFoods": "comma-separated foods mentioned, or empty string",
+  "favoriteMovies": "comma-separated movies/shows mentioned, or empty string",
+  "favoriteTopics": "comma-separated topics they lit up talking about, or empty string",
+  "personalityProfile": "1-3 warm sentences describing their personality, humor style, and how they like to be talked to — based only on how they actually came across in this conversation. Empty string if the conversation was too short or task-focused to tell."
+}`
+            }]
+          })
+        });
+        const extractData = await extractRes.json();
+        const rawText = (extractData.content?.[0]?.text || '{}').trim();
+        onboardingFields = JSON.parse(rawText.replace(/^```json\s*|\s*```$/g, ''));
+      } catch (extractErr) {
+        console.error('Onboarding extraction failed (non-fatal):', extractErr.message);
+      }
+    }
+
     // ── Format with date ──
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
     const formattedSummary = `[${today}]\n${summary}`;
@@ -75,13 +121,36 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     const sessions = allNotes.split('\n\n---\n\n');
     const trimmedNotes = sessions.slice(0, 10).join('\n\n---\n\n');
 
-    // ── Save summary to Session Notes ──
+    // ── Build the fields to save — SessionNotes always, plus any newly
+    // extracted onboarding fields, but only where the field is currently
+    // empty. Never overwrites data a family already entered manually.
+    const fieldsToSave = { 'SessionNotes': trimmedNotes };
+    const fieldMap = {
+      favoriteSongs: 'Favorite Songs',
+      favoriteArtists: 'Favorite Artists',
+      favoriteFoods: 'Favorite Foods',
+      favoriteMovies: 'Favorite Movies',
+      favoriteTopics: 'Favorite Topics',
+      personalityProfile: 'Personality Profile'
+    };
+    for (const [key, airtableField] of Object.entries(fieldMap)) {
+      const extractedValue = (onboardingFields[key] || '').trim();
+      const currentValue = (bufferData.fields?.[airtableField] || '').trim();
+      if (extractedValue && !currentValue) {
+        fieldsToSave[airtableField] = extractedValue;
+      }
+    }
+    if (Object.keys(fieldsToSave).length > 1) {
+      console.log('Onboarding fields captured this session:', Object.keys(fieldsToSave).filter(k => k !== 'SessionNotes').join(', '));
+    }
+
+    // ── Save summary + any onboarding fields to Airtable ──
     const saveRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
       {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: { 'SessionNotes': trimmedNotes } })
+        body: JSON.stringify({ fields: fieldsToSave })
       }
     );
     const saveData = await saveRes.json();
