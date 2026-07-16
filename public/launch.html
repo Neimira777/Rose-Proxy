@@ -266,6 +266,7 @@
     // Read from URL param, hash, or localStorage — in that order
     const hashMemberId = window.location.hash?.replace('#', '') || null;
     const PATIENT_ID = urlMemberId || hashMemberId || (() => { try { return localStorage.getItem('neimira_member_id'); } catch(e) { return null; } })() || 'recMLLC4fJHBUhE5w';
+    const IS_DEMO = _urlParams.get('demo') === 'true';
     const API = 'https://rose-proxy.vercel.app';
 
     console.log('PATIENT_ID:', PATIENT_ID, '(url:', !!urlMemberId, 'hash:', !!hashMemberId, ')');
@@ -547,7 +548,7 @@
       } catch(e) { console.warn('Visit count failed:', e); }
 
       try {
-        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday }) });
+        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday, isDemo: IS_DEMO }) });
         const tokenData = await tokenRes.json();
 
         if (!tokenData.session_token) { console.error('No session token:', tokenData); showLoading(false); sessionActive = false; return; }
