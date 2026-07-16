@@ -574,7 +574,7 @@
           setTimeout(resolve, 5000);
         });
 
-        await initSpotify(PATIENT_ID);
+        if (!spotifyPlayer) { await initSpotify(PATIENT_ID); }
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
@@ -636,6 +636,16 @@
       splash.classList.add('hidden');
       setTimeout(() => { if (splash.parentNode) splash.remove(); }, 900);
       loadBackgroundVideo();
+      // Unlock Spotify's Web Playback SDK audio context using this real user
+      // tap. Without a gesture, browsers (esp. Safari/iPad) silently block
+      // audio playback — this is why music played fine when Linda manually
+      // started a session, but stayed silent on scheduled auto-launches with
+      // no tap involved. Pre-warming here on the day's first tap means the
+      // audio context is already unlocked for later scheduled sessions,
+      // since the page stays open between visits.
+      if (PATIENT_ID && !spotifyPlayer) {
+        initSpotify(PATIENT_ID).catch(e => console.warn('Spotify pre-warm failed:', e));
+      }
     };
 
     // Add both click and touchend for mobile compatibility
