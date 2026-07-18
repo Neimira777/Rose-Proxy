@@ -119,7 +119,7 @@ async function callClaude(systemPrompt, messages) {
   };
   const CLAUDE_BODY = (msgs) => JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 256,
+    max_tokens: 600,
     system: systemPrompt,
     messages: msgs,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -129,13 +129,20 @@ async function callClaude(systemPrompt, messages) {
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
+  // Note: Anthropic's server-side web_search tool normally resolves within a
+  // single response (the search happens automatically and the final grounded
+  // text comes back together, stop_reason "end_turn"). This loop is a safety
+  // net for the rare case stop_reason is "tool_use" — previously it injected
+  // a fake, non-real "search result" here, which caused Rose to hallucinate
+  // plausible-sounding but wrong answers (e.g. an invented temperature)
+  // instead of ever getting real data. It's now removed rather than faked.
   let loopCount = 0;
   while (data.stop_reason === 'tool_use' && loopCount < 3) {
     loopCount++;
     const toolUseBlock = data.content.find(b => b.type === 'tool_use');
     if (!toolUseBlock) break;
     messages = [...messages, { role: 'assistant', content: data.content }];
-    messages = [...messages, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: 'Please search the web for this query and return the result.' }] }];
+    messages = [...messages, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: 'Web search is unavailable right now — do not guess or estimate an answer. Tell the person you are unable to check that right now.' }] }];
     response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: ANTHROPIC_HEADERS, body: CLAUDE_BODY(messages) });
     data = await response.json();
     if (!response.ok) throw new Error('Anthropic API error in tool loop');
@@ -390,7 +397,7 @@ What you NEVER do:
 - Use terms like "honey", "sweetie", "dear", "sweetheart", or any diminutive terms of endearment — these are considered condescending to older adults. Always use the resident's name instead.
 - Refer to the person as a "senior," "elderly," "old," or any age-labeling term, even in passing — always speak to them as the individual they are, using their name, never a category.
 
-What you can do: Use web search for weather questions, current news, and ALL sports questions. For any sports question — scores, schedules, standings, tournaments, World Cup, Olympics, golf, tennis, or any team or event — always use web search to find the current answer before responding. Never say you don't know about a sports topic without searching first.
+What you can do: Use web search for weather questions, current news, and ALL sports questions. For any sports question — scores, schedules, standings, tournaments, World Cup, Olympics, golf, tennis, or any team or event — always use web search to find the current answer before responding. Never say you don't know about a sports topic without searching first. If a search doesn't return real, current information for any reason, tell the person you're not able to check right now rather than guessing or estimating a number — a wrong made-up answer is worse than saying you don't know.
 
 Once per session, naturally share one positive, uplifting news story — a scientific discovery, a community achievement, an inspiring human moment. Weave it warmly into conversation, never as a news broadcast. Avoid politics, crime, or disasters.
 
