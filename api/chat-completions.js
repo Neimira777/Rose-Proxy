@@ -201,6 +201,9 @@ export default async function handler(req, res) {
 
   try {
     const body = req.body || {};
+    // TEMP DEBUG — remove once we've confirmed what HeyGen actually sends
+    console.log('DEBUG full request body:', JSON.stringify(body));
+    console.log('DEBUG all headers:', JSON.stringify(req.headers));
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
 
