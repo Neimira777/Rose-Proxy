@@ -129,6 +129,9 @@ async function callClaude(systemPrompt, messages) {
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
+  // TEMP DEBUG — remove once web search behavior is confirmed working
+  const usedSearch = (data.content || []).some(b => b.type === 'server_tool_use' || b.type === 'web_search_tool_result');
+  console.log('DEBUG stop_reason:', data.stop_reason, '| usedSearch:', usedSearch, '| block types:', (data.content || []).map(b => b.type).join(','));
   // Note: Anthropic's server-side web_search tool normally resolves within a
   // single response (the search happens automatically and the final grounded
   // text comes back together, stop_reason "end_turn"). This loop is a safety
