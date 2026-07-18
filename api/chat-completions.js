@@ -114,8 +114,7 @@ async function callClaude(systemPrompt, messages) {
   const ANTHROPIC_HEADERS = {
     'Content-Type': 'application/json',
     'x-api-key': process.env.ANTHROPIC_API_KEY,
-    'anthropic-version': '2023-06-01',
-    'anthropic-beta': 'web-search-2025-03-05'
+    'anthropic-version': '2023-06-01'
   };
   const CLAUDE_BODY = (msgs) => JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
@@ -129,9 +128,13 @@ async function callClaude(systemPrompt, messages) {
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
-  // TEMP DEBUG — remove once web search behavior is confirmed working
+  // TEMP DEBUG — remove once web search accuracy is confirmed working
   const usedSearch = (data.content || []).some(b => b.type === 'server_tool_use' || b.type === 'web_search_tool_result');
+  const searchQueries = (data.content || []).filter(b => b.type === 'server_tool_use').map(b => JSON.stringify(b.input));
+  const finalTextPreview = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' | ').substring(0, 300);
   console.log('DEBUG stop_reason:', data.stop_reason, '| usedSearch:', usedSearch, '| block types:', (data.content || []).map(b => b.type).join(','));
+  console.log('DEBUG search queries:', JSON.stringify(searchQueries));
+  console.log('DEBUG final text preview:', finalTextPreview);
   // Note: Anthropic's server-side web_search tool normally resolves within a
   // single response (the search happens automatically and the final grounded
   // text comes back together, stop_reason "end_turn"). This loop is a safety
