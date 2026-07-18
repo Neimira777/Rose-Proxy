@@ -28,17 +28,22 @@ export default async function handler(req, res) {
   }
 
   try {
-    // ── Step 1: Geocode the hometown to lat/lon via US Census Bureau
-    // (free, no API key, official US government geocoder) ──
+    // ── Step 1: Geocode the hometown to lat/lon via OpenStreetMap's
+    // Nominatim (free for any use under fair-use rate limits, and built
+    // for place-name lookups like "City, State" — unlike the US Census
+    // geocoder, which is designed for full street addresses and often
+    // returns no match for a bare city name). ──
     const geoRes = await fetch(
-      `https://geocoding.geo.census.gov/geocoder/locations/onelineaddress?address=${encodeURIComponent(hometown)}&benchmark=Public_AR_Current&format=json`
+      `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(hometown)}&countrycodes=us&format=json&limit=1`,
+      { headers: { 'User-Agent': 'NeimiraRoseCompanion (linda@neimira.com)' } }
     );
-    const geoData = await geoRes.json();
-    const match = geoData?.result?.addressMatches?.[0];
+    const geoResults = await geoRes.json();
+    const match = geoResults?.[0];
     if (!match) {
       return res.status(200).json({ ok: false, message: 'Could not locate hometown' });
     }
-    const { x: lon, y: lat } = match.coordinates;
+    const lat = match.lat;
+    const lon = match.lon;
 
     // ── Step 2: NWS points lookup — translates lat/lon into the
     // forecast office + gridpoint + nearest observation stations ──
