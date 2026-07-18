@@ -202,34 +202,77 @@ export default async function handler(req, res) {
   try {
     const body = req.body || {};
     // TEMP DEBUG — remove once we've confirmed what HeyGen actually sends
-    console.log('DEBUG full request body:', JSON.stringify(body));
-    console.log('DEBUG all headers:', JSON.stringify(req.headers));
     const allMessages = body.messages || [];
     const systemMsg = allMessages.find(m => m.role === 'system');
 
     let patientId = 'recMLLC4fJHBUhE5w';
+    let resolvedViaRoom = false;
 
-    if (systemMsg?.content) {
-      const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
-      if (match) patientId = match[1];
-    }
-
-    if (patientId === 'recMLLC4fJHBUhE5w') {
+    // ── Room ID-based session resolution (the reliable method) ──
+    // HeyGen's LiveAvatar runs on LiveKit, which sends a genuinely unique
+    // x-livekit-room-id header on every single request in a conversation —
+    // unlike the system message (confirmed via testing to often NOT contain
+    // our PATIENT_ID at all) or the Active Session field (a single shared
+    // value that breaks the moment more than one member has ever used the
+    // system, since nothing distinguishes which member's session is truly
+    // current). A room ID is unique per live conversation, so once we've
+    // resolved a patientId for a given room, every later message in that
+    // exact conversation can look it up with zero ambiguity — including
+    // when two different families are genuinely mid-session at once.
+    const roomId = req.headers['x-livekit-room-id'];
+    if (roomId) {
       try {
-        const searchRes = await fetch(
-          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&maxRecords=1`,
+        const roomRes = await fetch(
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/RoomSessions?filterByFormula=${encodeURIComponent(`{Room ID}="${roomId}"`)}&maxRecords=1`,
           { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
         );
-        const searchData = await searchRes.json();
-        const record = searchData.records?.[0];
-        if (record?.fields?.['Active Session']) {
-          const [activePatientId, activeVisitCount] = record.fields['Active Session'].split('|');
-          if (activePatientId && activePatientId !== 'recMLLC4fJHBUhE5w') {
-            patientId = activePatientId;
-            console.log('Using Airtable Active Session patientId:', patientId);
-          }
+        const roomData = await roomRes.json();
+        const roomRecord = roomData.records?.[0];
+        if (roomRecord?.fields?.['Patient ID']) {
+          patientId = roomRecord.fields['Patient ID'];
+          resolvedViaRoom = true;
+          console.log('Resolved patientId via Room ID mapping:', roomId, '→', patientId);
         }
-      } catch(e) { console.warn('Airtable session lookup failed:', e.message); }
+      } catch (e) { console.warn('Room session lookup failed:', e.message); }
+    }
+
+    if (!resolvedViaRoom) {
+      // ── First message of a new room — fall back to the older, less
+      // reliable methods just this once, then remember the answer. ──
+      if (systemMsg?.content) {
+        const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
+        if (match) patientId = match[1];
+      }
+
+      if (patientId === 'recMLLC4fJHBUhE5w') {
+        try {
+          const searchRes = await fetch(
+            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&maxRecords=1`,
+            { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+          );
+          const searchData = await searchRes.json();
+          const record = searchData.records?.[0];
+          if (record?.fields?.['Active Session']) {
+            const [activePatientId] = record.fields['Active Session'].split('|');
+            if (activePatientId && activePatientId !== 'recMLLC4fJHBUhE5w') {
+              patientId = activePatientId;
+              console.log('Using Airtable Active Session patientId:', patientId);
+            }
+          }
+        } catch (e) { console.warn('Airtable session lookup failed:', e.message); }
+      }
+
+      // ── Remember this resolution for every future message in this room ──
+      if (roomId && patientId !== 'recMLLC4fJHBUhE5w') {
+        try {
+          await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/RoomSessions`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: { 'Room ID': roomId, 'Patient ID': patientId } })
+          });
+          console.log('Saved new Room ID mapping:', roomId, '→', patientId);
+        } catch (e) { console.warn('Room session save failed:', e.message); }
+      }
     }
 
     console.log('Final patientId:', patientId);
