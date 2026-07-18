@@ -329,8 +329,16 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     console.log('Weather trigger check — hometown:', hometown, '| isFirstMessage:', isFirstMessage, '| lastUserContent:', lastUserContent, '| needsWeather:', needsWeather);
 
     // ── Exercise coaching trigger ──
+    // Checks both the person's latest message AND Rose's own last message —
+    // this matters because after Rose makes the soft morning offer ("want to
+    // stretch together?"), a simple "yes" from the person wouldn't contain
+    // any exercise keyword on its own. Checking her own prior message means
+    // the routines stay available on the very next turn so she can actually
+    // follow through, rather than only reacting to the person saying the
+    // word "stretch" themselves.
     const exerciseKeywords = /\b(exercise|exercises|stretch|stretches|stretching|workout|move|moving|chair yoga|warm[\s-]?up|limber)\b/i;
-    const wantsExercise = exerciseKeywords.test(lastUserContent);
+    const lastAssistantContent = messages.filter(m => m.role === 'assistant').pop()?.content || '';
+    const wantsExercise = exerciseKeywords.test(lastUserContent) || exerciseKeywords.test(lastAssistantContent) || (isMorningSession(hometown) && isFirstMessage);
     const exerciseContext = wantsExercise ? `\n${EXERCISE_ROUTINES}` : '';
     if (needsWeather) {
       try {
@@ -401,6 +409,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Using the CURRENT WEATHER data provided below (not a search), warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
+      morningMusicInstruction += `\nMORNING MOVEMENT OFFER: Later in this first conversation (not immediately, don't stack it on top of the greeting/music/clothing all at once), warmly offer a gentle stretch as a choice, not an instruction — for example "Want to start with a little stretch together this morning, or ease in with your coffee first?" If they say yes or show interest, use the CHAIR EXERCISE ROUTINES below to guide them. If they'd rather not, or don't respond to the offer, drop it completely and never push.`;
     }
 
     let musicGuidance = '';
