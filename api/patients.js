@@ -6,10 +6,31 @@ export default async function handler(req, res) {
 
   const { id, nmrtId } = req.query || {};
 
-  // ── POST — increment visit count ──
+  // ── POST — increment visit count OR clear Active Session on session end ──
   if (req.method === 'POST') {
-    const { patientId } = req.body || {};
+    const { patientId, clearActiveSession } = req.body || {};
     if (!patientId) return res.status(400).json({ error: 'Missing patientId' });
+
+    if (clearActiveSession) {
+      try {
+        await fetch(
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+          {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ fields: { 'Active Session': '' } })
+          }
+        );
+        return res.status(200).json({ ok: true });
+      } catch (e) {
+        console.error('Clear Active Session error:', e.message);
+        return res.status(500).json({ error: e.message });
+      }
+    }
+
     try {
       // Fetch current visit count and date
       const airtableRes = await fetch(
