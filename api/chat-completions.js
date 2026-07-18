@@ -128,13 +128,6 @@ async function callClaude(systemPrompt, messages) {
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
-  // Note: Anthropic's server-side web_search tool normally resolves within a
-  // single response (the search happens automatically and the final grounded
-  // text comes back together, stop_reason "end_turn"). This loop is a safety
-  // net for the rare case stop_reason is "tool_use" — previously it injected
-  // a fake, non-real "search result" here, which caused Rose to hallucinate
-  // plausible-sounding but wrong answers (e.g. an invented temperature)
-  // instead of ever getting real data. It's now removed rather than faked.
   let loopCount = 0;
   while (data.stop_reason === 'tool_use' && loopCount < 3) {
     loopCount++;
@@ -161,7 +154,6 @@ export default async function handler(req, res) {
     const { patientId: pid } = req.query || {};
     if (!pid) return res.status(400).json({ error: 'Missing patientId' });
     const log = conversationLog[pid] || [];
-    // Clear after reading so next session starts fresh
     delete conversationLog[pid];
     return res.status(200).json({ messages: log });
   }
@@ -174,16 +166,13 @@ export default async function handler(req, res) {
 
     let patientId = 'recMLLC4fJHBUhE5w';
 
-    // ── Try to get patientId from system message first ──
     if (systemMsg?.content) {
       const match = systemMsg.content.match(/PATIENT_ID:([^\s]+)/);
       if (match) patientId = match[1];
     }
 
-    // ── Fall back to Airtable Active Session if still default ──
     if (patientId === 'recMLLC4fJHBUhE5w') {
       try {
-        // Search for the most recently active session in Airtable
         const searchRes = await fetch(
           `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&maxRecords=1`,
           { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
@@ -202,7 +191,6 @@ export default async function handler(req, res) {
 
     console.log('Final patientId:', patientId);
 
-    // ── Read visit count + demo flag from Airtable Active Session ──
     let visitCountToday = 1;
     let isDemo = false;
     try {
@@ -225,18 +213,16 @@ export default async function handler(req, res) {
 
     const isFirstMessage = !messages.some(m => m.role === 'assistant');
 
-    // ── Detect session signals ──
     const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     const isCheckIn = lastUserContent.includes('__CHECK_IN__');
     const isWrapUp = lastUserContent.includes('__WRAP_UP__');
 
-    // ── Load resident profile ──
     let patientProfile = '', greetingName = '', favoriteTeamsRaw = '';
     let favoriteSongs = '', favoriteArtists = '', musicToAvoid = '';
     let morningPlaylist = '', musicMemories = '';
     let hometown = '', photoContext = '', photoMap = {};
     let personalityProfile = '';
-    let sessionNotes = ''; // Always fetched fresh — never cached
+    let sessionNotes = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
@@ -264,8 +250,7 @@ export default async function handler(req, res) {
         const dressingNotes = f['Dressing Notes'] || '';
         personalityProfile = f['Personality Profile'] || '';
 
-        const sessionNotes = f['SessionNotes'] || '';
-        // Note: SessionNotes is intentionally NOT cached so Rose always has latest memories
+        const sessionNotesInner = f['SessionNotes'] || '';
 
         patientProfile = `RESIDENT PROFILE:
 Name: ${f['Patient Full Name'] || ''} (prefers: ${greetingName})
@@ -289,41 +274,31 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         console.error('Airtable fetch error:', e);
       }
 
-      // ── No more hardcoded sports context — Rose uses web search for all sports ──
       setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown });
     }
 
-    // ── Fetch REAL current weather via the National Weather Service —
-    // general web search was found to return stale cached weather pages
-    // (e.g. reporting 92° and sunny during an actual severe storm), so
-    // weather now comes from a dedicated live government data source
-    // instead. Only fetched when actually relevant, to avoid slowing
-    // down every single message with an unnecessary lookup. ──
     let weatherContext = '';
     const weatherKeywords = /\b(weather|rain|raining|sunny|cloudy|cold|hot|temperature|outside|umbrella|storm|snow|forecast|flooding)\b/i;
     const needsWeather = hometown && (isFirstMessage || weatherKeywords.test(lastUserContent));
+    console.log('Weather trigger check — hometown:', hometown, '| isFirstMessage:', isFirstMessage, '| lastUserContent:', lastUserContent, '| needsWeather:', needsWeather);
     if (needsWeather) {
       try {
         const weatherRes = await fetch(`https://rose-proxy.vercel.app/api/weather?hometown=${encodeURIComponent(hometown)}`);
         const weatherData = await weatherRes.json();
         if (weatherData.ok) {
           weatherContext = `\nCURRENT WEATHER (live, real — use this exact data, never guess or search the web for weather): ${weatherData.tempF}°F, ${weatherData.description}${weatherData.windMph != null ? `, wind ${weatherData.windMph} mph` : ''} in ${hometown}.`;
+          console.log('Weather fetch SUCCESS:', JSON.stringify(weatherData));
+        } else {
+          console.log('Weather fetch returned not-ok:', JSON.stringify(weatherData));
         }
       } catch (e) {
         console.error('Weather fetch error:', e.message);
       }
     }
 
-    // ── Always fetch photos fresh from Photos table (not cached) ──
     photoContext = '';
     photoMap = {};
     try {
-      // NOTE: We fetch all records and filter in JS rather than using a
-      // filterByFormula. Airtable formulas resolve linked-record fields to
-      // their *display name* (e.g. "Linda Licameli"), not the record ID —
-      // so a formula like FIND(patientId, ARRAYJOIN({Patient's Table}))
-      // can never match. The raw REST API response, by contrast, does
-      // return actual linked record IDs in fields["Patient's Table"].
       const photosRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/Photos`,
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
@@ -353,7 +328,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
     } catch(e) { console.error('Photos table fetch error:', e.message); }
 
-    // ── Always fetch SessionNotes fresh (not cached) ──
     try {
       const notesRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
@@ -365,7 +339,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
 
     const seasonalContext = getSeasonalContext(hometown);
 
-    // ── Morning music + clothing trigger ──
     let morningMusicInstruction = '';
     if (isMorningSession(hometown) && isFirstMessage) {
       const playlistSource = morningPlaylist || favoriteSongs;
@@ -378,13 +351,11 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Using the CURRENT WEATHER data provided below (not a search), warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
     }
 
-    // ── Music guidance ──
     let musicGuidance = '';
     if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
       musicGuidance = `\nMUSIC GUIDANCE:\nThe resident loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way". Always include the artist name.\nIMPORTANT: If the resident requests ANY song or artist not on their preference list, always honor the request. The preference list is a guide, not a restriction. Use PLAY_MUSIC: for whatever they ask for.\nIf the resident asks to stop or pause music, include "STOP_MUSIC" in your response.`;
     }
 
-    // ── Rotating greetings ──
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -395,7 +366,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     ];
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
-    // ── Session signal instructions ──
     let sessionSignalInstruction = '';
     if (isCheckIn) {
       sessionSignalInstruction = `\nSESSION SIGNAL — CHECK IN: You have not heard from the resident in a while. Gently check in by saying something warm like "${greetingName}, are you still there? I'm right here if you'd like to chat." Keep it very brief and warm.`;
@@ -403,7 +373,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       sessionSignalInstruction = `\nSESSION SIGNAL — WRAP UP: The visit is coming to a close. Warmly wrap up the conversation. Say something like "It's been so lovely spending time with you, ${greetingName}. I'll see you again soon — take good care of yourself." Make it feel like a natural, loving goodbye from a good friend.`;
     }
 
-    // ── System prompt ──
     const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
 
 How you speak: Keep responses short — two to three sentences at most. Speak conversationally, never formally. Use natural language, contractions, and warmth. Never use bullet points, lists, or clinical language.
@@ -438,7 +407,6 @@ ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sessionSignalInstruction}`;
 
-    // ── Clean signal keywords from messages ──
     const cleanedMessages = messages.map(m => ({
       ...m,
       content: m.content.replace(/__CHECK_IN__/g, '').replace(/__WRAP_UP__/g, '').trim() || 'Hello'
@@ -447,7 +415,6 @@ ${sessionSignalInstruction}`;
     const finalMessages = cleanedMessages.length > 0 ? cleanedMessages : [{ role: 'user', content: 'Hello' }];
     const replyText = await callClaude(systemPrompt, finalMessages);
 
-    // ── Check for SHOW_PHOTO signal ──
     const photoMatch = replyText.match(/SHOW_PHOTO:([^\n]+)/);
     if (photoMatch) {
       const photoLabel = photoMatch[1].trim();
@@ -466,7 +433,6 @@ ${sessionSignalInstruction}`;
       }
     }
 
-    // ── Check for PLAY_MUSIC signal ──
     const musicMatch = replyText.match(/PLAY_MUSIC:([^\n]+)/);
     if (musicMatch && patientId) {
       const musicQuery = musicMatch[1].trim();
@@ -479,7 +445,6 @@ ${sessionSignalInstruction}`;
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
 
-    // ── Check for STOP_MUSIC signal ──
     if (replyText.includes('STOP_MUSIC')) {
       try {
         await fetch('https://rose-proxy.vercel.app/api/music-queue', {
@@ -497,7 +462,6 @@ ${sessionSignalInstruction}`;
       .replace(/STOP_MUSIC/g, '')
       .trim();
 
-    // ── Append to Airtable Conversation Buffer ──
     try {
       const bufferRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
