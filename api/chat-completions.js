@@ -128,13 +128,6 @@ async function callClaude(systemPrompt, messages) {
   });
   let data = await response.json();
   if (!response.ok) throw new Error('Anthropic API error');
-  // TEMP DEBUG — remove once web search accuracy is confirmed working
-  const usedSearch = (data.content || []).some(b => b.type === 'server_tool_use' || b.type === 'web_search_tool_result');
-  const searchQueries = (data.content || []).filter(b => b.type === 'server_tool_use').map(b => JSON.stringify(b.input));
-  const finalTextPreview = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join(' | ').substring(0, 300);
-  console.log('DEBUG stop_reason:', data.stop_reason, '| usedSearch:', usedSearch, '| block types:', (data.content || []).map(b => b.type).join(','));
-  console.log('DEBUG search queries:', JSON.stringify(searchQueries));
-  console.log('DEBUG final text preview:', finalTextPreview);
   // Note: Anthropic's server-side web_search tool normally resolves within a
   // single response (the search happens automatically and the final grounded
   // text comes back together, stop_reason "end_turn"). This loop is a safety
@@ -300,6 +293,27 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown });
     }
 
+    // ── Fetch REAL current weather via the National Weather Service —
+    // general web search was found to return stale cached weather pages
+    // (e.g. reporting 92° and sunny during an actual severe storm), so
+    // weather now comes from a dedicated live government data source
+    // instead. Only fetched when actually relevant, to avoid slowing
+    // down every single message with an unnecessary lookup. ──
+    let weatherContext = '';
+    const weatherKeywords = /\b(weather|rain|raining|sunny|cloudy|cold|hot|temperature|outside|umbrella|storm|snow|forecast|flooding)\b/i;
+    const needsWeather = hometown && (isFirstMessage || weatherKeywords.test(lastUserContent));
+    if (needsWeather) {
+      try {
+        const weatherRes = await fetch(`https://rose-proxy.vercel.app/api/weather?hometown=${encodeURIComponent(hometown)}`);
+        const weatherData = await weatherRes.json();
+        if (weatherData.ok) {
+          weatherContext = `\nCURRENT WEATHER (live, real — use this exact data, never guess or search the web for weather): ${weatherData.tempF}°F, ${weatherData.description}${weatherData.windMph != null ? `, wind ${weatherData.windMph} mph` : ''} in ${hometown}.`;
+        }
+      } catch (e) {
+        console.error('Weather fetch error:', e.message);
+      }
+    }
+
     // ── Always fetch photos fresh from Photos table (not cached) ──
     photoContext = '';
     photoMap = {};
@@ -361,7 +375,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
         if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
       }
-      morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Check today's weather for the resident's Hometown using web search, then warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
+      morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Using the CURRENT WEATHER data provided below (not a search), warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
     }
 
     // ── Music guidance ──
@@ -403,7 +417,7 @@ What you NEVER do:
 - Use terms like "honey", "sweetie", "dear", "sweetheart", or any diminutive terms of endearment — these are considered condescending to older adults. Always use the resident's name instead.
 - Refer to the person as a "senior," "elderly," "old," or any age-labeling term, even in passing — always speak to them as the individual they are, using their name, never a category.
 
-What you can do: Use web search for weather questions, current news, and ALL sports questions. For any sports question — scores, schedules, standings, tournaments, World Cup, Olympics, golf, tennis, or any team or event — always use web search to find the current answer before responding. Never say you don't know about a sports topic without searching first. If a search doesn't return real, current information for any reason, tell the person you're not able to check right now rather than guessing or estimating a number — a wrong made-up answer is worse than saying you don't know.
+What you can do: For weather questions, use ONLY the CURRENT WEATHER data provided below if present — never use web search for weather, since search results for weather are often outdated. If no CURRENT WEATHER data is provided below and someone asks about weather, say you're not able to check right now rather than guessing. Use web search for current news and ALL sports questions. For any sports question — scores, schedules, standings, tournaments, World Cup, Olympics, golf, tennis, or any team or event — always use web search to find the current answer before responding. Never say you don't know about a sports topic without searching first. If a search doesn't return real, current information for any reason, tell the person you're not able to check right now rather than guessing or estimating — a wrong made-up answer is worse than saying you don't know.
 
 Once per session, naturally share one positive, uplifting news story — a scientific discovery, a community achievement, an inspiring human moment. Weave it warmly into conversation, never as a news broadcast. Avoid politics, crime, or disasters.
 
@@ -417,6 +431,7 @@ ${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits. 
 ${photoContext ? `\n${photoContext}` : ''}
 ${photoContext && !isFirstVisit ? `\nSince this isn't the first visit today, feel free to proactively bring up a photo early in the conversation as a reminiscence therapy moment, rather than waiting to be asked.` : ''}
 ${!personalityProfile ? `\nGETTING TO KNOW THEM: You don't yet know much about this person's tastes and personality. Over the course of natural conversation (not as a checklist or interview), look for warm, unforced moments to ask about things like their favorite music, food, movies, what makes them laugh, or how they like to spend a morning. One or two genuine questions woven naturally into the conversation is plenty — never make it feel like a form. If it doesn't come up naturally today, that's completely fine, there's no rush.` : ''}
+${weatherContext}
 ${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (Rose) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
