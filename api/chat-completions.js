@@ -55,7 +55,47 @@ function isMorningSession(hometown) {
 }
 
 // ── Seasonal context ──
+// ── Chair exercise library — Rose can VERBALLY coach through these live.
+// She cannot physically demonstrate movements (her avatar is chest-up
+// only), so every routine is written to be led entirely by voice: clear,
+// one-step-at-a-time instructions a person can follow without watching
+// anything. All routines are seated/chair-based, low-impact, and gentle
+// by design — nothing requiring balance, floor work, or exertion. ──
+const EXERCISE_ROUTINES = `
+CHAIR EXERCISE ROUTINES (for voice-only coaching — you cannot demonstrate physically, only guide step by step):
+
+1. GENTLE WARM-UP (shoulders & neck)
+   - Slowly roll your shoulders up, back, and down. Repeat 5 times.
+   - Gently tilt your head toward one shoulder, hold a moment, then the other side. 3 times each.
+   - Slowly turn your head to look over one shoulder, then the other. 3 times each side.
+
+2. ARM RAISES & CIRCLES
+   - Sitting tall, raise both arms slowly out to the sides up to shoulder height, then lower. Repeat 8 times.
+   - Make small gentle circles with your arms extended, forward for 5, then backward for 5.
+
+3. SEATED MARCHING
+   - Sitting up straight, lift one knee up gently, then lower, then the other knee. Continue alternating for about 20 seconds, like a gentle march in your chair.
+
+4. ANKLE & FOOT MOBILITY
+   - Lift your feet slightly off the floor and rotate your ankles in circles, 5 times one way, 5 times the other.
+   - Point your toes forward, then flex them back toward you. Repeat 8 times.
+
+5. GENTLE TORSO TWISTS
+   - Sitting tall with feet flat on the floor, gently twist your upper body to look behind you on one side, hold briefly, then return to center and twist to the other side. 3 times each direction. Keep movements slow and gentle.
+
+6. HAND & FINGER STRETCHES
+   - Make a gentle fist, then spread your fingers out wide. Repeat 8 times.
+   - Slowly rotate your wrists in circles, 5 times each direction.
+
+7. COOL-DOWN BREATHING
+   - Sit comfortably, close your eyes if you'd like. Breathe in slowly through your nose for a count of 4, hold gently for a count of 2, then breathe out slowly through your mouth for a count of 4. Repeat this a few times, nice and unhurried.
+
+HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session shouldn't be all seven at once unless asked). Guide one step at a time — give one instruction, then wait for their response before moving on, rather than reading the whole routine at once. Count reps out loud warmly ("one... two... there you go"). Check in naturally ("How's that feeling?"). Always mention at the start: this isn't a substitute for their doctor's guidance, and to stop right away if anything hurts or feels wrong. Keep the tone like a caring friend, never a drill instructor — slow, encouraging, no pressure to keep going if they'd rather stop.
+`.trim();
+
 function getSeasonalContext(hometown) {
+
+
   const { full, timeOfDay } = getLocalDateTime(hometown);
   const now = new Date();
   const month = now.getMonth() + 1;
@@ -277,10 +317,21 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown });
     }
 
+    // ── Fetch REAL current weather via the National Weather Service —
+    // general web search was found to return stale cached weather pages
+    // (e.g. reporting 92° and sunny during an actual severe storm), so
+    // weather now comes from a dedicated live government data source
+    // instead. Only fetched when actually relevant, to avoid slowing
+    // down every single message with an unnecessary lookup. ──
     let weatherContext = '';
     const weatherKeywords = /\b(weather|rain|raining|sunny|cloudy|cold|hot|temperature|outside|umbrella|storm|snow|forecast|flooding)\b/i;
     const needsWeather = hometown && (isFirstMessage || weatherKeywords.test(lastUserContent));
     console.log('Weather trigger check — hometown:', hometown, '| isFirstMessage:', isFirstMessage, '| lastUserContent:', lastUserContent, '| needsWeather:', needsWeather);
+
+    // ── Exercise coaching trigger ──
+    const exerciseKeywords = /\b(exercise|exercises|stretch|stretches|stretching|workout|move|moving|chair yoga|warm[\s-]?up|limber)\b/i;
+    const wantsExercise = exerciseKeywords.test(lastUserContent);
+    const exerciseContext = wantsExercise ? `\n${EXERCISE_ROUTINES}` : '';
     if (needsWeather) {
       try {
         const weatherRes = await fetch(`https://rose-proxy.vercel.app/api/weather?hometown=${encodeURIComponent(hometown)}`);
@@ -296,6 +347,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
     }
 
+    // ── Always fetch photos fresh from Photos table (not cached) ──
     photoContext = '';
     photoMap = {};
     try {
@@ -401,6 +453,7 @@ ${photoContext ? `\n${photoContext}` : ''}
 ${photoContext && !isFirstVisit ? `\nSince this isn't the first visit today, feel free to proactively bring up a photo early in the conversation as a reminiscence therapy moment, rather than waiting to be asked.` : ''}
 ${!personalityProfile ? `\nGETTING TO KNOW THEM: You don't yet know much about this person's tastes and personality. Over the course of natural conversation (not as a checklist or interview), look for warm, unforced moments to ask about things like their favorite music, food, movies, what makes them laugh, or how they like to spend a morning. One or two genuine questions woven naturally into the conversation is plenty — never make it feel like a form. If it doesn't come up naturally today, that's completely fine, there's no rush.` : ''}
 ${weatherContext}
+${exerciseContext}
 ${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (Rose) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
