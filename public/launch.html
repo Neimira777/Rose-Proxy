@@ -88,6 +88,8 @@
     /* ── Music bar ── */
     #musicBar { position: fixed; top: 0; left: 0; right: 0; background: rgba(10,14,26,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20; transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 16px; }
     #musicBar.visible { transform: translateY(0); }
+    #youtubeCorner { position: fixed; bottom: 20px; right: 20px; width: 200px; height: 112px; border-radius: 12px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.4); z-index: 15; opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+    #youtubeCorner.visible { opacity: 1; }
     .music-icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--green), #158a3a); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
     .music-info { flex: 1; min-width: 0; }
     .music-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--green); margin-bottom: 3px; }
@@ -235,6 +237,7 @@
         <button class="music-ctrl" onclick="spotifyStop()" style="font-size:11px;letter-spacing:1px;">✕</button>
       </div>
     </div>
+    <div id="youtubeCorner"><div id="youtubePlayerEl"></div></div>
     <div class="end-btn-wrap">
       <button class="end-btn" onclick="endSession()">End Visit</button>
     </div>
@@ -275,6 +278,8 @@
     let currentSessionId = null;
     let spotifyPlayer = null;
     let spotifyDeviceId = null;
+    let youtubePlayer = null;
+    let youtubePlayerReady = false;
     let isPlaying = false;
     let musicPollInterval = null;
     let photoPollInterval = null;
@@ -470,12 +475,59 @@
       } catch(e) { console.error('Spotify init error:', e); }
     }
 
+    // ── YouTube free-tier music fallback ──
+    // Used only when a member hasn't connected their own Spotify account.
+    // Plays in a small corner window since YouTube has no audio-only mode —
+    // trying to strip the video would violate YouTube's terms.
+    function loadYoutubeApi() {
+      if (window.YT && window.YT.Player) { initYoutubePlayer(); return; }
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      document.head.appendChild(tag);
+      window.onYouTubeIframeAPIReady = initYoutubePlayer;
+    }
+
+    function initYoutubePlayer() {
+      youtubePlayer = new YT.Player('youtubePlayerEl', {
+        height: '112', width: '200',
+        playerVars: { autoplay: 0, controls: 1, modestbranding: 1, rel: 0 },
+        events: {
+          onReady: () => { youtubePlayerReady = true; },
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED) {
+              document.getElementById('youtubeCorner').classList.remove('visible');
+            }
+          }
+        }
+      });
+    }
+
+    async function youtubePlayBySearch(query) {
+      try {
+        const res = await fetch(`${API}/api/youtube-search`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        if (!data.ok || !data.videoId) { console.warn('YouTube fallback found no result for:', query); return; }
+        if (!youtubePlayerReady) { console.warn('YouTube player not ready yet'); return; }
+        youtubePlayer.loadVideoById(data.videoId);
+        document.getElementById('youtubeCorner').classList.add('visible');
+        document.getElementById('nowPlayingText').textContent = data.title || query;
+        document.getElementById('musicBar').classList.add('visible');
+      } catch (e) { console.error('YouTube play error:', e); }
+    }
+
     async function spotifyPlayBySearch(query) {
       try {
         const tokenRes = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
         const tokenData = await tokenRes.json();
         const access_token = tokenData.access_token;
-        if (!access_token) return;
+        if (!access_token) {
+          // No Spotify connected for this member — fall back to the free YouTube tier
+          console.log('No Spotify token for this member, falling back to YouTube');
+          return youtubePlayBySearch(query);
+        }
         let uri = null;
         const artistRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=1`, { headers: { 'Authorization': 'Bearer ' + access_token } });
         const artistData = await artistRes.json();
@@ -502,7 +554,10 @@
           const res = await fetch(`${API}/api/music-queue?patientId=${patientId}`);
           const data = await res.json();
           if (data.query === '__STOP_MUSIC__') {
-            if (spotifyPlayer) { spotifyPlayer.pause(); document.getElementById('musicBar').classList.remove('visible'); }
+            if (spotifyPlayer) { spotifyPlayer.pause(); }
+            if (youtubePlayer && youtubePlayerReady) { youtubePlayer.stopVideo(); }
+            document.getElementById('musicBar').classList.remove('visible');
+            document.getElementById('youtubeCorner').classList.remove('visible');
           } else if (data.query && data.query !== '__CHECK_IN__' && data.query !== '__WRAP_UP__') {
             spotifyPlayBySearch(data.query);
           }
@@ -528,7 +583,12 @@
     function isMorningHour() { const h = new Date().getHours(); return h >= 6 && h <= 11; }
 
     window.spotifyPlayPause = () => { if (spotifyPlayer) spotifyPlayer.togglePlay(); };
-    window.spotifyStop = () => { if (spotifyPlayer) { spotifyPlayer.pause(); document.getElementById('musicBar').classList.remove('visible'); } };
+    window.spotifyStop = () => {
+      if (spotifyPlayer) { spotifyPlayer.pause(); }
+      if (youtubePlayer && youtubePlayerReady) { youtubePlayer.stopVideo(); }
+      document.getElementById('musicBar').classList.remove('visible');
+      document.getElementById('youtubeCorner').classList.remove('visible');
+    };
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
@@ -660,6 +720,7 @@
     updateClock();
     setInterval(updateClock, 1000);
     loadClientProfile();
+    loadYoutubeApi();
     setInterval(loadBackgroundVideo, 10 * 60 * 1000);
     startScheduleChecker();
 
