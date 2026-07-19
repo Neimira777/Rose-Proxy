@@ -63,14 +63,17 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     const summary = claudeData.content?.[0]?.text || '';
     if (!summary) throw new Error('No summary generated');
 
-    // ── If this member's profile is still incomplete, also try to extract
-    // favorites and personality notes from this same conversation. Runs on
-    // every session until the Personality Profile field is filled in, rather
-    // than only the very first visit — a rushed first chat might not cover
-    // much, so Rose keeps gently gathering this over a few visits instead.
-    const existingPersonality = bufferData.fields?.['Personality Profile'] || '';
+    // ── If this member's profile is still meaningfully incomplete, also try
+    // to extract details from this same conversation. Checks several key
+    // fields, not just one — this matters because a rushed first visit might
+    // only cover a couple of topics (say, music and personality), and we
+    // still want Rose to keep gently filling in the rest (career, family,
+    // faith, etc.) on later visits, rather than stopping the moment any
+    // single field gets its first bit of content. ──
+    const profileCheckFields = ['Personality Profile', 'Career', 'Spouse Name', 'Children', 'Faith', 'Special Memories', 'Favorite Songs', 'Pets'];
+    const stillIncomplete = profileCheckFields.some(field => !(bufferData.fields?.[field] || '').trim());
     let onboardingFields = {};
-    if (!existingPersonality.trim()) {
+    if (stillIncomplete) {
       try {
         const extractRes = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
@@ -136,7 +139,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
     // ── Build the fields to save — SessionNotes always, plus any newly
     // extracted onboarding fields, but only where the field is currently
     // empty. Never overwrites data a family already entered manually.
-    const fieldsToSave = { 'SessionNotes': trimmedNotes };
+    const extendedFields = {};
     const fieldMap = {
       favoriteSongs: 'Favorite Songs',
       favoriteArtists: 'Favorite Artists',
@@ -161,20 +164,26 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       const extractedValue = (onboardingFields[key] || '').trim();
       const currentValue = (bufferData.fields?.[airtableField] || '').trim();
       if (extractedValue && !currentValue) {
-        fieldsToSave[airtableField] = extractedValue;
+        extendedFields[airtableField] = extractedValue;
       }
     }
-    if (Object.keys(fieldsToSave).length > 1) {
-      console.log('Onboarding fields captured this session:', Object.keys(fieldsToSave).filter(k => k !== 'SessionNotes').join(', '));
+    if (Object.keys(extendedFields).length > 0) {
+      console.log('Onboarding fields captured this session:', Object.keys(extendedFields).join(', '));
     }
 
-    // ── Save summary + any onboarding fields to Airtable ──
+    // ── Save SessionNotes first, on its own — this is the core memory
+    // feature and must never fail because of a problem elsewhere. If any
+    // of the extended profile fields below don't exist in Airtable (a
+    // typo, a field that hasn't been created yet, etc.), Airtable rejects
+    // the ENTIRE batch update it's part of — previously that meant a
+    // single bad field name could silently wipe out SessionNotes too,
+    // which is why memory appeared completely blank after a real bug. ──
     const saveRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
       {
         method: 'PATCH',
         headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fields: fieldsToSave })
+        body: JSON.stringify({ fields: { 'SessionNotes': trimmedNotes } })
       }
     );
     const saveData = await saveRes.json();
@@ -183,6 +192,31 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       throw new Error('Airtable Session Notes save failed: ' + JSON.stringify(saveData));
     }
     console.log('Session Notes saved successfully');
+
+    // ── Save extended profile fields separately — if this fails (e.g. a
+    // field name typo, or a field that hasn't been created in Airtable
+    // yet), log it clearly but never let it affect SessionNotes above,
+    // which has already succeeded by this point. ──
+    if (Object.keys(extendedFields).length > 0) {
+      try {
+        const extendedRes = await fetch(
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+          {
+            method: 'PATCH',
+            headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fields: extendedFields })
+          }
+        );
+        const extendedData = await extendedRes.json();
+        if (!extendedRes.ok) {
+          console.error('Extended profile fields save failed (non-fatal):', JSON.stringify(extendedData));
+        } else {
+          console.log('Extended profile fields saved successfully');
+        }
+      } catch (extendedErr) {
+        console.error('Extended profile fields save error (non-fatal):', extendedErr.message);
+      }
+    }
 
     // ── Clear Conversation Buffer ──
     const clearRes = await fetch(
