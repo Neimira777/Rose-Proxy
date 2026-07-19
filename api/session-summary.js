@@ -96,6 +96,18 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
   "favoriteFoods": "comma-separated foods mentioned, or empty string",
   "favoriteMovies": "comma-separated movies/shows mentioned, or empty string",
   "favoriteTopics": "comma-separated topics they lit up talking about, or empty string",
+  "favoriteSports": "comma-separated sports mentioned, or empty string",
+  "favoriteTeams": "comma-separated sports teams mentioned, or empty string",
+  "pets": "any pets mentioned, current or past, or empty string",
+  "spouseName": "spouse or partner's name if mentioned, or empty string",
+  "spouseStatus": "one or two words on the spouse relationship if mentioned (e.g. 'married 40 years', 'widowed'), or empty string",
+  "children": "names or brief description of children mentioned, or empty string",
+  "grandchildren": "names or brief description of grandchildren mentioned, or empty string",
+  "career": "what work they did, if mentioned, or empty string",
+  "placesLived": "comma-separated places they've lived, if mentioned, or empty string",
+  "specialMemories": "1-2 sentences on any special memory or story they shared, in their own spirit, or empty string",
+  "faith": "their faith or spiritual tradition, only if they explicitly mentioned it, or empty string",
+  "topicsToAvoid": "anything the member explicitly said they'd rather not discuss, or empty string — only include if they stated a real boundary themselves, never infer this",
   "personalityProfile": "1-3 warm sentences describing their personality, humor style, and how they like to be talked to — based only on how they actually came across in this conversation. Empty string if the conversation was too short or task-focused to tell."
 }`
             }]
@@ -131,6 +143,18 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       favoriteFoods: 'Favorite Foods',
       favoriteMovies: 'Favorite Movies',
       favoriteTopics: 'Favorite Topics',
+      favoriteSports: 'Favorite Sports',
+      favoriteTeams: 'Favorite Teams',
+      pets: 'Pets',
+      spouseName: 'Spouse Name',
+      spouseStatus: 'Spouse Status',
+      children: 'Children',
+      grandchildren: 'Grandchildren',
+      career: 'Career',
+      placesLived: 'Places Lived',
+      specialMemories: 'Special Memories',
+      faith: 'Faith',
+      topicsToAvoid: 'Topics To Avoid',
       personalityProfile: 'Personality Profile'
     };
     for (const [key, airtableField] of Object.entries(fieldMap)) {
