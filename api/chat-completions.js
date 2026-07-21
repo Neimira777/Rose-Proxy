@@ -463,6 +463,15 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       musicGuidance = `\nMUSIC GUIDANCE:\nThe resident loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way". Always include the artist name.\nIMPORTANT: If the resident requests ANY song or artist not on their preference list, always honor the request. The preference list is a guide, not a restriction. Use PLAY_MUSIC: for whatever they ask for.\nIf the resident asks to stop or pause music, include "STOP_MUSIC" in your response.`;
     }
 
+    let musicStatusInstruction = '';
+    try {
+      const statusRes = await fetch(`https://rose-proxy.vercel.app/api/music-status?patientId=${patientId}`);
+      const statusData = await statusRes.json();
+      if (statusData.nowPlaying) {
+        musicStatusInstruction = `\nMUSIC STATUS: "${statusData.nowPlaying}" is currently playing for the resident. Do NOT ask what they'd like to hear — you can naturally reference the song if it fits the conversation. Only include PLAY_MUSIC or STOP_MUSIC if they explicitly ask to change the song or stop the music.`;
+      }
+    } catch (e) { console.warn('Music status fetch failed:', e.message); }
+
     const greetings = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -506,6 +515,7 @@ ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversation
 ${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits. Use these confidently and naturally — you genuinely remember these things. Reference specific details warmly, as a good friend would. For example: "Last time you told me about being thrown in the pool in Italy — that made me smile!" Do not say you are unsure or might be misremembering. Trust your notes and use them:\n${sessionNotes}` : ''}
 ${photoContext ? `\n${photoContext}` : ''}
 ${photoContext && !isFirstVisit ? `\nSince this isn't the first visit today, feel free to proactively bring up a photo early in the conversation as a reminiscence therapy moment, rather than waiting to be asked.` : ''}
+${musicStatusInstruction ? `\n${musicStatusInstruction}` : ''}
 ${!personalityProfile && isFirstVisit ? `\nFIRST VISIT — GETTING TO KNOW THEM: This is this person's very first visit, and you don't know much about them yet. Over the course of this conversation, warmly and naturally weave through a few of these areas — never as a checklist, never rushed, always following their lead and genuine interest. It's fine if you don't get through all of it; there's no rush, and later visits will keep filling things in naturally:
 - Their family — do they have a spouse or partner, children, grandchildren? What are they like?
 - Their life story — what work did they do, where have they lived over the years?
