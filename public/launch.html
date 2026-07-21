@@ -468,8 +468,16 @@
           if (!state) return;
           isPlaying = !state.paused;
           const track = state.track_window?.current_track;
-          if (track) { document.getElementById('nowPlayingText').textContent = track.name + ' — ' + track.artists.map(a => a.name).join(', '); document.getElementById('musicBar').classList.add('visible'); }
+          const trackLabel = track ? track.name + ' — ' + track.artists.map(a => a.name).join(', ') : null;
+          if (track) { document.getElementById('nowPlayingText').textContent = trackLabel; document.getElementById('musicBar').classList.add('visible'); }
           document.getElementById('playPauseBtn').textContent = isPlaying ? '⏸' : '▶';
+          // Let Rose's conversation brain know what's actually playing, so she
+          // doesn't keep asking what to play once music has genuinely started.
+          if (isPlaying && trackLabel) {
+            fetch(`${API}/api/music-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, nowPlaying: trackLabel }) }).catch(() => {});
+          } else if (!isPlaying) {
+            fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(() => {});
+          }
         });
         spotifyPlayer.connect();
       } catch(e) { console.error('Spotify init error:', e); }
@@ -515,6 +523,7 @@
         document.getElementById('youtubeCorner').classList.add('visible');
         document.getElementById('nowPlayingText').textContent = data.title || query;
         document.getElementById('musicBar').classList.add('visible');
+        fetch(`${API}/api/music-status`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, nowPlaying: data.title || query }) }).catch(() => {});
       } catch (e) { console.error('YouTube play error:', e); }
     }
 
@@ -558,6 +567,7 @@
             if (youtubePlayer && youtubePlayerReady) { youtubePlayer.stopVideo(); }
             document.getElementById('musicBar').classList.remove('visible');
             document.getElementById('youtubeCorner').classList.remove('visible');
+            fetch(`${API}/api/music-status?patientId=${patientId}`, { method: 'DELETE' }).catch(() => {});
           } else if (data.query && data.query !== '__CHECK_IN__' && data.query !== '__WRAP_UP__') {
             spotifyPlayBySearch(data.query);
           }
@@ -588,6 +598,7 @@
       if (youtubePlayer && youtubePlayerReady) { youtubePlayer.stopVideo(); }
       document.getElementById('musicBar').classList.remove('visible');
       document.getElementById('youtubeCorner').classList.remove('visible');
+      fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(() => {});
     };
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
@@ -598,6 +609,7 @@
       showLoading(true);
 
       try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
+      try { await fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       let visitCountToday = 1;
       try {
