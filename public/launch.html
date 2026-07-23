@@ -462,7 +462,7 @@
           return;
         }
         if (!data.access_token) return;
-        spotifyPlayer = new Spotify.Player({ name: 'Neimira — Companion', getOAuthToken: cb => cb(data.access_token), volume: 0.35 });
+        spotifyPlayer = new Spotify.Player({ name: 'Neimira — Companion', getOAuthToken: cb => cb(data.access_token), volume: 0.22 });
         spotifyPlayer.addListener('ready', ({ device_id }) => { spotifyDeviceId = device_id; });
         spotifyPlayer.addListener('player_state_changed', state => {
           if (!state) return;
@@ -630,9 +630,9 @@
 
         liveAvatarSession.on('session.stream_ready', () => { liveAvatarSession.attach(document.getElementById('roseVideo')); });
         liveAvatarSession.on('avatar.speak_started', () => { setSpeaking(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); });
-        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); resetSilenceTimer(); });
+        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); resetSilenceTimer(); });
         liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
-        liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.35); });
+        liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); });
         liveAvatarSession.on('session.stopped', () => { console.log('HeyGen session stopped'); if (sessionActive) endSession(); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
