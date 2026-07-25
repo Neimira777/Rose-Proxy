@@ -138,6 +138,7 @@
 
   <script>
     const API = window.location.origin;
+    const IS_DEMO_SIGNUP = new URLSearchParams(window.location.search).get('demo') === 'true';
 
     document.getElementById('consentLearnMore').addEventListener('click', () => {
       const detail = document.getElementById('consentDetail');
@@ -163,7 +164,7 @@
         const res = await fetch(`${API}/api/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes })
+          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes, isDemo: IS_DEMO_SIGNUP })
         });
         const data = await res.json();
 
