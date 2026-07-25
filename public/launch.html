@@ -148,7 +148,21 @@
       <div class="splash-logo-name">Neimira</div>
       <div class="splash-logo-tag">AI Companion Technology</div>
     </div>
-    <div class="splash-tap">Tap to Begin</div>
+    <div class="splash-tap" id="splashTapPrompt">Tap to Begin</div>
+    <div id="nameCheckPanel" style="display:none; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:320px;">
+      <div style="color:#E1F5FE; font-size:16px; text-align:center; line-height:1.5;">
+        Welcome! To get started,<br>please tell us your first name.
+      </div>
+      <input id="nameCheckInput" type="text" placeholder="Your first name" autocomplete="off"
+        style="width:100%; padding:14px 16px; border-radius:12px; border:none; font-size:18px; text-align:center; box-sizing:border-box;">
+      <button id="nameCheckSubmit" type="button"
+        style="width:100%; padding:14px; border-radius:12px; border:none; background:#00BCD4; color:white; font-size:16px; font-weight:600; cursor:pointer;">
+        Continue
+      </button>
+      <div id="nameCheckError" style="display:none; color:#FFCDD2; font-size:14px; text-align:center; line-height:1.4;">
+        That doesn't quite match what we have on file. Please check with your family member, or try again.
+      </div>
+    </div>
     </div>
   </div>
 
@@ -258,21 +272,80 @@
     import { LiveAvatarSession } from 'https://esm.sh/@heygen/liveavatar-web-sdk@latest';
 
     const _urlParams = new URLSearchParams(window.location.search);
-    const urlMemberId = _urlParams.get('member') || _urlParams.get('patient');
-    // Store in both localStorage and URL hash for maximum persistence
-    if (urlMemberId) {
-      try { localStorage.setItem('neimira_member_id', urlMemberId); } catch(e) {}
-      if (window.location.hash !== '#' + urlMemberId) {
-        window.location.hash = urlMemberId;
-      }
-    }
-    // Read from URL param, hash, or localStorage — in that order
-    const hashMemberId = window.location.hash?.replace('#', '') || null;
-    const PATIENT_ID = urlMemberId || hashMemberId || (() => { try { return localStorage.getItem('neimira_member_id'); } catch(e) { return null; } })() || 'recMLLC4fJHBUhE5w';
-    const IS_DEMO = _urlParams.get('demo') === 'true';
+    const urlToken = _urlParams.get('token');
+    const urlMemberId = _urlParams.get('member') || _urlParams.get('patient'); // legacy links, still supported
     const API = 'https://rose-proxy.vercel.app';
+    const IS_DEMO = _urlParams.get('demo') === 'true';
 
-    console.log('PATIENT_ID:', PATIENT_ID, '(url:', !!urlMemberId, 'hash:', !!hashMemberId, ')');
+    let PATIENT_ID = null;
+    let RESOLVED_NAME = null;
+    let DEVICE_KEY = null; // what we key the "verified on this device" flag off of
+
+    // Resolves who this link belongs to. Token-based links (new signups)
+    // never expose the real Airtable record ID — we look it up server-side.
+    // Legacy ?member=/?patient= links (existing members, old demo links)
+    // keep working exactly as before, for backward compatibility.
+    async function resolveIdentity() {
+      if (urlToken) {
+        try {
+          const res = await fetch(`${API}/api/resolve-token?token=${urlToken}`);
+          const data = await res.json();
+          if (data.patientId) {
+            PATIENT_ID = data.patientId;
+            RESOLVED_NAME = data.name || null;
+            DEVICE_KEY = urlToken;
+            try { localStorage.setItem('neimira_access_token', urlToken); } catch(e) {}
+            if (window.location.hash) history.replaceState(null, '', window.location.pathname + window.location.search);
+            return;
+          }
+        } catch(e) { console.warn('Token resolution failed:', e); }
+      }
+
+      // Fall back to a previously-stored token on this device, if no token in URL this time
+      if (!PATIENT_ID) {
+        let storedToken = null;
+        try { storedToken = localStorage.getItem('neimira_access_token'); } catch(e) {}
+        if (storedToken) {
+          try {
+            const res = await fetch(`${API}/api/resolve-token?token=${storedToken}`);
+            const data = await res.json();
+            if (data.patientId) {
+              PATIENT_ID = data.patientId;
+              RESOLVED_NAME = data.name || null;
+              DEVICE_KEY = storedToken;
+              return;
+            }
+          } catch(e) { console.warn('Stored token resolution failed:', e); }
+        }
+      }
+
+      // Legacy path — raw record ID directly in the URL, hash, or localStorage
+      const hashMemberId = window.location.hash?.replace('#', '') || null;
+      const legacyId = urlMemberId || hashMemberId || (() => { try { return localStorage.getItem('neimira_member_id'); } catch(e) { return null; } })();
+      if (legacyId) {
+        if (urlMemberId) {
+          try { localStorage.setItem('neimira_member_id', urlMemberId); } catch(e) {}
+          if (window.location.hash !== '#' + urlMemberId) window.location.hash = urlMemberId;
+        }
+        PATIENT_ID = legacyId;
+        DEVICE_KEY = legacyId;
+        try {
+          const res = await fetch(`${API}/api/patients?id=${legacyId}`);
+          const data = await res.json();
+          RESOLVED_NAME = data.name || null;
+        } catch(e) { console.warn('Legacy name lookup failed:', e); }
+        return;
+      }
+
+      // Nothing resolvable — fall back to default demo record, no identity gate
+      PATIENT_ID = 'recMLLC4fJHBUhE5w';
+      DEVICE_KEY = null;
+      RESOLVED_NAME = null;
+    }
+
+    const identityReady = resolveIdentity();
+
+    console.log('Identity resolution started (token:', !!urlToken, 'legacy:', !!urlMemberId, ')');
 
     let liveAvatarSession = null;
     let currentSessionId = null;
@@ -704,7 +777,16 @@
 
     document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive) launchRose(); });
 
-    window.dismissSplash = function() {
+    function isVerifiedOnThisDevice() {
+      if (!DEVICE_KEY) return true; // nothing to verify against (fallback/edge case) — don't block
+      try { return localStorage.getItem('neimira_verified_' + DEVICE_KEY) === 'true'; } catch(e) { return false; }
+    }
+    function markVerifiedOnThisDevice() {
+      if (!DEVICE_KEY) return;
+      try { localStorage.setItem('neimira_verified_' + DEVICE_KEY, 'true'); } catch(e) {}
+    }
+
+    function actuallyDismissSplash() {
       const splash = document.getElementById('splashScreen');
       splash.classList.add('hidden');
       setTimeout(() => { if (splash.parentNode) splash.remove(); }, 900);
@@ -719,22 +801,72 @@
       if (PATIENT_ID && !spotifyPlayer) {
         initSpotify(PATIENT_ID).catch(e => console.warn('Spotify pre-warm failed:', e));
       }
+    }
+
+    function showNameCheckPanel() {
+      document.getElementById('splashTapPrompt').style.display = 'none';
+      const panel = document.getElementById('nameCheckPanel');
+      panel.style.display = 'flex';
+      const input = document.getElementById('nameCheckInput');
+      setTimeout(() => input.focus(), 300);
+    }
+
+    function submitNameCheck() {
+      const input = document.getElementById('nameCheckInput');
+      const typed = (input.value || '').trim().toLowerCase();
+      const expected = (RESOLVED_NAME || '').trim().toLowerCase().split(/\s+/)[0] || '';
+      const errorEl = document.getElementById('nameCheckError');
+      if (typed && expected && typed === expected) {
+        markVerifiedOnThisDevice();
+        errorEl.style.display = 'none';
+        actuallyDismissSplash();
+      } else {
+        errorEl.style.display = 'block';
+        input.value = '';
+        input.focus();
+      }
+    }
+
+    window.dismissSplash = async function(e) {
+      // Ignore taps that land on the name-check panel itself — it has its own handlers
+      if (e && e.target && e.target.closest && e.target.closest('#nameCheckPanel')) return;
+      await identityReady;
+      if (document.getElementById('nameCheckPanel').style.display === 'flex') return; // already showing the check
+      if (isVerifiedOnThisDevice() || !RESOLVED_NAME) {
+        actuallyDismissSplash();
+      } else {
+        showNameCheckPanel();
+      }
     };
 
     // Add both click and touchend for mobile compatibility
     document.getElementById('splashScreen').addEventListener('click', window.dismissSplash);
     document.getElementById('splashScreen').addEventListener('touchend', function(e) {
       e.preventDefault();
-      window.dismissSplash();
+      window.dismissSplash(e);
+    });
+
+    document.getElementById('nameCheckSubmit').addEventListener('click', function(e) {
+      e.stopPropagation();
+      submitNameCheck();
+    });
+    document.getElementById('nameCheckInput').addEventListener('click', function(e) { e.stopPropagation(); });
+    document.getElementById('nameCheckInput').addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') submitNameCheck();
     });
 
     window.speechSynthesis?.cancel();
     updateClock();
     setInterval(updateClock, 1000);
-    loadClientProfile();
-    loadYoutubeApi();
-    setInterval(loadBackgroundVideo, 10 * 60 * 1000);
-    startScheduleChecker();
+    (async () => {
+      await identityReady;
+      console.log('PATIENT_ID resolved:', PATIENT_ID);
+      loadClientProfile();
+      loadYoutubeApi();
+      setInterval(loadBackgroundVideo, 10 * 60 * 1000);
+      startScheduleChecker();
+    })();
 
     // ── Load Unsplash photo behind splash screen ──
     (async () => {
