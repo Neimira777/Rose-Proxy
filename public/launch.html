@@ -767,6 +767,15 @@
       }).then(() => console.log('Session summary generated'))
         .catch(e => console.warn('Session summary failed:', e));
 
+      // ── Clear Active Session so this member's stale session can't get
+      // picked up by the next new session's fallback identity lookup ──
+      fetch(`${API}/api/patients`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ patientId: PATIENT_ID, clearActiveSession: true })
+      }).then(() => console.log('Active Session cleared'))
+        .catch(e => console.warn('Clear Active Session failed:', e));
+
       if (liveAvatarSession) { try { await liveAvatarSession.stop(); } catch(e) {} liveAvatarSession = null; }
       document.getElementById('roseVideo').srcObject = null;
       document.getElementById('musicBar').classList.remove('visible');
