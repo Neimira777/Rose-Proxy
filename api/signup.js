@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { fullName, preferredName, familyEmail, visitTimes } = req.body || {};
+  const { fullName, preferredName, familyEmail, visitTimes, isDemo } = req.body || {};
   if (!fullName || !familyEmail) {
     return res.status(400).json({ error: 'Name and email are required' });
   }
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     // ── Step 2: Build the personal links ──
     // Uses the access token, not the raw record ID — the link itself
     // reveals nothing about the underlying database.
-    const roseLink = `https://rose-proxy.vercel.app/launch.html?token=${accessToken}`;
+    const roseLink = `https://rose-proxy.vercel.app/launch.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
     const photoLink = `https://rose-proxy.vercel.app/photos-upload.html?patient=${nmrId}`;
 
     // ── Step 3: Send the welcome email via Gmail SMTP ──
