@@ -247,7 +247,7 @@ export default async function handler(req, res) {
       if (patientId === 'recMLLC4fJHBUhE5w') {
         try {
           const searchRes = await fetch(
-            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&maxRecords=1`,
+            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&sort[0][field]=Active Session Timestamp&sort[0][direction]=desc&maxRecords=1`,
             { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
           );
           const searchData = await searchRes.json();
