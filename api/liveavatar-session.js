@@ -85,13 +85,17 @@ export default async function handler(req, res) {
     }
 
     // ── Write patientId to Airtable for chat-completions.js to read ──
+    // Also timestamp this activation. If two members have an active
+    // session at once (e.g. a stale one left over from earlier testing),
+    // this timestamp is what lets the fallback lookup reliably find the
+    // genuinely current one instead of guessing.
     try {
       await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${resolvedPatientId}`,
         {
           method: 'PATCH',
           headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}` } })
+          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}`, 'Active Session Timestamp': new Date().toISOString() } })
         }
       );
       console.log(`Airtable Active Session updated: ${resolvedPatientId}`);
