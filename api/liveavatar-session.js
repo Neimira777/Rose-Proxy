@@ -84,6 +84,14 @@ export default async function handler(req, res) {
       });
     }
 
+    // TEMP DIAGNOSTIC — checking whether the room/LiveKit identifiers are
+    // available here at session-creation time, which would let us write
+    // the Room ID → patientId mapping proactively instead of reactively
+    // on first message (closing the brief race-condition window where two
+    // brand-new sessions starting within the same instant could still
+    // collide). Remove once confirmed either way.
+    console.log('FULL session response shape:', JSON.stringify(data.data));
+
     // ── Write patientId to Airtable for chat-completions.js to read ──
     // Also timestamp this activation. If two members have an active
     // session at once (e.g. a stale one left over from earlier testing),
