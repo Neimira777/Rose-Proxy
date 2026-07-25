@@ -68,6 +68,12 @@
     .status-message strong { display: block; margin-bottom: 4px; }
 
     .form-wrap.hidden { display: none; }
+    .consent-group { display: flex; gap: 10px; align-items: flex-start; margin: 24px 0; padding: 14px; background: rgba(0,0,0,0.02); border-radius: 10px; }
+    .consent-group input[type="checkbox"] { margin-top: 3px; width: 18px; height: 18px; flex-shrink: 0; cursor: pointer; }
+    .consent-group label { font-size: 13px; line-height: 1.55; color: var(--text-body); cursor: pointer; }
+    .consent-learn-more { color: var(--text-muted); text-decoration: underline; cursor: pointer; font-size: 13px; background: none; border: none; padding: 0; font-family: inherit; }
+    .consent-detail { display: none; font-size: 12px; line-height: 1.6; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.08); }
+    .consent-detail.expanded { display: block; }
   </style>
 </head>
 <body>
@@ -87,8 +93,8 @@
 
   <div class="container">
     <div class="card form-wrap" id="formWrap">
-      <div class="card-title">Tell us about your loved one</div>
-      <div class="card-subtitle">This creates their personal Rose profile. We'll email you their link right away.</div>
+      <div class="card-title">Tell us who'll be spending time with Rose</div>
+      <div class="card-subtitle">This creates a personal Rose profile — the link to get started is sent right away.</div>
 
       <form id="signupForm">
         <div class="input-group">
@@ -112,6 +118,17 @@
           <input type="text" id="visitTimes" placeholder="e.g. 9:00 AM">
         </div>
 
+        <div class="consent-group">
+          <input type="checkbox" id="consentCheckbox" required>
+          <label for="consentCheckbox">
+            I understand that conversations with Rose may be summarized and referenced, in de-identified form (no names or identifying details), to help Neimira improve Rose and support research and grant funding focused on fostering connection and enriching daily life for our members.
+            <span> — <button type="button" class="consent-learn-more" id="consentLearnMore">Learn more</button></span>
+            <div class="consent-detail" id="consentDetail">
+              Rose keeps a record of conversations so she can remember and grow the relationship over time — favorite songs, family stories, what makes someone laugh. With your permission, small, de-identified excerpts and patterns from these conversations (never full transcripts, never names) may also be used to help us understand whether Rose is genuinely fostering connection and enriching daily life for our members — including in materials shared with research funders like the National Institute on Aging. You're always welcome to ask what's been recorded, or to opt out of anything beyond Rose's core memory function, by reaching out to linda@neimira.com.
+            </div>
+          </label>
+        </div>
+
         <button type="submit" class="btn-primary" id="submitBtn">Get Started</button>
 
         <div class="status-message" id="statusMessage"></div>
@@ -121,6 +138,13 @@
 
   <script>
     const API = window.location.origin;
+
+    document.getElementById('consentLearnMore').addEventListener('click', () => {
+      const detail = document.getElementById('consentDetail');
+      const btn = document.getElementById('consentLearnMore');
+      const expanded = detail.classList.toggle('expanded');
+      btn.textContent = expanded ? 'Show less' : 'Learn more';
+    });
 
     document.getElementById('signupForm').addEventListener('submit', async (e) => {
       e.preventDefault();
