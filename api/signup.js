@@ -10,6 +10,7 @@
 // ─────────────────────────────────────────────
 
 import nodemailer from 'nodemailer';
+import crypto from 'crypto';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -25,6 +26,11 @@ export default async function handler(req, res) {
 
   try {
     // ── Step 1: Create the Member Table record ──
+    // Generate a random access token so the member's personal link never
+    // exposes the real Airtable record ID (which would reveal internal
+    // database structure and, if guessed/enumerated, other members' data).
+    const accessToken = crypto.randomBytes(16).toString('hex');
+
     const createRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
       {
@@ -39,7 +45,8 @@ export default async function handler(req, res) {
             'Preferred Name': preferredName || fullName.split(' ')[0],
             'Family Email': familyEmail,
             'Visit Times': visitTimes || '',
-            'Preferred Companion': 'Rose'
+            'Preferred Companion': 'Rose',
+            'Access Token': accessToken
           }
         })
       }
@@ -56,7 +63,9 @@ export default async function handler(req, res) {
     console.log(`Signup — new member created: ${recordId} (${nmrId})`);
 
     // ── Step 2: Build the personal links ──
-    const roseLink = `https://rose-proxy.vercel.app/launch.html?member=${recordId}#${recordId}`;
+    // Uses the access token, not the raw record ID — the link itself
+    // reveals nothing about the underlying database.
+    const roseLink = `https://rose-proxy.vercel.app/launch.html?token=${accessToken}`;
     const photoLink = `https://rose-proxy.vercel.app/photos-upload.html?patient=${nmrId}`;
 
     // ── Step 3: Send the welcome email via Gmail SMTP ──
