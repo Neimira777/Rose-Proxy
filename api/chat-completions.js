@@ -220,10 +220,11 @@ export default async function handler(req, res) {
     // exact conversation can look it up with zero ambiguity — including
     // when two different families are genuinely mid-session at once.
     const roomId = req.headers['x-livekit-room-id'];
+    console.log('Incoming request — Room ID:', roomId || '(none)');
     if (roomId) {
       try {
         const roomRes = await fetch(
-          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/RoomSessions?filterByFormula=${encodeURIComponent(`{Room ID}="${roomId}"`)}&maxRecords=1`,
+          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/RoomSessions?filterByFormula=${encodeURIComponent(`{Room ID}="${roomId}"`)}&sort[0][field]=Last Resolved&sort[0][direction]=desc&maxRecords=1`,
           { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
         );
         const roomData = await roomRes.json();
@@ -268,7 +269,7 @@ export default async function handler(req, res) {
           await fetch(`https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/RoomSessions`, {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ fields: { 'Room ID': roomId, 'Patient ID': patientId } })
+            body: JSON.stringify({ fields: { 'Room ID': roomId, 'Patient ID': patientId, 'Last Resolved': new Date().toISOString() } })
           });
           console.log('Saved new Room ID mapping:', roomId, '→', patientId);
         } catch (e) { console.warn('Room session save failed:', e.message); }
