@@ -2,6 +2,14 @@ export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  // Member data is personal and changes over time (name, preferences, active
+  // session state) — it must never be cached by the browser or by Vercel's
+  // edge network. Without this, a stale response can keep being served
+  // indefinitely, surviving even a hard refresh, since a hard refresh only
+  // clears the browser's own cache, not an intermediary edge cache.
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   const { id, nmrtId } = req.query || {};
