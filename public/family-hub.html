@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neimira — Family Hub</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #1A237E; --cyan: #00BCD4; --blue: #2979FF; --bg: #F5F6F8;
+      --white: #FFFFFF; --text: #1A237E; --text-body: #37474F; --text-muted: #90A4AE;
+      --border: #E0E7EF; --success: #4CAF50; --error: #F44336;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--text-body); min-height: 100vh; padding: 0 0 80px; }
+
+    .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 32px 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 12px rgba(26,35,126,0.06); }
+    .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 400; letter-spacing: 14px; text-transform: uppercase; color: var(--navy); }
+    .logo-tag { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--cyan); font-weight: 500; margin-top: 6px; }
+
+    .hero { background: linear-gradient(135deg, var(--navy) 0%, #2979FF 100%); padding: 48px 40px; text-align: center; color: white; }
+    .hero h1 { font-family: 'Cormorant Garamond', serif; font-size: 38px; font-weight: 300; letter-spacing: 1px; margin-bottom: 8px; }
+    .hero p { font-size: 15px; font-weight: 300; color: rgba(255,255,255,0.85); }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+
+    .visit-card { background: linear-gradient(135deg, var(--cyan), var(--blue)); border-radius: 20px; padding: 32px; margin-bottom: 24px; text-align: center; box-shadow: 0 8px 28px rgba(0,188,212,0.3); }
+    .visit-card h2 { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 500; color: white; margin-bottom: 8px; }
+    .visit-card p { font-size: 13px; color: rgba(255,255,255,0.9); margin-bottom: 20px; }
+    .visit-btn { display: inline-block; background: white; color: var(--navy); border: none; border-radius: 12px; padding: 16px 40px; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; text-decoration: none; cursor: pointer; transition: transform 0.2s; }
+    .visit-btn:hover { transform: translateY(-2px); }
+
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(26,35,126,0.06); }
+    .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--navy); margin-bottom: 6px; }
+    .card-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+
+    .date-list { margin-bottom: 20px; }
+    .date-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg); border-radius: 10px; margin-bottom: 10px; }
+    .date-item .info { display: flex; flex-direction: column; }
+    .date-item .label { font-size: 14px; color: var(--text-body); font-weight: 500; }
+    .date-item .when { font-size: 12px; color: var(--cyan); font-weight: 600; margin-top: 2px; }
+    .date-item .delete-btn { background: none; border: none; color: var(--text-muted); font-size: 18px; cursor: pointer; padding: 4px 8px; line-height: 1; }
+    .date-item .delete-btn:hover { color: var(--error); }
+    .empty-state { font-size: 13px; color: var(--text-muted); text-align: center; padding: 20px; font-style: italic; }
+
+    .add-date-form { display: flex; gap: 10px; flex-wrap: wrap; }
+    .add-date-form input[type="date"] { flex: 0 0 160px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'Jost', sans-serif; font-size: 14px; }
+    .add-date-form input[type="text"] { flex: 1 1 200px; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'Jost', sans-serif; font-size: 14px; }
+    .add-date-form input:focus { outline: none; border-color: var(--cyan); }
+    .add-date-form button { flex: 0 0 auto; background: linear-gradient(135deg, var(--cyan), var(--blue)); border: none; border-radius: 10px; padding: 12px 20px; color: white; font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; cursor: pointer; }
+
+    .input-group { margin-bottom: 18px; }
+    .input-group label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--navy); margin-bottom: 8px; text-transform: uppercase; font-weight: 600; }
+    .input-group input[type="text"] { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; font-family: 'Jost', sans-serif; font-size: 15px; outline: none; }
+    .input-group input:focus { border-color: var(--cyan); }
+
+    .photo-drop { border: 2px dashed var(--border); border-radius: 14px; padding: 32px; text-align: center; cursor: pointer; margin-bottom: 20px; transition: border-color 0.2s; }
+    .photo-drop:hover { border-color: var(--cyan); }
+    .photo-drop.has-file { border-color: var(--success); background: rgba(76,175,80,0.05); }
+    .photo-drop-text { font-size: 14px; color: var(--text-muted); }
+    .photo-preview { max-width: 100%; max-height: 180px; border-radius: 10px; margin-top: 12px; display: none; }
+
+    .btn-primary { width: 100%; background: linear-gradient(135deg, var(--cyan), var(--blue)); border: none; border-radius: 12px; padding: 16px; color: white; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .status-msg { font-size: 13px; margin-top: 14px; padding: 12px 14px; border-radius: 10px; display: none; }
+    .status-msg.visible { display: block; }
+    .status-msg.success { background: rgba(76,175,80,0.1); color: var(--success); }
+    .status-msg.error { background: rgba(244,67,54,0.1); color: var(--error); }
+
+    .loading-name { text-align: center; padding: 40px; color: var(--text-muted); }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo-name">Neimira</div>
+    <div class="logo-tag">AI Companion Technology</div>
+  </div>
+
+  <div class="hero">
+    <h1 id="heroGreeting">Welcome</h1>
+    <p>Everything for your visits with Rose, all in one place.</p>
+  </div>
+
+  <div class="container" id="hubContent" style="display:none;">
+    <div class="visit-card">
+      <h2>Ready to visit?</h2>
+      <p>Start a conversation with Rose right now.</p>
+      <a href="#" id="visitRoseBtn" class="visit-btn">Visit with Rose</a>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Important Dates</div>
+      <div class="card-subtitle">Birthdays, appointments, anniversaries — Rose will naturally bring these up as they get close, never as an alert or checklist.</div>
+      <div class="date-list" id="dateList"></div>
+      <div class="add-date-form">
+        <input type="date" id="newDateInput">
+        <input type="text" id="newLabelInput" placeholder="e.g. Emma's birthday">
+        <button id="addDateBtn" type="button">Add</button>
+      </div>
+      <div class="status-msg" id="datesStatus"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Share a Photo</div>
+      <div class="card-subtitle">Rose can talk through cherished photos during conversations. Add names and the occasion so she knows the story.</div>
+      <div class="photo-drop" id="photoDrop">
+        <div class="photo-drop-text" id="photoDropText">Tap to choose a photo</div>
+        <img id="photoPreview" class="photo-preview">
+      </div>
+      <input type="file" id="photoFileInput" accept="image/*" style="display:none;">
+      <div class="input-group">
+        <label>Who's in this photo? (optional)</label>
+        <input type="text" id="peopleNames" placeholder="e.g. Margaret and her grandson Tommy">
+      </div>
+      <div class="input-group">
+        <label>What's the occasion? (optional)</label>
+        <input type="text" id="occasion" placeholder="e.g. 50th wedding anniversary, 1978">
+      </div>
+      <button class="btn-primary" id="uploadPhotoBtn">Share with Rose</button>
+      <div class="status-msg" id="photoStatus"></div>
+    </div>
+  </div>
+
+  <div class="loading-name" id="loadingState">Loading...</div>
+
+  <script>
+    const API = window.location.origin;
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    const isDemo = urlParams.get('demo') === 'true';
+    let PATIENT_ID = null;
+    let selectedPhotoFile = null;
+
+    async function init() {
+      if (!token) {
+        document.getElementById('loadingState').textContent = 'This link looks incomplete. Please use the link from your welcome email.';
+        return;
+      }
+      try {
+        const res = await fetch(`${API}/api/resolve-token?token=${token}`);
+        const data = await res.json();
+        if (!data.patientId) throw new Error('Invalid link');
+        PATIENT_ID = data.patientId;
+        const name = data.name || 'there';
+        document.getElementById('heroGreeting').textContent = `Welcome, ${name}`;
+        document.getElementById('visitRoseBtn').href = `${API}/launch.html?token=${token}${isDemo ? '&demo=true' : ''}`;
+        document.getElementById('loadingState').style.display = 'none';
+        document.getElementById('hubContent').style.display = 'block';
+        loadDates();
+      } catch (e) {
+        document.getElementById('loadingState').textContent = 'This link looks invalid or expired. Please check your welcome email.';
+      }
+    }
+
+    function formatDateForDisplay(dateStr) {
+      const [y, m, d] = dateStr.split('-').map(Number);
+      const today = new Date();
+      let occursOn = new Date(today.getFullYear(), m - 1, d);
+      if (occursOn < new Date(today.getFullYear(), today.getMonth(), today.getDate())) {
+        occursOn = new Date(today.getFullYear() + 1, m - 1, d);
+      }
+      const daysUntil = Math.ceil((occursOn - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / (1000 * 60 * 60 * 24));
+      const monthName = occursOn.toLocaleDateString('en-US', { month: 'long' });
+      if (daysUntil === 0) return `Today — ${monthName} ${d}`;
+      if (daysUntil === 1) return `Tomorrow — ${monthName} ${d}`;
+      return `${monthName} ${d} — in ${daysUntil} days`;
+    }
+
+    async function loadDates() {
+      try {
+        const res = await fetch(`${API}/api/important-dates?patientId=${PATIENT_ID}`);
+        const data = await res.json();
+        renderDates(data.dates || []);
+      } catch (e) {
+        document.getElementById('dateList').innerHTML = '<div class="empty-state">Couldn\'t load dates right now.</div>';
+      }
+    }
+
+    function renderDates(dates) {
+      const list = document.getElementById('dateList');
+      if (dates.length === 0) {
+        list.innerHTML = '<div class="empty-state">No important dates added yet.</div>';
+        return;
+      }
+      const sorted = [...dates].sort((a, b) => a.date.localeCompare(b.date));
+      list.innerHTML = sorted.map(d => `
+        <div class="date-item">
+          <div class="info">
+            <div class="label">${escapeHtml(d.label)}</div>
+            <div class="when">${formatDateForDisplay(d.date)}</div>
+          </div>
+          <button class="delete-btn" data-date="${d.date}" data-label="${escapeHtml(d.label)}" title="Remove">✕</button>
+        </div>
+      `).join('');
+      list.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteDate(btn.dataset.date, btn.dataset.label));
+      });
+    }
+
+    function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+    function showStatus(elId, type, message) {
+      const el = document.getElementById(elId);
+      el.textContent = message;
+      el.className = `status-msg visible ${type}`;
+      setTimeout(() => el.classList.remove('visible'), 4000);
+    }
+
+    document.getElementById('addDateBtn').addEventListener('click', async () => {
+      const date = document.getElementById('newDateInput').value;
+      const label = document.getElementById('newLabelInput').value.trim();
+      if (!date || !label) return showStatus('datesStatus', 'error', 'Please add both a date and a description.');
+      try {
+        const res = await fetch(`${API}/api/important-dates`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, date, label })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to add');
+        renderDates(data.dates);
+        document.getElementById('newDateInput').value = '';
+        document.getElementById('newLabelInput').value = '';
+        showStatus('datesStatus', 'success', 'Added!');
+      } catch (e) {
+        showStatus('datesStatus', 'error', e.message);
+      }
+    });
+
+    async function deleteDate(date, label) {
+      try {
+        const res = await fetch(`${API}/api/important-dates`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, date, label })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to remove');
+        renderDates(data.dates);
+      } catch (e) {
+        showStatus('datesStatus', 'error', e.message);
+      }
+    }
+
+    // ── Photo upload ──
+    document.getElementById('photoDrop').addEventListener('click', () => document.getElementById('photoFileInput').click());
+    document.getElementById('photoFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectedPhotoFile = file;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        document.getElementById('photoPreview').src = ev.target.result;
+        document.getElementById('photoPreview').style.display = 'block';
+        document.getElementById('photoDropText').textContent = file.name;
+        document.getElementById('photoDrop').classList.add('has-file');
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function fileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    }
+
+    document.getElementById('uploadPhotoBtn').addEventListener('click', async () => {
+      if (!selectedPhotoFile) return showStatus('photoStatus', 'error', 'Please choose a photo first.');
+      const btn = document.getElementById('uploadPhotoBtn');
+      btn.disabled = true;
+      showStatus('photoStatus', 'success', 'Sharing photo with Rose... this may take 10-15 seconds.');
+      try {
+        const base64 = await fileToBase64(selectedPhotoFile);
+        const base64Data = base64.split(',')[1];
+        const res = await fetch(`${API}/api/photo-upload`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            patientId: PATIENT_ID,
+            photoBase64: base64Data,
+            photoName: selectedPhotoFile.name,
+            mimeType: selectedPhotoFile.type,
+            peopleNames: document.getElementById('peopleNames').value.trim(),
+            occasion: document.getElementById('occasion').value.trim()
+          })
+        });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error || 'Upload failed');
+        showStatus('photoStatus', 'success', 'Rose has your photo!');
+        selectedPhotoFile = null;
+        document.getElementById('photoPreview').style.display = 'none';
+        document.getElementById('photoDropText').textContent = 'Tap to choose a photo';
+        document.getElementById('photoDrop').classList.remove('has-file');
+        document.getElementById('peopleNames').value = '';
+        document.getElementById('occasion').value = '';
+      } catch (e) {
+        showStatus('photoStatus', 'error', e.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    init();
+  </script>
+</body>
+</html>
