@@ -65,8 +65,7 @@ export default async function handler(req, res) {
     // ── Step 2: Build the personal links ──
     // Uses the access token, not the raw record ID — the link itself
     // reveals nothing about the underlying database.
-    const roseLink = `https://rose-proxy.vercel.app/launch.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
-    const photoLink = `https://rose-proxy.vercel.app/photos-upload.html?patient=${nmrId}`;
+    const hubLink = `https://rose-proxy.vercel.app/family-hub.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
 
     // ── Step 3: Send the welcome email via Gmail SMTP ──
     // Uses a Google Workspace account + App Password (not the account's
@@ -89,19 +88,16 @@ export default async function handler(req, res) {
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
             <h2 style="color: #1e3a8a;">Welcome to Neimira!</h2>
             <p>We're so glad ${preferredName || fullName} will be spending time with Rose.</p>
-            <p>Here are your personal links to get started:</p>
+            <p>One link is all you'll ever need — visit with Rose, add important dates like birthdays and appointments, and share photos, all in one place:</p>
             <p>
-              <a href="${roseLink}" style="display:inline-block;background:#2563eb;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;">Visit Rose</a>
-            </p>
-            <p>
-              <a href="${photoLink}" style="display:inline-block;background:#0ea5a4;color:white;padding:12px 20px;border-radius:8px;text-decoration:none;">Share Family Photos</a>
+              <a href="${hubLink}" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Family Hub</a>
             </p>
             <h3 style="margin-top:32px;">Setting up your iPad</h3>
             <ul>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
               <li>Settings → Safari → Auto-Play → Allow All Auto-Play</li>
-              <li>Open the Rose link above in Safari, then tap the Share icon → "Add to Home Screen" — this keeps microphone permissions saved</li>
+              <li>Open the Family Hub link above in Safari, tap "Visit with Rose," then tap the Share icon → "Add to Home Screen" for that Rose page — this keeps microphone permissions saved</li>
             </ul>
             <p style="margin-top:24px;color:#555;">If you have any questions, just reply to this email.</p>
           </div>
@@ -117,8 +113,7 @@ export default async function handler(req, res) {
         ok: true,
         recordId,
         nmrId,
-        roseLink,
-        photoLink,
+        hubLink,
         warning: 'Member created, but the welcome email failed to send. Links are included in this response for manual follow-up.'
       });
     }
