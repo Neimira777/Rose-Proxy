@@ -301,28 +301,15 @@
         } catch(e) { console.warn('Token resolution failed:', e); }
       }
 
-      // Fall back to a previously-stored token on this device, if no token in URL this time
-      if (!PATIENT_ID) {
-        let storedToken = null;
-        try { storedToken = localStorage.getItem('neimira_access_token'); } catch(e) {}
-        if (storedToken) {
-          try {
-            const res = await fetch(`${API}/api/resolve-token?token=${storedToken}`);
-            const data = await res.json();
-            if (data.patientId) {
-              PATIENT_ID = data.patientId;
-              RESOLVED_NAME = data.name || null;
-              DEVICE_KEY = storedToken;
-              return;
-            }
-          } catch(e) { console.warn('Stored token resolution failed:', e); }
-        }
-      }
-
-      // Legacy path — raw record ID directly in the URL, hash, or localStorage
+      // Legacy path — an explicit ?member=/?patient= in THIS link always
+      // wins over anything stored from a previous visit. Bug fix: this used
+      // to be checked after the stored-token fallback below, which meant an
+      // old token saved on this device from testing a DIFFERENT member's
+      // link could silently hijack a genuinely fresh, explicit link — the
+      // real cause of "Heady" appearing instead of the correct name.
       const hashMemberId = window.location.hash?.replace('#', '') || null;
-      const legacyId = urlMemberId || hashMemberId || (() => { try { return localStorage.getItem('neimira_member_id'); } catch(e) { return null; } })();
-      if (legacyId) {
+      if (urlMemberId || hashMemberId) {
+        const legacyId = urlMemberId || hashMemberId;
         if (urlMemberId) {
           try { localStorage.setItem('neimira_member_id', urlMemberId); } catch(e) {}
           if (window.location.hash !== '#' + urlMemberId) window.location.hash = urlMemberId;
@@ -334,6 +321,35 @@
           const data = await res.json();
           RESOLVED_NAME = data.name || null;
         } catch(e) { console.warn('Legacy name lookup failed:', e); }
+        return;
+      }
+
+      // Nothing explicit in this link at all — only now fall back to
+      // whatever was stored from a previous visit on this device.
+      let storedToken = null;
+      try { storedToken = localStorage.getItem('neimira_access_token'); } catch(e) {}
+      if (storedToken) {
+        try {
+          const res = await fetch(`${API}/api/resolve-token?token=${storedToken}`);
+          const data = await res.json();
+          if (data.patientId) {
+            PATIENT_ID = data.patientId;
+            RESOLVED_NAME = data.name || null;
+            DEVICE_KEY = storedToken;
+            return;
+          }
+        } catch(e) { console.warn('Stored token resolution failed:', e); }
+      }
+
+      const storedLegacyId = (() => { try { return localStorage.getItem('neimira_member_id'); } catch(e) { return null; } })();
+      if (storedLegacyId) {
+        PATIENT_ID = storedLegacyId;
+        DEVICE_KEY = storedLegacyId;
+        try {
+          const res = await fetch(`${API}/api/patients?id=${storedLegacyId}`);
+          const data = await res.json();
+          RESOLVED_NAME = data.name || null;
+        } catch(e) { console.warn('Stored legacy name lookup failed:', e); }
         return;
       }
 
