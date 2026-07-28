@@ -84,14 +84,14 @@
 
   <div class="container" id="hubContent" style="display:none;">
     <div class="visit-card">
-      <h2>Ready to visit?</h2>
-      <p>Start a conversation with Rose right now.</p>
+      <h2 id="visitTitle">Ready to visit?</h2>
+      <p id="visitSubtitle">Start a conversation with Rose right now.</p>
       <a href="#" id="visitRoseBtn" class="visit-btn">Visit with Rose</a>
     </div>
 
     <div class="card">
       <div class="card-title">Important Dates</div>
-      <div class="card-subtitle">Birthdays, appointments, anniversaries — Rose will naturally bring these up as they get close, never as an alert or checklist.</div>
+      <div class="card-subtitle" id="datesSubtitle">Birthdays, appointments, anniversaries — Rose will naturally bring these up as they get close, never as an alert or checklist.</div>
       <div class="date-list" id="dateList"></div>
       <div class="add-date-form">
         <input type="date" id="newDateInput">
@@ -103,7 +103,7 @@
 
     <div class="card">
       <div class="card-title">Share a Photo</div>
-      <div class="card-subtitle">Rose can talk through cherished photos during conversations. Add names and the occasion so she knows the story.</div>
+      <div class="card-subtitle" id="photoSubtitle">Rose can talk through cherished photos during conversations. Add names and the occasion so she knows the story.</div>
       <div class="photo-drop" id="photoDrop">
         <div class="photo-drop-text" id="photoDropText">Tap to choose a photo</div>
         <img id="photoPreview" class="photo-preview">
@@ -117,7 +117,7 @@
         <label>What's the occasion? (optional)</label>
         <input type="text" id="occasion" placeholder="e.g. 50th wedding anniversary, 1978">
       </div>
-      <button class="btn-primary" id="uploadPhotoBtn">Share with Rose</button>
+      <button class="btn-primary" id="uploadPhotoBtn"><span id="photoBtn">Share with Rose</span></button>
       <div class="status-msg" id="photoStatus"></div>
     </div>
   </div>
@@ -143,8 +143,23 @@
         if (!data.patientId) throw new Error('Invalid link');
         PATIENT_ID = data.patientId;
         const name = data.name || 'there';
+        const companion = data.preferredCompanion || 'Rose';
+        // NOTE: launch-jim.html is not yet compatible with the token system
+        // (it still expects the older raw-ID link format), so the link
+        // itself points to launch.html regardless of companion for now.
+        // The wording below still correctly reflects whoever the member's
+        // preferred companion is.
+        const launchPage = 'launch.html';
+
         document.getElementById('heroGreeting').textContent = `Welcome, ${name}`;
-        document.getElementById('visitRoseBtn').href = `${API}/launch.html?token=${token}${isDemo ? '&demo=true' : ''}`;
+        document.getElementById('visitTitle').textContent = 'Ready to visit?';
+        document.getElementById('visitSubtitle').textContent = `Start a conversation with ${companion} right now.`;
+        document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
+        document.getElementById('visitRoseBtn').href = `${API}/${launchPage}?token=${token}${isDemo ? '&demo=true' : ''}`;
+        document.getElementById('datesSubtitle').textContent = `Birthdays, appointments, anniversaries — ${companion} will naturally bring these up as they get close, never as an alert or checklist.`;
+        document.getElementById('photoSubtitle').textContent = `${companion} can talk through cherished photos during conversations. Add names and the occasion so ${companion.toLowerCase() === 'jim' ? 'he' : 'she'} knows the story.`;
+        document.getElementById('photoBtn').textContent = `Share with ${companion}`;
+
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('hubContent').style.display = 'block';
         loadDates();
