@@ -365,6 +365,7 @@
     let scheduleCheckInterval = null;
     let clientProfile = null;
     let sessionActive = false;
+    let restartCooldown = false;
 
     const SILENCE_BEFORE_CHECKIN = 45 * 1000;
     const SILENCE_BEFORE_END = 60 * 1000;
@@ -486,7 +487,7 @@
         for (const t of times) {
           const parsed = parseTime(t);
           // Fire if within 2 minutes of scheduled time to avoid missing exact minute
-          if (parsed >= 0 && Math.abs(parsed - nowMinutes) <= 1) {
+          if (parsed >= 0 && Math.abs(parsed - nowMinutes) <= 1 && !restartCooldown) {
             console.log('Scheduled visit time reached:', t);
             launchRose();
             break;
@@ -782,9 +783,27 @@
       setSpeaking(false); setListening(false);
       photoShown = false; sessionActive = false; currentSessionId = null;
       showWaitingScreen();
+
+      // ── Brief cooldown before a new session can start ──
+      // Stopping a session doesn't guarantee the browser has fully released
+      // the previous WebRTC/video decoder pipeline the instant .stop()
+      // resolves. Starting a brand-new session too quickly right after can
+      // inherit leftover decoder state — this is the likely cause of the
+      // black-screen-at-music-start and lip-sync drift seen when quickly
+      // ending and restarting a session. A short real pause gives the
+      // browser genuine time to release those resources before reinit.
+      restartCooldown = true;
+      const waitingLogoEl = document.querySelector('.waiting-logo');
+      waitingLogoEl.style.opacity = '0.5';
+      waitingLogoEl.style.pointerEvents = 'none';
+      setTimeout(() => {
+        restartCooldown = false;
+        waitingLogoEl.style.opacity = '1';
+        waitingLogoEl.style.pointerEvents = 'auto';
+      }, 2500);
     };
 
-    document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive) launchRose(); });
+    document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
 
     function isVerifiedOnThisDevice() {
       if (!DEVICE_KEY) return true; // nothing to verify against (fallback/edge case) — don't block
