@@ -34,7 +34,8 @@ export default async function handler(req, res) {
     const f = record.fields || {};
     return res.status(200).json({
       patientId: record.id,
-      name: f['Preferred Name'] || f['Client Full Name'] || ''
+      name: f['Preferred Name'] || f['Client Full Name'] || '',
+      preferredCompanion: f['Preferred Companion'] || 'Rose'
     });
   } catch (e) {
     console.error('Token resolution error:', e.message);
