@@ -310,6 +310,7 @@ export default async function handler(req, res) {
     let hometown = '', photoContext = '', photoMap = {};
     let personalityProfile = '';
     let sessionNotes = '';
+    let importantDatesRaw = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
@@ -442,7 +443,37 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       );
       const notesData = await notesRes.json();
       sessionNotes = notesData.fields?.['SessionNotes'] || '';
+      importantDatesRaw = notesData.fields?.['Important Dates'] || '';
     } catch(e) { console.warn('SessionNotes fetch failed:', e.message); }
+
+    // ── Important Dates — birthdays, appointments, anniversaries ──
+    // Stored as one entry per line: YYYY-MM-DD|Label. Same "surface it
+    // naturally, never as an alert" pattern already used for holidays.
+    let importantDatesInstruction = '';
+    if (importantDatesRaw) {
+      const todayForDates = new Date();
+      const upcomingPersonalDates = importantDatesRaw.split('\n').filter(Boolean).map(line => {
+        const [dateStr, ...rest] = line.split('|');
+        const label = rest.join('|').trim();
+        const [y, m, d] = (dateStr || '').trim().split('-').map(Number);
+        if (!y || !m || !d) return null;
+        // Compare using this year's occurrence, so recurring things like
+        // birthdays work correctly regardless of what year they were entered.
+        let occursOn = new Date(todayForDates.getFullYear(), m - 1, d);
+        if (occursOn < new Date(todayForDates.getFullYear(), todayForDates.getMonth(), todayForDates.getDate() - 1)) {
+          occursOn = new Date(todayForDates.getFullYear() + 1, m - 1, d);
+        }
+        const daysUntil = Math.ceil((occursOn - todayForDates) / (1000 * 60 * 60 * 24));
+        return { label, daysUntil };
+      }).filter(d => d && d.daysUntil >= 0 && d.daysUntil <= 14);
+
+      if (upcomingPersonalDates.length > 0) {
+        const lines = upcomingPersonalDates.map(d =>
+          d.daysUntil === 0 ? `Today: ${d.label}` : d.daysUntil === 1 ? `Tomorrow: ${d.label}` : `In ${d.daysUntil} days: ${d.label}`
+        );
+        importantDatesInstruction = `\nUPCOMING PERSONAL DATES for this resident:\n${lines.join('\n')}\nWeave these in naturally if it fits the conversation — the way a close friend would casually remember and mention them, never as a checklist or reminder alert. It's fine not to mention every single one in one sitting.`;
+      }
+    }
 
     const seasonalContext = getSeasonalContext(hometown);
 
@@ -530,6 +561,7 @@ ${weatherContext}
 ${exerciseContext}
 ${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (Rose) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
+${importantDatesInstruction ? `\n${importantDatesInstruction}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sessionSignalInstruction}`;
