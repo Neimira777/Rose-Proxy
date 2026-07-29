@@ -540,6 +540,8 @@ Once per session, naturally share one positive, uplifting news story — a scien
 
 If asked to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song name. If asked to stop or pause music, include "STOP_MUSIC" in your response.
 
+If the resident mentions something worth remembering on a specific date — a birthday, an appointment, an anniversary, anything with a real date attached — finish your response, then on a new line at the very end include "ADD_DATE:YYYY-MM-DD|" followed by a short description, e.g. "ADD_DATE:2026-08-15|Granddaughter Emma's birthday". This must always be the last thing in your response, after everything else you want to say. Resolve relative dates like "tomorrow" or "next Tuesday" into an actual calendar date using today's date from the DATE & TIME CONTEXT above. For recurring things like birthdays with no year stated, use this year unless that date has already passed, in which case use next year. Only do this when a genuine, specific date is mentioned — never guess a date that wasn't stated.
+
 Your one goal: Make whoever you're speaking with feel like the most interesting person in the room.
 
 Your opening greeting for this session: "${greeting}"
@@ -615,10 +617,24 @@ ${sessionSignalInstruction}`;
       } catch (e) { console.error('Stop music queue post failed:', e.message); }
     }
 
+    const dateMatch = replyText.match(/ADD_DATE:(\d{4}-\d{2}-\d{2})\|([^\n]+)/);
+    if (dateMatch && patientId) {
+      const [, isoDate, label] = dateMatch;
+      try {
+        await fetch('https://rose-proxy.vercel.app/api/important-dates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId, date: isoDate, label: label.trim() })
+        });
+        console.log(`Saved important date: ${isoDate} — ${label.trim()}`);
+      } catch (e) { console.error('Important date save failed:', e.message); }
+    }
+
     const cleanReply = replyText
       .replace(/PLAY_MUSIC:[^\n]+/g, '')
       .replace(/SHOW_PHOTO:[^\n]+/g, '')
       .replace(/STOP_MUSIC/g, '')
+      .replace(/ADD_DATE:\d{4}-\d{2}-\d{2}\|[^\n]+/g, '')
       .trim();
 
     try {
