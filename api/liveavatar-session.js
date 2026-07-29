@@ -33,7 +33,7 @@ export default async function handler(req, res) {
       mode: 'FULL',
       avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
       avatar_persona: {
-        voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232',
+        voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '38ec4023-f144-48fe-b01f-76bb7822efc7', // Wendy
         // ── Embed patientId directly in context_id system message ──
         // Instead of relying on HeyGen dynamic_variables substitution,
         // we pass the IDs directly in the system prompt sent to our LLM
