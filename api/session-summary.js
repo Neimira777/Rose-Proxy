@@ -70,7 +70,7 @@ Write it as notes Rose would use. Be specific and personal — use details from 
     // still want Rose to keep gently filling in the rest (career, family,
     // faith, etc.) on later visits, rather than stopping the moment any
     // single field gets its first bit of content. ──
-    const profileCheckFields = ['Personality Profile', 'Career', 'Spouse Name', 'Children', 'Faith', 'Special Memories', 'Favorite Songs', 'Pets'];
+    const profileCheckFields = ['Personality Profile', 'Career', 'Spouse Name', 'Children', 'Faith', 'Special Memories', 'Favorite Songs', 'Pets', 'Entertainment Interests'];
     const stillIncomplete = profileCheckFields.some(field => !(bufferData.fields?.[field] || '').trim());
     let onboardingFields = {};
     if (stillIncomplete) {
@@ -101,6 +101,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
   "favoriteTopics": "comma-separated topics they lit up talking about, or empty string",
   "favoriteSports": "comma-separated sports mentioned, or empty string",
   "favoriteTeams": "comma-separated sports teams mentioned, or empty string",
+  "entertainmentInterests": "shows, sports, tournaments, or anything they follow or watch regularly and lit up talking about — e.g. 'tennis, especially Coco Gauff' or 'Wheel of Fortune' — or empty string. Only include something they'd genuinely want mentioned again, not a one-off passing comment.",
   "pets": "any pets mentioned, current or past, or empty string",
   "spouseName": "spouse or partner's name if mentioned, or empty string",
   "spouseStatus": "one or two words on the spouse relationship if mentioned (e.g. 'married 40 years', 'widowed'), or empty string",
@@ -148,6 +149,7 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       favoriteTopics: 'Favorite Topics',
       favoriteSports: 'Favorite Sports',
       favoriteTeams: 'Favorite Teams',
+      entertainmentInterests: 'Entertainment Interests',
       pets: 'Pets',
       spouseName: 'Spouse Name',
       spouseStatus: 'Spouse Status',
