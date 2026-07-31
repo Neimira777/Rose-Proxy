@@ -44,7 +44,7 @@ export default async function handler(req, res) {
         // Instead of relying on HeyGen dynamic_variables substitution,
         // we pass the IDs directly in the system prompt sent to our LLM
         context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
-        language: 'en',
+        language: 'es', // TEMP TEST — was 'en'. Testing whether the multilingual TTS model handles Spanish with the same voice_id, without needing a separate Spanish voice. Revert to 'en' after testing!
         voice_settings: {
           provider: 'elevenLabs',
           speed: 1,
