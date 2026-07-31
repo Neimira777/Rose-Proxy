@@ -18,10 +18,11 @@ export default async function handler(req, res) {
 
     while (url && pagesFetched < 10) {
       const response = await fetch(url, { headers: { 'X-API-KEY': process.env.LIVEAVATAR_API_KEY } });
-      const data = await response.json();
-      if (pagesFetched === 0) firstPageRaw = { status: response.status, keys: Object.keys(data || {}), data };
+      const raw = await response.json();
+      const data = raw.data || raw; // API wraps the real payload in a "data" field
+      if (pagesFetched === 0) firstPageRaw = { status: response.status, keys: Object.keys(raw || {}) };
       if (!response.ok) {
-        return res.status(200).json({ note: 'LiveAvatar returned an error mid-pagination.', status: response.status, raw: data });
+        return res.status(200).json({ note: 'LiveAvatar returned an error mid-pagination.', status: response.status, raw });
       }
       const results = data.results || [];
       allVoices = allVoices.concat(results);
