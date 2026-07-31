@@ -513,6 +513,27 @@
       }, 30000); // Check every 30 seconds instead of 60
     }
 
+    // ── Entertainment event reminder polling ──
+    // Runs independently of scheduled Visit Times, only while the waiting
+    // screen is showing (no active session). Checks once a minute whether
+    // today's Entertainment Interest has a confirmed event starting soon —
+    // the actual search/caching happens server-side, at most once per
+    // member per day, so this poll is cheap.
+    let eventReminderCheckInterval = null;
+    function startEventReminderChecker() {
+      eventReminderCheckInterval = setInterval(async () => {
+        if (sessionActive) return;
+        try {
+          const res = await fetch(`${API}/api/event-reminder-check?patientId=${PATIENT_ID}`);
+          const data = await res.json();
+          if (data.remind && data.label) {
+            console.log('Event reminder triggered:', data.label);
+            launchRose(data.label);
+          }
+        } catch (e) { /* non-fatal — just try again next minute */ }
+      }, 60000);
+    }
+
     function showRoseScreen() { document.getElementById('waitingScreen').classList.add('hidden'); document.getElementById('roseScreen').classList.remove('hidden'); }
     function showWaitingScreen() { document.getElementById('roseScreen').classList.add('hidden'); document.getElementById('waitingScreen').classList.remove('hidden'); updateNextVisitTime(); }
     function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
@@ -693,7 +714,7 @@
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
-    async function launchRose() {
+    async function launchRose(eventReminderLabel) {
       if (sessionActive) return;
       sessionActive = true;
       showLoading(true);
@@ -710,7 +731,7 @@
       } catch(e) { console.warn('Visit count failed:', e); }
 
       try {
-        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday, isDemo: IS_DEMO }) });
+        const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday, isDemo: IS_DEMO, eventReminderLabel: eventReminderLabel || null }) });
         const tokenData = await tokenRes.json();
 
         if (!tokenData.session_token) { console.error('No session token:', tokenData); showLoading(false); sessionActive = false; return; }
@@ -910,6 +931,7 @@
       loadYoutubeApi();
       setInterval(loadBackgroundVideo, 10 * 60 * 1000);
       startScheduleChecker();
+      startEventReminderChecker();
     })();
 
     // ── Load Unsplash photo behind splash screen ──
