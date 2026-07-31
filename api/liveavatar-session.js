@@ -22,10 +22,16 @@ export default async function handler(req, res) {
     return res.status(200).json(mapping);
   }
   try {
-    const { patientId, visitCountToday, isDemo } = req.body || {};
+    const { patientId, visitCountToday, isDemo, eventReminderLabel } = req.body || {};
     const resolvedPatientId = patientId || 'recMLLC4fJHBUhE5w';
     const resolvedVisitCount = String(visitCountToday || 1);
     const demoFlag = isDemo ? '|demo' : '';
+    // Event reminder label travels through the pipe-delimited Active Session
+    // field the same way isDemo does. Pipes/newlines stripped from the label
+    // itself since it's user-adjacent (family-entered Entertainment Interests
+    // feeding an LLM-generated label) to keep the delimited format intact.
+    const safeEventLabel = eventReminderLabel ? String(eventReminderLabel).replace(/[|\n]/g, ' ').trim() : '';
+    const eventFlag = safeEventLabel ? `|event:${safeEventLabel}` : '';
 
     console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}`);
 
@@ -103,7 +109,7 @@ export default async function handler(req, res) {
         {
           method: 'PATCH',
           headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}`, 'Active Session Timestamp': new Date().toISOString() } })
+          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}${eventFlag}`, 'Active Session Timestamp': new Date().toISOString() } })
         }
       );
       console.log(`Airtable Active Session updated: ${resolvedPatientId}`);
