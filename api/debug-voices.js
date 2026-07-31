@@ -10,7 +10,7 @@
 
 export default async function handler(req, res) {
   try {
-    let url = 'https://api.liveavatar.com/v1/voices?voice_type=public&page_size=100';
+    let url = 'https://api.liveavatar.com/v1/voices';
     let allVoices = [];
     let pagesFetched = 0;
 
