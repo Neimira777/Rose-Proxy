@@ -9,6 +9,7 @@
 // ─────────────────────────────────────────────
 
 export default async function handler(req, res) {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {
     let url = 'https://api.liveavatar.com/v1/voices';
     let allVoices = [];
