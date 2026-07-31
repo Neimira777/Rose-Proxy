@@ -280,6 +280,7 @@ export default async function handler(req, res) {
 
     let visitCountToday = 1;
     let isDemo = false;
+    let eventReminderLabel = '';
     try {
       const sessionRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
@@ -289,10 +290,13 @@ export default async function handler(req, res) {
       const activeSession = sessionData.fields?.['Active Session'] || '';
       const parts = activeSession.split('|');
       if (parts[1]) visitCountToday = parseInt(parts[1]) || 1;
-      if (parts[2] === 'demo') isDemo = true;
+      if (parts.includes('demo')) isDemo = true;
+      const eventPart = parts.find(p => p.startsWith('event:'));
+      if (eventPart) eventReminderLabel = eventPart.slice('event:'.length).trim();
     } catch(e) {}
     const isFirstVisit = visitCountToday <= 1;
-    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit, '— isDemo:', isDemo);
+    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit, '— isDemo:', isDemo, '— eventReminderLabel:', eventReminderLabel);
+
 
     const messages = allMessages
       .filter(m => m.role === 'user' || m.role === 'assistant')
@@ -507,6 +511,18 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       entertainmentInstruction = `\nDAILY INTEREST CHECK: The resident's Entertainment Interests are: "${entertainmentInterests}". Early in this conversation, use your web search tool to check if anything relevant is happening today or on TV today — a game, a match, a tournament, a new episode, whatever fits their interest. If you find something genuinely relevant to today specifically, mention it warmly and naturally, like a friend who happened to notice, e.g. "I saw your tennis match is on at 3 today!" If nothing relevant is happening today, don't mention it at all — never force it or say "nothing's on today," just let it go.`;
     }
 
+    // ── Entertainment event reminder session ──
+    // Triggered by the waiting screen's background check (api/event-reminder-check.js),
+    // not a normal scheduled visit or user-initiated session. Rose should open
+    // by warmly delivering the reminder itself, not a generic greeting —
+    // this takes priority over the standard morning-music/clothing opening
+    // since it's a short, purpose-driven check-in, not a full visit.
+    let eventReminderInstruction = '';
+    if (isFirstMessage && eventReminderLabel) {
+      eventReminderInstruction = `\nEVENT REMINDER SESSION: You are popping in specifically to remind the resident that "${eventReminderLabel}" is starting soon — about 15 minutes from now. Open warmly and briefly with this reminder as your very first message, like a friend who happened to think of them — for example "Hi! I just wanted to pop in and remind you, ${eventReminderLabel} is starting in about 15 minutes!" Keep it short and light. After that, let the conversation flow naturally — you don't need to stay on this topic if they want to chat about something else.`;
+    }
+
+
     let musicGuidance = '';
     if (favoriteArtists || favoriteSongs || musicMemories || musicToAvoid) {
       musicGuidance = `\nMUSIC GUIDANCE:\nThe resident loves: ${favoriteArtists}${favoriteSongs ? ` and songs like ${favoriteSongs}` : ''}.\n${musicMemories ? `Music memories: ${musicMemories}` : ''}\n${musicToAvoid ? `Never play or suggest: ${musicToAvoid}` : ''}\nIf they ask to hear music, include "PLAY_MUSIC:" followed by the ARTIST NAME and song, e.g. "PLAY_MUSIC:Frank Sinatra My Way". Always include the artist name.\nIMPORTANT: If the resident requests ANY song or artist not on their preference list, always honor the request. The preference list is a guide, not a restriction. Use PLAY_MUSIC: for whatever they ask for.\nIf the resident asks to stop or pause music, include "STOP_MUSIC" in your response.`;
@@ -583,6 +599,7 @@ ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${importantDatesInstruction ? `\n${importantDatesInstruction}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${entertainmentInstruction ? `\n${entertainmentInstruction}` : ''}
+${eventReminderInstruction ? `\n${eventReminderInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sessionSignalInstruction}`;
 
