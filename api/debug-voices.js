@@ -14,10 +14,12 @@ export default async function handler(req, res) {
     let url = 'https://api.liveavatar.com/v1/voices';
     let allVoices = [];
     let pagesFetched = 0;
+    let firstPageRaw = null;
 
     while (url && pagesFetched < 10) {
       const response = await fetch(url, { headers: { 'X-API-KEY': process.env.LIVEAVATAR_API_KEY } });
       const data = await response.json();
+      if (pagesFetched === 0) firstPageRaw = { status: response.status, keys: Object.keys(data || {}), data };
       if (!response.ok) {
         return res.status(200).json({ note: 'LiveAvatar returned an error mid-pagination.', status: response.status, raw: data });
       }
@@ -39,6 +41,8 @@ export default async function handler(req, res) {
     return res.status(200).json({
       note: 'Temporary debug endpoint — delete api/debug-voices.js once you have found a voice_id.',
       totalVoices: allVoices.length,
+      pagesFetched,
+      firstPageRaw,
       languageCounts: Object.fromEntries(Object.entries(byLanguage).map(([k, v]) => [k, v.length])),
       nonEnglishVoices: nonEnglish.map(v => ({ id: v.id, name: v.name, language: v.language, gender: v.gender })),
       byLanguage
