@@ -311,11 +311,13 @@ export default async function handler(req, res) {
     let personalityProfile = '';
     let sessionNotes = '';
     let importantDatesRaw = '';
+    let entertainmentInterests = '';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
-         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap } = cache);
+         musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap,
+         entertainmentInterests } = cache);
     } else {
       try {
         const airtableRes = await fetch(
@@ -337,6 +339,7 @@ export default async function handler(req, res) {
         const favoriteClothing = f['Favorite Clothing'] || '';
         const dressingNotes = f['Dressing Notes'] || '';
         personalityProfile = f['Personality Profile'] || '';
+        entertainmentInterests = f['Entertainment Interests'] || '';
 
         const sessionNotesInner = f['SessionNotes'] || '';
 
@@ -355,6 +358,7 @@ Morning Playlist: ${morningPlaylist}
 Favorite Colors: ${favoriteColors} | Favorite Clothing: ${favoriteClothing}
 Dressing Notes: ${dressingNotes}
 Favorite Sports: ${f['Favorite Sports'] || ''} | Favorite Teams: ${favoriteTeamsRaw}
+Entertainment Interests: ${entertainmentInterests}
 Favorite Movies: ${f['Favorite Movies'] || ''} | Favorite Foods: ${f['Favorite Foods'] || ''}
 Pets: ${f['Pets'] || ''} | Topics to avoid: ${f['Topics To Avoid'] || ''}
 Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
@@ -362,7 +366,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         console.error('Airtable fetch error:', e);
       }
 
-      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown });
+      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, entertainmentInterests });
     }
 
     // ── Fetch REAL current weather via the National Weather Service —
@@ -484,10 +488,23 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
         const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
-        if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response.`;
+        if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response. Do NOT also include STOP_MUSIC in this same message — you are starting the music, not stopping it.`;
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Using the CURRENT WEATHER data provided below (not a search), warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
       morningMusicInstruction += `\nMORNING MOVEMENT OFFER: Later in this first conversation (not immediately, don't stack it on top of the greeting/music/clothing all at once), warmly offer a gentle stretch as a choice, not an instruction — for example "Want to start with a little stretch together this morning, or ease in with your coffee first?" If they say yes or show interest, use the CHAIR EXERCISE ROUTINES below to guide them. If they'd rather not, or don't respond to the offer, drop it completely and never push.`;
+    }
+
+    // ── Daily Interest Briefing ──
+    // Proactively checks, once per morning, whether anything relevant to the
+    // resident's stated Entertainment Interests (a sports team, tournament,
+    // show, etc.) is happening today, using the same web_search tool already
+    // trusted for sports/news — not a separate lookup service. Only fires on
+    // the first message of a morning session, and only mentions it if
+    // something genuinely relevant turns up today; otherwise stays silent
+    // rather than forcing an update into the conversation.
+    let entertainmentInstruction = '';
+    if (isMorningSession(hometown) && isFirstMessage && entertainmentInterests) {
+      entertainmentInstruction = `\nDAILY INTEREST CHECK: The resident's Entertainment Interests are: "${entertainmentInterests}". Early in this conversation, use your web search tool to check if anything relevant is happening today or on TV today — a game, a match, a tournament, a new episode, whatever fits their interest. If you find something genuinely relevant to today specifically, mention it warmly and naturally, like a friend who happened to notice, e.g. "I saw your tennis match is on at 3 today!" If nothing relevant is happening today, don't mention it at all — never force it or say "nothing's on today," just let it go.`;
     }
 
     let musicGuidance = '';
@@ -565,6 +582,7 @@ ${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or 
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${importantDatesInstruction ? `\n${importantDatesInstruction}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
+${entertainmentInstruction ? `\n${entertainmentInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
 ${sessionSignalInstruction}`;
 
@@ -606,7 +624,13 @@ ${sessionSignalInstruction}`;
       } catch (e) { console.error('Music queue post failed:', e.message); }
     }
 
-    if (replyText.includes('STOP_MUSIC')) {
+    // Guard: if a reply somehow contains both PLAY_MUSIC and STOP_MUSIC (e.g. the
+    // model pattern-completing both nearby instructions into one turn — this is
+    // what caused music to start then immediately cut out on some morning
+    // sessions), never let the stop signal fire in the same turn a song was
+    // just queued. Starting music and killing it a few seconds later is never
+    // the intended behavior.
+    if (replyText.includes('STOP_MUSIC') && !musicMatch) {
       try {
         await fetch('https://rose-proxy.vercel.app/api/music-queue', {
           method: 'POST',
