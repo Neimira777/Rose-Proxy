@@ -166,7 +166,7 @@ async function callClaude(systemPrompt, messages) {
   };
   const CLAUDE_BODY = (msgs) => JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 600,
+    max_tokens: 400, // trimmed from 600 — natural spoken replies rarely need this much, and lower caps encourage snappier generation without risking cutting off longer demo-mode explanations
     system: systemPrompt,
     messages: msgs,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
