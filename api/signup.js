@@ -96,7 +96,7 @@ export default async function handler(req, res) {
             <ul>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
-              <li>Settings → Safari → Auto-Play → Allow All Auto-Play</li>
+              <li>Settings → Apps → Safari → Auto-Play → Allow All Auto-Play <span style="color:#888;font-size:13px;">(on newer iPads, Safari's settings are inside "Apps" — if you don't see Safari listed directly in Settings, that's why)</span></li>
               <li>Open the Family Hub link above in Safari, tap "Visit with Rose," then tap the Share icon → "Add to Home Screen" for that Rose page — this keeps microphone permissions saved</li>
             </ul>
             <p style="margin-top:24px;color:#555;">If you have any questions, just reply to this email.</p>
