@@ -75,7 +75,7 @@ export default async function handler(req, res) {
       ? (process.env.LIVEAVATAR_JIM_AVATAR_ID || 'fab08c79-fabb-4e04-90b8-926eb34982c6')
       : (process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd');
     const resolvedVoiceId = isJim
-      ? (process.env.LIVEAVATAR_JIM_VOICE_ID || '9126271a-cd49-4d4a-b990-dfb65e92c825')
+      ? (process.env.LIVEAVATAR_JIM_VOICE_ID || '3850cdaf-0794-4fe0-b2f2-a0b32d266445') // Archer — testing against Ben
       : (process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232');
 
     console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}, language: ${preferredLanguageCode}, companion: ${companion}`);
