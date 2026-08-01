@@ -171,7 +171,7 @@
   <!-- Loading overlay -->
   <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-msg">Rose is on her way…</div>
+    <div class="loading-msg" id="loadingMsg">Rose is on her way…</div>
   </div>
 
   <!-- Waiting screen -->
@@ -214,7 +214,7 @@
       <div class="waiting-time" id="waitingTime">--:--</div>
       <div class="waiting-date" id="waitingDate"></div>
       <div class="waiting-next" id="waitingNext">
-        Rose visits at <span id="nextVisitTime">—</span>
+        <span id="waitingCompanionName">Rose</span> visits at <span id="nextVisitTime">—</span>
       </div>
     </div>
   </div>
@@ -236,7 +236,7 @@
         <div class="sound-bar"></div><div class="sound-bar"></div><div class="sound-bar"></div>
         <div class="sound-bar"></div><div class="sound-bar"></div>
       </div>
-      <div class="status-label">Rose is speaking</div>
+      <div class="status-label" id="speakingLabel">Rose is speaking</div>
     </div>
     <div id="musicBar">
       <div class="music-icon">♪</div>
@@ -471,6 +471,19 @@
         const data = await res.json();
         clientProfile = data;
         document.getElementById('waitingName').textContent = data.name || '';
+        // ── Companion-aware display text ──
+        // Members whose Preferred Companion is Jim should see Jim's name
+        // everywhere on screen, not just hear his voice — otherwise the
+        // page still visually says "Rose" while a different avatar/voice
+        // is actually speaking, which would be confusing.
+        const companionName = data.preferredCompanion || 'Rose';
+        document.title = `Neimira — ${companionName}`;
+        const loadingMsg = document.getElementById('loadingMsg');
+        if (loadingMsg) loadingMsg.textContent = `${companionName} is on ${companionName === 'Jim' ? 'his' : 'her'} way…`;
+        const waitingCompanionName = document.getElementById('waitingCompanionName');
+        if (waitingCompanionName) waitingCompanionName.textContent = companionName;
+        const speakingLabel = document.getElementById('speakingLabel');
+        if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
         updateNextVisitTime();
       } catch(e) { console.error('Profile load error:', e); }
     }
