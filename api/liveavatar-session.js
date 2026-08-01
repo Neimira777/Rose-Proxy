@@ -9,6 +9,26 @@
 // we maintain our own mapping of session_id → patientId
 const sessionPatientMap = {};
 
+// ── Preferred Language name → ISO code, for the languages ElevenLabs'
+// eleven_flash_v2_5 model supports. Family/admin enters a plain language
+// name in Airtable (e.g. "Spanish") — this maps it to what LiveAvatar's
+// avatar_persona.language field actually expects. Defaults to English if
+// the field is empty or the entered name isn't recognized.
+const LANGUAGE_CODES = {
+  english: 'en', spanish: 'es', french: 'fr', german: 'de', italian: 'it',
+  portuguese: 'pt', polish: 'pl', dutch: 'nl', turkish: 'tr', filipino: 'fil',
+  swedish: 'sv', bulgarian: 'bg', romanian: 'ro', arabic: 'ar', czech: 'cs',
+  greek: 'el', finnish: 'fi', croatian: 'hr', malay: 'ms', slovak: 'sk',
+  danish: 'da', tamil: 'ta', ukrainian: 'uk', russian: 'ru', hungarian: 'hu',
+  norwegian: 'no', vietnamese: 'vi', hindi: 'hi', japanese: 'ja',
+  chinese: 'zh', mandarin: 'zh', korean: 'ko', indonesian: 'id'
+};
+function resolveLanguageCode(name) {
+  if (!name) return 'en';
+  const code = LANGUAGE_CODES[String(name).trim().toLowerCase()];
+  return code || 'en';
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
@@ -33,7 +53,20 @@ export default async function handler(req, res) {
     const safeEventLabel = eventReminderLabel ? String(eventReminderLabel).replace(/[|\n]/g, ' ').trim() : '';
     const eventFlag = safeEventLabel ? `|event:${safeEventLabel}` : '';
 
-    console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}`);
+    // ── Look up this member's Preferred Language before creating the
+    // session, since avatar_persona.language must be set at session
+    // creation time — it can't be changed mid-session. ──
+    let preferredLanguageCode = 'en';
+    try {
+      const profileRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${resolvedPatientId}`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const profileData = await profileRes.json();
+      preferredLanguageCode = resolveLanguageCode(profileData.fields?.['Preferred Language']);
+    } catch(e) { console.warn('Preferred Language lookup failed, defaulting to English:', e.message); }
+
+    console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}, language: ${preferredLanguageCode}`);
 
     const sessionPayload = {
       mode: 'FULL',
@@ -44,7 +77,7 @@ export default async function handler(req, res) {
         // Instead of relying on HeyGen dynamic_variables substitution,
         // we pass the IDs directly in the system prompt sent to our LLM
         context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
-        language: 'es', // TEMP TEST — was 'en'. Testing whether the multilingual TTS model handles Spanish with the same voice_id, without needing a separate Spanish voice. Revert to 'en' after testing!
+        language: preferredLanguageCode, // now per-member via Preferred Language Airtable field, replacing the earlier hardcoded 'es' test
         voice_settings: {
           provider: 'elevenLabs',
           speed: 1,
@@ -109,7 +142,7 @@ export default async function handler(req, res) {
         {
           method: 'PATCH',
           headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}${eventFlag}`, 'Active Session Timestamp': new Date().toISOString() } })
+          body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}${eventFlag}|lang:${preferredLanguageCode}`, 'Active Session Timestamp': new Date().toISOString() } })
         }
       );
       console.log(`Airtable Active Session updated: ${resolvedPatientId}`);
