@@ -96,9 +96,10 @@ export default async function handler(req, res) {
             <ul>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
-              <li>Settings → Apps → Safari → Auto-Play → Allow All Auto-Play <span style="color:#888;font-size:13px;">(on newer iPads, Safari's settings are inside "Apps" — if you don't see Safari listed directly in Settings, that's why)</span></li>
               <li>Open the Family Hub link above in Safari, tap "Visit with Rose," then tap the Share icon → "Add to Home Screen" for that Rose page — this keeps microphone permissions saved</li>
+              <li><strong>Once a day, just tap the screen once</strong> (even just to see the waiting clock) — this is what lets background music play during Rose's visits. It's a quirk of how iPads handle sound, not a Rose setting, so there's nothing to configure — just a quick tap sometime each day.</li>
             </ul>
+            <p style="margin-top:24px;color:#555;font-size:14px;"><strong>A note on privacy:</strong> leaving the iPad unlocked all day only affects how quickly Rose can start — it doesn't expose anything else. Rose never asks for or has access to banking, passwords, or financial information of any kind, and apps like banking apps require their own separate login regardless of the iPad's own lock setting. If you'd still like extra peace of mind, Guided Access (in iPad Accessibility settings) can lock the device to only the Rose experience.</p>
             <p style="margin-top:24px;color:#555;">If you have any questions, just reply to this email.</p>
           </div>
         `
