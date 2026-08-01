@@ -374,6 +374,7 @@
     let photoPollInterval = null;
     let keepAliveInterval = null;
     let photoShown = false;
+    let pendingPhoto = null;
     let sessionTimer = null;
     let silenceTimer = null;
     let checkInTimer = null;
@@ -572,16 +573,18 @@
       if (photoPollInterval) clearInterval(photoPollInterval);
       photoShown = false;
       photoPollInterval = setInterval(async () => {
-        if (photoShown) return;
+        if (photoShown || pendingPhoto) return;
         try {
           const res = await fetch(`${API}/api/photos?patientId=${patientId}&t=${Date.now()}`);
           const data = await res.json();
-          // Keep the interval running for the whole session — previously
-          // this called clearInterval() here, which meant the poll loop
-          // permanently stopped after the first photo. Any later, genuine
-          // SHOW_PHOTO signal from Rose/Jim would then have nothing
-          // listening for it, silently failing with no image ever shown.
-          if (data.url) { photoShown = true; showPhoto(data.url, data.label || ''); }
+          // Hold the photo rather than showing it immediately — the text
+          // reply (and this queued photo) is ready well before the avatar
+          // actually starts SPEAKING it, since TTS/rendering takes real
+          // time on HeyGen's side. Showing it the instant it's detected
+          // meant the image appeared before Jim had said a word about it,
+          // making it feel backwards. Instead, wait for him to actually
+          // start talking, then reveal it.
+          if (data.url) { pendingPhoto = { url: data.url, label: data.label || '' }; }
         } catch(e) {}
       }, 800);
     }
@@ -770,7 +773,18 @@
         liveAvatarSession = new LiveAvatarSession(tokenData.session_token, { voiceChat: true });
 
         liveAvatarSession.on('session.stream_ready', () => { liveAvatarSession.attach(document.getElementById('roseVideo')); });
-        liveAvatarSession.on('avatar.speak_started', () => { setSpeaking(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); });
+        liveAvatarSession.on('avatar.speak_started', () => {
+          setSpeaking(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+          resetSilenceTimer();
+          if (pendingPhoto && !photoShown) {
+            const photo = pendingPhoto;
+            pendingPhoto = null;
+            // Small delay so the photo appears while he's actually mid-sentence
+            // about it, rather than the exact instant he starts talking.
+            setTimeout(() => { photoShown = true; showPhoto(photo.url, photo.label); }, 1200);
+          }
+        });
         liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); resetSilenceTimer(); });
         liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
         liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); });
@@ -856,7 +870,7 @@
       document.getElementById('musicBar').classList.remove('visible');
       document.getElementById('youtubeCorner').classList.remove('visible');
       setSpeaking(false); setListening(false);
-      photoShown = false; sessionActive = false; currentSessionId = null;
+      photoShown = false; pendingPhoto = null; sessionActive = false; currentSessionId = null;
       showWaitingScreen();
 
       // ── Brief cooldown before a new session can start ──
