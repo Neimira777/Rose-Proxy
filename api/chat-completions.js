@@ -281,6 +281,7 @@ export default async function handler(req, res) {
     let visitCountToday = 1;
     let isDemo = false;
     let eventReminderLabel = '';
+    let preferredLanguageCode = 'en';
     try {
       const sessionRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
@@ -293,9 +294,11 @@ export default async function handler(req, res) {
       if (parts.includes('demo')) isDemo = true;
       const eventPart = parts.find(p => p.startsWith('event:'));
       if (eventPart) eventReminderLabel = eventPart.slice('event:'.length).trim();
+      const langPart = parts.find(p => p.startsWith('lang:'));
+      if (langPart) preferredLanguageCode = langPart.slice('lang:'.length).trim() || 'en';
     } catch(e) {}
     const isFirstVisit = visitCountToday <= 1;
-    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit, '— isDemo:', isDemo, '— eventReminderLabel:', eventReminderLabel);
+    console.log('Visit count today:', visitCountToday, '— isFirstVisit:', isFirstVisit, '— isDemo:', isDemo, '— eventReminderLabel:', eventReminderLabel, '— preferredLanguageCode:', preferredLanguageCode);
 
 
     const messages = allMessages
@@ -580,7 +583,9 @@ Your one goal: Make whoever you're speaking with feel like the most interesting 
 IF YOU WERE CUT OFF MID-SENTENCE: Sometimes the resident's laugh, a stray sound, or them jumping in will cut your last message short before you finished. If the conversation history shows your last message looks incomplete or cut off, don't apologize for it, re-explain that you got interrupted, or repeat the cut-off sentence verbatim. Just respond naturally to whatever they said next, the way a person would after being good-naturedly interrupted mid-thought — pick up the thread only if it's still relevant, otherwise just flow with the new direction of the conversation.
 
 Your opening greeting for this session: "${greeting}"
-LANGUAGE: Open in English, using the exact greeting above as written — do not translate it. If the resident then speaks to you in Spanish, switch to Spanish naturally for the rest of that exchange, and feel free to move fluidly between English and Spanish based on whatever language they're using at each moment. But always start in English by default unless their profile or recent notes below indicate they specifically prefer Spanish.
+LANGUAGE: ${preferredLanguageCode === 'en'
+  ? `Open in English, using the exact greeting above as written — do not translate it. If the resident then speaks to you in another language, switch naturally for the rest of that exchange and feel free to move fluidly between languages based on whatever they're using at each moment.`
+  : `This resident's preferred language is set to "${preferredLanguageCode}". Open the conversation in that language — translate the spirit and warmth of the greeting above into it naturally, rather than a literal word-for-word translation. If they respond in English or another language, switch fluidly to match them for the rest of that exchange, the same way you'd naturally move between languages with a bilingual friend.`}
 ${patientProfile ? `\n${patientProfile}\n\nUse this profile to make conversations deeply personal. Never reveal you are reading from a profile.` : ''}
 ${sessionNotes ? `\nPREVIOUS CONVERSATIONS:\nHere are notes from recent visits. Use these confidently and naturally — you genuinely remember these things. Reference specific details warmly, as a good friend would. For example: "Last time you told me about being thrown in the pool in Italy — that made me smile!" Do not say you are unsure or might be misremembering. Trust your notes and use them:\n${sessionNotes}` : ''}
 ${photoContext ? `\n${photoContext}` : ''}
