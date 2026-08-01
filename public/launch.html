@@ -816,7 +816,15 @@
 
       if (liveAvatarSession) { try { await liveAvatarSession.stop(); } catch(e) {} liveAvatarSession = null; }
       document.getElementById('roseVideo').srcObject = null;
+      // ── Actually stop music, not just hide its UI ──
+      // Previously this only removed the visible music bar — the underlying
+      // Spotify/YouTube playback kept running invisibly in the background
+      // after a visit ended, since nothing here called pause()/stopVideo().
+      if (spotifyPlayer) { try { spotifyPlayer.pause(); } catch(e) {} }
+      if (youtubePlayer && youtubePlayerReady) { try { youtubePlayer.stopVideo(); } catch(e) {} }
+      fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(() => {});
       document.getElementById('musicBar').classList.remove('visible');
+      document.getElementById('youtubeCorner').classList.remove('visible');
       setSpeaking(false); setListening(false);
       photoShown = false; sessionActive = false; currentSessionId = null;
       showWaitingScreen();
