@@ -457,7 +457,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
 
         const photoNames = Object.keys(photoMap).join(', ');
         if (photoNames) {
-          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nIf asked to see or show a photo, warmly say something like "I have a beautiful photo I'd love to show you!" then include SHOW_PHOTO:[photo name] to display it. After showing the photo, ask a gentle open-ended question to spark memory. Listen warmly and follow their lead. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.`;
+          photoContext = `FAMILY PHOTOS (Reminiscence Therapy):\nYou have family photos available to display on screen. Photos available: ${photoNames}.\n\nIf asked to see or show a photo, warmly say something like "I have a beautiful photo I'd love to show you!" then include SHOW_PHOTO:[photo name] to display it. After showing the photo, ask a gentle open-ended question to spark memory. Listen warmly and follow their lead. The SHOW_PHOTO signal must exactly match one of these names: ${photoNames}. Never mention you are reading from a list.\n\nHARD RULE: NEVER include SHOW_PHOTO in a response unless you have ALSO spoken a sentence in that SAME response telling them you're showing them a photo. The two must always happen together — speaking about it AND the signal, in the same message, never the signal alone with no mention of it. If you're not going to say something about showing them a photo out loud, don't include SHOW_PHOTO at all.`;
           console.log('Photos table photoMap:', JSON.stringify(Object.keys(photoMap)));
         }
       }
