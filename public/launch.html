@@ -559,7 +559,14 @@
       document.getElementById('photoOverlay').classList.add('visible');
       setTimeout(() => closePhoto(), 12000);
     }
-    window.closePhoto = function() { document.getElementById('photoOverlay').classList.remove('visible'); };
+    window.closePhoto = function() {
+      document.getElementById('photoOverlay').classList.remove('visible');
+      // Allow the next photo (later in the same conversation) to be picked
+      // up again — previously nothing reset this, so only the very first
+      // photo shown in a session would ever display; any later SHOW_PHOTO
+      // signal from Rose/Jim silently had no visible effect.
+      photoShown = false;
+    };
 
     function startPhotoPolling(patientId) {
       if (photoPollInterval) clearInterval(photoPollInterval);
@@ -569,7 +576,12 @@
         try {
           const res = await fetch(`${API}/api/photos?patientId=${patientId}&t=${Date.now()}`);
           const data = await res.json();
-          if (data.url) { photoShown = true; clearInterval(photoPollInterval); showPhoto(data.url, data.label || ''); }
+          // Keep the interval running for the whole session — previously
+          // this called clearInterval() here, which meant the poll loop
+          // permanently stopped after the first photo. Any later, genuine
+          // SHOW_PHOTO signal from Rose/Jim would then have nothing
+          // listening for it, silently failing with no image ever shown.
+          if (data.url) { photoShown = true; showPhoto(data.url, data.label || ''); }
         } catch(e) {}
       }, 800);
     }
@@ -734,6 +746,11 @@
 
       try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
       try { await fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
+      // Clear any photo left queued from a previous session that ended
+      // before it was ever displayed — otherwise it silently pops up at
+      // the start of the NEXT session, completely disconnected from
+      // anything Rose/Jim actually says, which is confusing for everyone.
+      try { await fetch(`${API}/api/photos?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       let visitCountToday = 1;
       try {
