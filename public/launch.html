@@ -571,7 +571,7 @@
           const data = await res.json();
           if (data.url) { photoShown = true; clearInterval(photoPollInterval); showPhoto(data.url, data.label || ''); }
         } catch(e) {}
-      }, 2000);
+      }, 800);
     }
 
     window.onSpotifyWebPlaybackSDKReady = () => { console.log('Spotify SDK ready'); };
