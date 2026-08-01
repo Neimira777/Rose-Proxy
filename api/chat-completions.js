@@ -46,7 +46,13 @@ function getLocalDateTime(hometown) {
   const year = localDate.toLocaleDateString('en-US', { year: 'numeric', timeZone: timezone });
   const hour = localDate.getHours();
   const minute = localDate.getMinutes();
-  const preciseTime = localDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
+  // IMPORTANT: compute preciseTime from the original UTC 'now', not from
+  // 'localDate' above. 'localDate' is already a timezone-shifted value (a
+  // workaround for reading hour/timeOfDay), so applying toLocaleTimeString's
+  // own timeZone conversion to it again double-shifts the result — this is
+  // exactly the bug that made Rose/Jim think it was 1 PM when it was really
+  // 5 PM. now.toLocaleTimeString() converts UTC → the target timezone once.
+  const preciseTime = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
   let timeOfDay = hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : hour >= 17 && hour < 21 ? 'evening' : 'night';
   return { dayName, monthName, dayNum, year, hour, minute, preciseTime, timeOfDay, full: `${dayName}, ${monthName} ${dayNum}, ${year}` };
 }
