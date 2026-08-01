@@ -278,17 +278,26 @@ export default async function handler(req, res) {
 
     console.log('Final patientId:', patientId);
 
+    // ── Single shared Airtable fetch ──
+    // Previously this made two separate calls to the exact same record —
+    // one for session flags (visit count, demo, event reminder, language),
+    // one for the full profile on cache misses. Same URL, same record,
+    // fetched twice back to back on every cache-miss turn (which includes
+    // every session's opening message — the moment latency is most
+    // noticeable). Merged into one fetch; both sets of fields are parsed
+    // from the single response below.
     let visitCountToday = 1;
     let isDemo = false;
     let eventReminderLabel = '';
     let preferredLanguageCode = 'en';
+    let sharedAirtableData = null;
     try {
       const sessionRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
         { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
       );
-      const sessionData = await sessionRes.json();
-      const activeSession = sessionData.fields?.['Active Session'] || '';
+      sharedAirtableData = await sessionRes.json();
+      const activeSession = sharedAirtableData.fields?.['Active Session'] || '';
       const parts = activeSession.split('|');
       if (parts[1]) visitCountToday = parseInt(parts[1]) || 1;
       if (parts.includes('demo')) isDemo = true;
@@ -328,11 +337,8 @@ export default async function handler(req, res) {
          entertainmentInterests, companion } = cache);
     } else {
       try {
-        const airtableRes = await fetch(
-          `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-          { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
-        );
-        const airtableData = await airtableRes.json();
+        // Reuse the record already fetched above — no second fetch needed.
+        const airtableData = sharedAirtableData || {};
         const f = airtableData.fields || {};
 
         greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
@@ -449,15 +455,11 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
     } catch(e) { console.error('Photos table fetch error:', e.message); }
 
-    try {
-      const notesRes = await fetch(
-        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
-        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
-      );
-      const notesData = await notesRes.json();
-      sessionNotes = notesData.fields?.['SessionNotes'] || '';
-      importantDatesRaw = notesData.fields?.['Important Dates'] || '';
-    } catch(e) { console.warn('SessionNotes fetch failed:', e.message); }
+    // Reuse the same shared record fetched at the top of the request —
+    // this was a third identical fetch to the exact same patientId record,
+    // happening on every single message unconditionally.
+    sessionNotes = sharedAirtableData?.fields?.['SessionNotes'] || '';
+    importantDatesRaw = sharedAirtableData?.fields?.['Important Dates'] || '';
 
     // ── Important Dates — birthdays, appointments, anniversaries ──
     // Stored as one entry per line: YYYY-MM-DD|Label. Same "surface it
