@@ -93,7 +93,7 @@ export default async function handler(req, res) {
         voice_settings: {
           provider: 'elevenLabs',
           speed: 1,
-          stability: 0.75,
+          stability: 0.9, // bumped from 0.75 — testing whether this reduces the high-pitch artifact noticed at the start of Jim's sessions
           similarity_boost: 0.75,
           style: 0,
           use_speaker_boost: true,
