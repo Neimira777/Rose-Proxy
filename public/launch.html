@@ -866,6 +866,32 @@
       if (PATIENT_ID && !spotifyPlayer) {
         initSpotify(PATIENT_ID).catch(e => console.warn('Spotify pre-warm failed:', e));
       }
+      // Prime the YouTube fallback player the same way — Spotify has its own
+      // audio-context pre-warm above, but the YouTube <iframe> player needs
+      // its own real-gesture play to unlock audio. Without this, later
+      // background-triggered loadVideoById() calls (from the music-queue
+      // poll, not a direct tap) get silently blocked by Safari — the UI
+      // shows "Now Playing" because the JS state updates fine, but no sound
+      // comes out. This is invisible to the member: play muted for a moment,
+      // then stop, on a harmless placeholder video, using this real tap.
+      function primeYoutubePlayer() {
+        try {
+          youtubePlayer.mute();
+          youtubePlayer.loadVideoById('M7lc1UVf-VE');
+          setTimeout(() => { try { youtubePlayer.stopVideo(); youtubePlayer.unMute(); } catch(e) {} }, 600);
+        } catch(e) { console.warn('YouTube pre-warm failed:', e); }
+      }
+      if (youtubePlayerReady) {
+        primeYoutubePlayer();
+      } else {
+        // Player may still be initializing when the very first tap of the
+        // day happens — prime it the moment it becomes ready instead of
+        // silently skipping the unlock.
+        const primeCheck = setInterval(() => {
+          if (youtubePlayerReady) { clearInterval(primeCheck); primeYoutubePlayer(); }
+        }, 300);
+        setTimeout(() => clearInterval(primeCheck), 10000); // give up after 10s, not worth hanging forever
+      }
     }
 
     function showNameCheckPanel() {
