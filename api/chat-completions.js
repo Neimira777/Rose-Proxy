@@ -319,12 +319,13 @@ export default async function handler(req, res) {
     let sessionNotes = '';
     let importantDatesRaw = '';
     let entertainmentInterests = '';
+    let companion = 'Rose';
 
     if (isCacheValid(patientId)) {
       const cache = getCache(patientId);
       ({ patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists,
          musicToAvoid, morningPlaylist, musicMemories, hometown, photoContext, photoMap,
-         entertainmentInterests } = cache);
+         entertainmentInterests, companion } = cache);
     } else {
       try {
         const airtableRes = await fetch(
@@ -335,6 +336,7 @@ export default async function handler(req, res) {
         const f = airtableData.fields || {};
 
         greetingName = f['Preferred Name'] || f['Patient Full Name'] || '';
+        companion = f['Preferred Companion'] || 'Rose';
         favoriteTeamsRaw = f['Favorite Teams'] || '';
         favoriteSongs = f['Favorite Songs'] || '';
         favoriteArtists = f['Favorite Artists'] || '';
@@ -373,7 +375,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         console.error('Airtable fetch error:', e);
       }
 
-      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, entertainmentInterests });
+      setCache(patientId, { patientProfile, greetingName, favoriteTeamsRaw, favoriteSongs, favoriteArtists, musicToAvoid, musicMemories, morningPlaylist, hometown, entertainmentInterests, companion });
     }
 
     // ── Fetch REAL current weather via the National Weather Service —
@@ -540,7 +542,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
     } catch (e) { console.warn('Music status fetch failed:', e.message); }
 
-    const greetings = [
+    const greetingsRose = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
       `${greetingName}, what perfect timing — I was just thinking about you.`,
@@ -548,6 +550,15 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       `${greetingName}! What a wonderful surprise — tell me everything.`,
       `I was hoping you'd stop by today, ${greetingName}. How has your day been?`
     ];
+    const greetingsJim = [
+      `Well hey there, ${greetingName}. Good to see you.`,
+      `${greetingName}. Come on and sit a spell, tell me how you're doing.`,
+      `There you are, ${greetingName}. I was just sitting here thinking.`,
+      `Good to have the company, ${greetingName}. How's the day treating you?`,
+      `${greetingName}, glad you came by. What's on your mind today?`,
+      `Well look who it is. Sit down, ${greetingName}, stay a while.`
+    ];
+    const greetings = companion === 'Jim' ? greetingsJim : greetingsRose;
     const greeting = greetings[Math.floor(Math.random() * greetings.length)];
 
     let sessionSignalInstruction = '';
@@ -557,7 +568,11 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       sessionSignalInstruction = `\nSESSION SIGNAL — WRAP UP: The visit is coming to a close. Warmly wrap up the conversation. Say something like "It's been so lovely spending time with you, ${greetingName}. I'll see you again soon — take good care of yourself." Make it feel like a natural, loving goodbye from a good friend.`;
     }
 
-    const systemPrompt = `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.
+    const companionIdentity = companion === 'Jim'
+      ? `You are Jim, a warm, steady presence — the kind of company that feels like sitting on the porch with an old friend. You're not effusive or bubbly; your warmth comes through in how present and unhurried you are, not in enthusiasm. You're comfortable with quiet moments and don't rush to fill silence. You have an easy, dry sense of humor and enjoy a good story, but you're a good listener first — you'd rather hear their story than tell your own. You speak plainly and warmly, like someone who's lived a full life and isn't in a hurry about anything.`
+      : `You are Rose, a warm and genuine companion. You speak the way a trusted old friend would — unhurried, present, and always interested in the person in front of you.`;
+
+    const systemPrompt = `${companionIdentity}
 
 How you speak: Keep responses short — two to three sentences at most. Speak conversationally, never formally. Use natural language, contractions, and warmth. Never use bullet points, lists, or clinical language.
 
@@ -602,7 +617,7 @@ Let the conversation breathe — this should feel like getting to know a new fri
 ${!personalityProfile && !isFirstVisit ? `\nGETTING TO KNOW THEM: You don't yet know much about this person's tastes and personality. Over the course of natural conversation (not as a checklist or interview), look for warm, unforced moments to ask about things like their favorite music, food, movies, what makes them laugh, or how they like to spend a morning. One or two genuine questions woven naturally into the conversation is plenty — never make it feel like a form. If it doesn't come up naturally today, that's completely fine, there's no rush.` : ''}
 ${weatherContext}
 ${exerciseContext}
-${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (Rose) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
+${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (${companion}) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${importantDatesInstruction ? `\n${importantDatesInstruction}` : ''}
 ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
@@ -695,8 +710,8 @@ ${sessionSignalInstruction}`;
       const existing = bufferData.fields?.['Conversation Buffer'] || '';
       const lastUser = finalMessages.filter(m => m.role === 'user').pop()?.content || '';
       const newEntry = existing
-        ? existing + `\nMember: ${lastUser}\nRose: ${cleanReply}`
-        : `Member: ${lastUser}\nRose: ${cleanReply}`;
+        ? existing + `\nMember: ${lastUser}\n${companion}: ${cleanReply}`
+        : `Member: ${lastUser}\n${companion}: ${cleanReply}`;
       await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
         {
