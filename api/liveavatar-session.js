@@ -53,10 +53,11 @@ export default async function handler(req, res) {
     const safeEventLabel = eventReminderLabel ? String(eventReminderLabel).replace(/[|\n]/g, ' ').trim() : '';
     const eventFlag = safeEventLabel ? `|event:${safeEventLabel}` : '';
 
-    // ── Look up this member's Preferred Language before creating the
-    // session, since avatar_persona.language must be set at session
-    // creation time — it can't be changed mid-session. ──
+    // ── Look up this member's Preferred Language and Preferred Companion
+    // before creating the session, since both must be set at session
+    // creation time — avatar_id/voice_id/language can't change mid-session. ──
     let preferredLanguageCode = 'en';
+    let companion = 'Rose';
     try {
       const profileRes = await fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${resolvedPatientId}`,
@@ -64,15 +65,26 @@ export default async function handler(req, res) {
       );
       const profileData = await profileRes.json();
       preferredLanguageCode = resolveLanguageCode(profileData.fields?.['Preferred Language']);
-    } catch(e) { console.warn('Preferred Language lookup failed, defaulting to English:', e.message); }
+      companion = profileData.fields?.['Preferred Companion'] || 'Rose';
+    } catch(e) { console.warn('Preferred Language/Companion lookup failed, defaulting to English/Rose:', e.message); }
 
-    console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}, language: ${preferredLanguageCode}`);
+    // ── Avatar & voice selection by companion ──
+    // Rose's IDs stay the existing confirmed-working defaults; Jim's are new.
+    const isJim = companion === 'Jim';
+    const resolvedAvatarId = isJim
+      ? (process.env.LIVEAVATAR_JIM_AVATAR_ID || 'fab08c79-fabb-4e04-90b8-926eb34982c6')
+      : (process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd');
+    const resolvedVoiceId = isJim
+      ? (process.env.LIVEAVATAR_JIM_VOICE_ID || '483f791c-833e-425a-8f56-1bd42719712d')
+      : (process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232');
+
+    console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}, language: ${preferredLanguageCode}, companion: ${companion}`);
 
     const sessionPayload = {
       mode: 'FULL',
-      avatar_id: process.env.LIVEAVATAR_ROSE_AVATAR_ID || '0b44776d-3211-44e5-a459-bcb6f49e0fcd',
+      avatar_id: resolvedAvatarId,
       avatar_persona: {
-        voice_id: process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232', // reverted from Wendy — session token validation failed, likely not enabled for real-time streaming use
+        voice_id: resolvedVoiceId,
         // ── Embed patientId directly in context_id system message ──
         // Instead of relying on HeyGen dynamic_variables substitution,
         // we pass the IDs directly in the system prompt sent to our LLM
@@ -98,7 +110,7 @@ export default async function handler(req, res) {
       // ── Override system prompt to hardcode the IDs directly ──
       // This ensures chat-completions.js always receives the correct IDs
       // regardless of whether HeyGen substitutes {{variables}} correctly
-      system_message: `You are Rose, a warm and caring AI companion. Follow the instructions provided by the custom LLM system. PATIENT_ID:${resolvedPatientId} visit_count_today:${resolvedVisitCount}`,
+      system_message: `You are ${companion}, a warm and caring AI companion. Follow the instructions provided by the custom LLM system. PATIENT_ID:${resolvedPatientId} visit_count_today:${resolvedVisitCount}`,
       video_settings: {
         quality: 'high',
         encoding: 'H264'
