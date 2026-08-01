@@ -45,8 +45,10 @@ function getLocalDateTime(hometown) {
   const dayNum = localDate.toLocaleDateString('en-US', { day: 'numeric', timeZone: timezone });
   const year = localDate.toLocaleDateString('en-US', { year: 'numeric', timeZone: timezone });
   const hour = localDate.getHours();
+  const minute = localDate.getMinutes();
+  const preciseTime = localDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: timezone });
   let timeOfDay = hour >= 5 && hour < 12 ? 'morning' : hour >= 12 && hour < 17 ? 'afternoon' : hour >= 17 && hour < 21 ? 'evening' : 'night';
-  return { dayName, monthName, dayNum, year, hour, timeOfDay, full: `${dayName}, ${monthName} ${dayNum}, ${year}` };
+  return { dayName, monthName, dayNum, year, hour, minute, preciseTime, timeOfDay, full: `${dayName}, ${monthName} ${dayNum}, ${year}` };
 }
 
 function isMorningSession(hometown) {
@@ -96,7 +98,7 @@ HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session
 function getSeasonalContext(hometown) {
 
 
-  const { full, timeOfDay } = getLocalDateTime(hometown);
+  const { full, timeOfDay, preciseTime } = getLocalDateTime(hometown);
   const now = new Date();
   const month = now.getMonth() + 1;
   let season = month >= 3 && month <= 5 ? 'spring' : month >= 6 && month <= 8 ? 'summer' : month >= 9 && month <= 11 ? 'fall' : 'winter';
@@ -144,7 +146,7 @@ function getSeasonalContext(hometown) {
     const daysUntil = Math.ceil((holidayDate - now) / (1000 * 60 * 60 * 24));
     return daysUntil === 0 ? `Today is ${h.name}!` : daysUntil === 1 ? `${h.name} is tomorrow!` : `${h.name} is in ${daysUntil} days.`;
   });
-  let context = `DATE & TIME CONTEXT:\nToday is ${full}. It is currently ${timeOfDay} for the resident.\nIMPORTANT: On the FIRST message of each session, naturally weave in the day, date, AND year — never as a quiz or reminder, just warmly in passing.\n\nSEASONAL CONTEXT:\nIt is currently ${season}. ${seasonPrompts[season]}`;
+  let context = `DATE & TIME CONTEXT:\nToday is ${full}. It is currently ${timeOfDay} for the resident — the precise local time right now is ${preciseTime}.\nIMPORTANT: On the FIRST message of each session, naturally weave in the day, date, AND year — never as a quiz or reminder, just warmly in passing.\nEVENT TIMING: If your notes or earlier in this conversation mention telling the resident about something happening at a specific time (a game, a show, an appointment), check that time against the precise current time above before asking about it. Don't ask "how was it" or speak of it in the past tense unless it has actually had time to happen or finish by now. If it hasn't started yet, you can build anticipation instead ("not long now!"); if it's likely still in progress, you can ask how it's going so far, phrased as ongoing, not finished.\n\nSEASONAL CONTEXT:\nIt is currently ${season}. ${seasonPrompts[season]}`;
   if (upcoming.length > 0) context += `\nUpcoming holidays: ${upcoming.join(' ')}\nWeave upcoming holidays naturally into conversation.`;
   return context;
 }
