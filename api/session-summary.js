@@ -29,6 +29,7 @@ export default async function handler(req, res) {
       console.log('No conversation buffer to summarize for', patientId);
       return res.status(200).json({ ok: true, message: 'No conversation to summarize' });
     }
+    const companion = bufferData.fields?.['Preferred Companion'] || 'Rose';
     // ── Call Claude to generate summary ──
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -42,19 +43,21 @@ export default async function handler(req, res) {
         max_tokens: 300,
         messages: [{
           role: 'user',
-          content: `You are helping an AI companion named Rose remember her conversations with aging adults.
+          content: `You are helping an AI companion named ${companion} remember conversations with aging adults.
 
-Here is a conversation between Rose and a member:
+Here is a conversation between ${companion} and a member:
 
 ${conversationText}
 
-Please write a brief, warm summary (3-5 sentences) that Rose can use to remember this conversation next time. Include:
+Please write a brief, warm summary (3-5 sentences) that ${companion} can use to remember this conversation next time. Include:
 - Main topics discussed
 - Any memories or stories the member shared
 - Emotional tone of the visit
 - Anything notable mentioned (family, upcoming events, concerns, happy moments)
 
-Write it as notes Rose would use. Be specific and personal — use details from the actual conversation. Write in third person about the member.`
+Write it as notes ${companion} would use. Be specific and personal — use details from the actual conversation. Write in third person about the member.
+
+CRITICAL — DO NOT INVENT DETAILS: If the conversation above is garbled, mostly technical difficulties, too short, or otherwise doesn't contain real substantive content, do NOT guess, infer, or make up plausible-sounding topics, requests, or emotional tone to fill the summary — even if a detail seems like a reasonable guess. Instead, write only something honest and brief, such as: "Technical difficulties made this conversation hard to follow — no clear topics or memories to capture this session." A short, accurate "nothing much happened" note is always better than a detailed but fabricated one, since ${companion} may treat anything written here as a real memory in future conversations.`
         }]
       })
     });
@@ -87,7 +90,7 @@ Write it as notes Rose would use. Be specific and personal — use details from 
             max_tokens: 500,
             messages: [{
               role: 'user',
-              content: `Read this conversation between Rose (an AI companion) and an aging adult member. Extract anything the member shared about their own preferences and personality — do NOT guess or invent anything not actually said.
+              content: `Read this conversation between ${companion} (an AI companion) and an aging adult member. Extract anything the member shared about their own preferences and personality — do NOT guess or invent anything not actually said.
 
 Conversation:
 ${conversationText}
