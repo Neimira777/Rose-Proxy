@@ -74,6 +74,19 @@
     .consent-learn-more { color: var(--text-muted); text-decoration: underline; cursor: pointer; font-size: 13px; background: none; border: none; padding: 0; font-family: inherit; }
     .consent-detail { display: none; font-size: 12px; line-height: 1.6; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.08); }
     .consent-detail.expanded { display: block; }
+
+    .companion-options { display: flex; gap: 12px; }
+    .companion-option {
+      flex: 1; position: relative; display: block; cursor: pointer;
+      border: 2px solid var(--border); border-radius: 14px; padding: 18px 16px;
+      transition: all 0.2s;
+    }
+    .companion-option:hover { border-color: var(--cyan); }
+    .companion-option.selected { border-color: var(--cyan); background: rgba(0,188,212,0.06); box-shadow: 0 0 0 3px rgba(0,188,212,0.1); }
+    .companion-option input[type="radio"] { position: absolute; top: 16px; right: 16px; width: 18px; height: 18px; cursor: pointer; accent-color: var(--cyan); }
+    .companion-name { font-family: 'Cormorant Garamond', serif; font-size: 22px; color: var(--navy); margin-bottom: 6px; padding-right: 24px; }
+    .companion-desc { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+    @media (max-width: 480px) { .companion-options { flex-direction: column; } }
   </style>
 </head>
 <body>
@@ -87,14 +100,31 @@
   </div>
 
   <div class="hero">
-    <h1>Meet Rose</h1>
+    <h1 id="heroTitle">Meet Your Companion</h1>
     <p>A warm, familiar face who visits every day. Just <span>a minute</span> to get started — you can add more details anytime.</p>
   </div>
 
   <div class="container">
+    <div class="card" id="companionCard">
+      <div class="card-title">Choose a companion</div>
+      <div class="card-subtitle">Both are warm, caring, and remember every conversation — just different personalities.</div>
+      <div class="companion-options">
+        <label class="companion-option selected" id="roseOption">
+          <input type="radio" name="companion" value="Rose" checked>
+          <div class="companion-name">Rose</div>
+          <div class="companion-desc">Warm and genuine — like a trusted old friend, always glad to see you.</div>
+        </label>
+        <label class="companion-option" id="jimOption">
+          <input type="radio" name="companion" value="Jim">
+          <div class="companion-name">Jim</div>
+          <div class="companion-desc">Steady and easygoing — porch-friend energy, comfortable with quiet moments.</div>
+        </label>
+      </div>
+    </div>
+
     <div class="card form-wrap" id="formWrap">
-      <div class="card-title">Tell us who'll be spending time with Rose</div>
-      <div class="card-subtitle">This creates a personal Rose profile — the link to get started is sent right away.</div>
+      <div class="card-title" id="formCardTitle">Tell us who'll be spending time with Rose</div>
+      <div class="card-subtitle" id="formCardSubtitle">This creates a personal Rose profile — the link to get started is sent right away.</div>
 
       <form id="signupForm">
         <div class="input-group">
@@ -103,14 +133,14 @@
         </div>
 
         <div class="input-group">
-          <label>Preferred Name <span class="optional-tag">(optional — what Rose should call them)</span></label>
+          <label>Preferred Name <span class="optional-tag">(optional — what <span class="companion-name-inline">Rose</span> should call them)</span></label>
           <input type="text" id="preferredName" placeholder="e.g. Peggy">
         </div>
 
         <div class="input-group">
           <label for="familyEmail">Your Email</label>
           <input type="email" id="familyEmail" required placeholder="you@example.com">
-          <div class="input-hint">We'll send Rose's personal link and iPad setup instructions here.</div>
+          <div class="input-hint">We'll send <span class="companion-name-inline">Rose</span>'s personal link and iPad setup instructions here.</div>
         </div>
 
         <div class="input-group">
@@ -121,10 +151,10 @@
         <div class="consent-group">
           <input type="checkbox" id="consentCheckbox" required>
           <label for="consentCheckbox">
-            I understand that conversations with Rose may be summarized and referenced, in de-identified form (no names or identifying details), to help Neimira improve Rose and support research and grant funding focused on fostering connection and enriching daily life for our members.
+            I understand that conversations with <span class="companion-name-inline">Rose</span> may be summarized and referenced, in de-identified form (no names or identifying details), to help Neimira improve <span class="companion-name-inline">Rose</span> and support research and grant funding focused on fostering connection and enriching daily life for our members.
             <span> — <button type="button" class="consent-learn-more" id="consentLearnMore">Learn more</button></span>
             <div class="consent-detail" id="consentDetail">
-              Rose keeps a record of conversations so she can remember and grow the relationship over time — favorite songs, family stories, what makes someone laugh. With your permission, small, de-identified excerpts and patterns from these conversations (never full transcripts, never names) may also be used to help us understand whether Rose is genuinely fostering connection and enriching daily life for our members — including in materials shared with research funders like the National Institute on Aging. You're always welcome to ask what's been recorded, or to opt out of anything beyond Rose's core memory function, by reaching out to linda@neimira.com.
+              <span class="companion-name-inline">Rose</span> keeps a record of conversations so she can remember and grow the relationship over time — favorite songs, family stories, what makes someone laugh. With your permission, small, de-identified excerpts and patterns from these conversations (never full transcripts, never names) may also be used to help us understand whether <span class="companion-name-inline">Rose</span> is genuinely fostering connection and enriching daily life for our members — including in materials shared with research funders like the National Institute on Aging. You're always welcome to ask what's been recorded, or to opt out of anything beyond core memory function, by reaching out to linda@neimira.com.
             </div>
           </label>
         </div>
@@ -139,6 +169,24 @@
   <script>
     const API = window.location.origin;
     const IS_DEMO_SIGNUP = new URLSearchParams(window.location.search).get('demo') === 'true';
+    let selectedCompanion = 'Rose';
+
+    function updateCompanionText() {
+      document.getElementById('heroTitle').textContent = `Meet ${selectedCompanion}`;
+      document.getElementById('formCardTitle').textContent = `Tell us who'll be spending time with ${selectedCompanion}`;
+      document.getElementById('formCardSubtitle').textContent = `This creates a personal ${selectedCompanion} profile — the link to get started is sent right away.`;
+      document.querySelectorAll('.companion-name-inline').forEach(el => { el.textContent = selectedCompanion; });
+    }
+
+    document.querySelectorAll('.companion-option').forEach(option => {
+      option.addEventListener('click', () => {
+        document.querySelectorAll('.companion-option').forEach(o => o.classList.remove('selected'));
+        option.classList.add('selected');
+        option.querySelector('input[type="radio"]').checked = true;
+        selectedCompanion = option.querySelector('input[type="radio"]').value;
+        updateCompanionText();
+      });
+    });
 
     document.getElementById('consentLearnMore').addEventListener('click', () => {
       const detail = document.getElementById('consentDetail');
@@ -164,7 +212,7 @@
         const res = await fetch(`${API}/api/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes, isDemo: IS_DEMO_SIGNUP })
+          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes, isDemo: IS_DEMO_SIGNUP, companion: selectedCompanion })
         });
         const data = await res.json();
 
@@ -173,8 +221,12 @@
         if (data.warning) {
           showStatus('error', '⚠️', 'Almost there', `${data.preferredName || fullName}'s profile was created, but the welcome email didn't send. Please contact Neimira for your link.`);
         } else {
-          showStatus('success', '🌹', 'Welcome to Neimira!', `Check ${familyEmail} for Rose's personal link and setup instructions.`);
+          showStatus('success', selectedCompanion === 'Jim' ? '🧑' : '🌹', 'Welcome to Neimira!', `Check ${familyEmail} for ${selectedCompanion}'s personal link and setup instructions.`);
           document.getElementById('signupForm').reset();
+          selectedCompanion = 'Rose';
+          document.querySelectorAll('.companion-option').forEach(o => o.classList.remove('selected'));
+          document.getElementById('roseOption').classList.add('selected');
+          updateCompanionText();
         }
       } catch (err) {
         showStatus('error', '⚠️', 'Something went wrong', err.message || 'Please try again in a moment.');
