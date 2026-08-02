@@ -54,6 +54,8 @@
     .input-group label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--navy); margin-bottom: 8px; text-transform: uppercase; font-weight: 600; }
     .input-group input { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text-body); font-family: 'Jost', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
     .input-group input:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,188,212,0.1); background: white; }
+    .input-group select { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; color: var(--text-body); font-family: 'Jost', sans-serif; font-size: 15px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; cursor: pointer; }
+    .input-group select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,188,212,0.1); background: white; }
     .input-hint { font-size: 12px; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
     .optional-tag { color: var(--text-muted); font-weight: 400; text-transform: none; letter-spacing: 0; font-size: 11px; }
 
@@ -148,6 +150,45 @@
           <input type="text" id="visitTimes" placeholder="e.g. 9:00 AM">
         </div>
 
+        <div class="input-group">
+          <label>Preferred Language <span class="optional-tag">(optional — defaults to English)</span></label>
+          <select id="preferredLanguage">
+            <option value="">English (default)</option>
+            <option value="Spanish">Spanish</option>
+            <option value="Portuguese">Portuguese</option>
+            <option value="French">French</option>
+            <option value="German">German</option>
+            <option value="Italian">Italian</option>
+            <option value="Polish">Polish</option>
+            <option value="Chinese">Chinese</option>
+            <option value="Korean">Korean</option>
+            <option value="Japanese">Japanese</option>
+            <option value="Vietnamese">Vietnamese</option>
+            <option value="Hindi">Hindi</option>
+            <option value="Tamil">Tamil</option>
+            <option value="Russian">Russian</option>
+            <option value="Ukrainian">Ukrainian</option>
+            <option value="Arabic">Arabic</option>
+            <option value="Turkish">Turkish</option>
+            <option value="Dutch">Dutch</option>
+            <option value="Swedish">Swedish</option>
+            <option value="Norwegian">Norwegian</option>
+            <option value="Danish">Danish</option>
+            <option value="Finnish">Finnish</option>
+            <option value="Greek">Greek</option>
+            <option value="Czech">Czech</option>
+            <option value="Slovak">Slovak</option>
+            <option value="Hungarian">Hungarian</option>
+            <option value="Romanian">Romanian</option>
+            <option value="Bulgarian">Bulgarian</option>
+            <option value="Croatian">Croatian</option>
+            <option value="Malay">Malay</option>
+            <option value="Indonesian">Indonesian</option>
+            <option value="Filipino">Filipino</option>
+          </select>
+          <div class="input-hint">This is the language <span class="companion-name-inline">Rose</span> will greet and converse in — she can still follow along if the conversation shifts to English or another language.</div>
+        </div>
+
         <div class="consent-group">
           <input type="checkbox" id="consentCheckbox" required>
           <label for="consentCheckbox">
@@ -202,6 +243,7 @@
       const preferredName = document.getElementById('preferredName').value.trim();
       const familyEmail = document.getElementById('familyEmail').value.trim();
       const visitTimes = document.getElementById('visitTimes').value.trim();
+      const preferredLanguage = document.getElementById('preferredLanguage').value;
 
       const btn = document.getElementById('submitBtn');
       btn.disabled = true;
@@ -212,7 +254,7 @@
         const res = await fetch(`${API}/api/signup`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes, isDemo: IS_DEMO_SIGNUP, companion: selectedCompanion })
+          body: JSON.stringify({ fullName, preferredName, familyEmail, visitTimes, isDemo: IS_DEMO_SIGNUP, companion: selectedCompanion, preferredLanguage })
         });
         const data = await res.json();
 
