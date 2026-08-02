@@ -19,7 +19,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { fullName, preferredName, familyEmail, visitTimes, isDemo, companion } = req.body || {};
+  const { fullName, preferredName, familyEmail, visitTimes, isDemo, companion, preferredLanguage } = req.body || {};
   if (!fullName || !familyEmail) {
     return res.status(400).json({ error: 'Name and email are required' });
   }
@@ -47,6 +47,7 @@ export default async function handler(req, res) {
             'Family Email': familyEmail,
             'Visit Times': visitTimes || '',
             'Preferred Companion': resolvedCompanion,
+            'Preferred Language': preferredLanguage || '',
             'Access Token': accessToken
           }
         })
