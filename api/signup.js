@@ -19,10 +19,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { fullName, preferredName, familyEmail, visitTimes, isDemo } = req.body || {};
+  const { fullName, preferredName, familyEmail, visitTimes, isDemo, companion } = req.body || {};
   if (!fullName || !familyEmail) {
     return res.status(400).json({ error: 'Name and email are required' });
   }
+  const resolvedCompanion = companion === 'Jim' ? 'Jim' : 'Rose';
 
   try {
     // ── Step 1: Create the Member Table record ──
@@ -45,7 +46,7 @@ export default async function handler(req, res) {
             'Preferred Name': preferredName || fullName.split(' ')[0],
             'Family Email': familyEmail,
             'Visit Times': visitTimes || '',
-            'Preferred Companion': 'Rose',
+            'Preferred Companion': resolvedCompanion,
             'Access Token': accessToken
           }
         })
@@ -81,14 +82,14 @@ export default async function handler(req, res) {
       });
 
       await transporter.sendMail({
-        from: `"Neimira — Rose" <${process.env.GMAIL_USER}>`,
+        from: `"Neimira — ${resolvedCompanion}" <${process.env.GMAIL_USER}>`,
         to: familyEmail,
         subject: `Welcome to Neimira, ${preferredName || fullName}!`,
         html: `
           <div style="font-family: sans-serif; max-width: 500px; margin: 0 auto;">
             <h2 style="color: #1e3a8a;">Welcome to Neimira!</h2>
-            <p>We're so glad ${preferredName || fullName} will be spending time with Rose.</p>
-            <p>One link is all you'll ever need — visit with Rose, add important dates like birthdays and appointments, and share photos, all in one place:</p>
+            <p>We're so glad ${preferredName || fullName} will be spending time with ${resolvedCompanion}.</p>
+            <p>One link is all you'll ever need — visit with ${resolvedCompanion}, add important dates like birthdays and appointments, and share photos, all in one place:</p>
             <p>
               <a href="${hubLink}" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Family Hub</a>
             </p>
@@ -96,10 +97,10 @@ export default async function handler(req, res) {
             <ul>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
-              <li>Open the Family Hub link above in Safari, tap "Visit with Rose," then tap the Share icon → "Add to Home Screen" for that Rose page — this keeps microphone permissions saved</li>
-              <li><strong>Once a day, just tap the screen once</strong> (even just to see the waiting clock) — this is what lets background music play during Rose's visits. It's a quirk of how iPads handle sound, not a Rose setting, so there's nothing to configure — just a quick tap sometime each day.</li>
+              <li>Open the Family Hub link above in Safari, tap "Visit with ${resolvedCompanion}," then tap the Share icon → "Add to Home Screen" for that page — this keeps microphone permissions saved</li>
+              <li><strong>Once a day, just tap the screen once</strong> (even just to see the waiting clock) — this is what lets background music play during ${resolvedCompanion}'s visits. It's a quirk of how iPads handle sound, not a setting, so there's nothing to configure — just a quick tap sometime each day.</li>
             </ul>
-            <p style="margin-top:24px;color:#555;font-size:14px;"><strong>A note on privacy:</strong> leaving the iPad unlocked all day only affects how quickly Rose can start — it doesn't expose anything else. Rose never asks for or has access to banking, passwords, or financial information of any kind, and apps like banking apps require their own separate login regardless of the iPad's own lock setting. If you'd still like extra peace of mind, Guided Access (in iPad Accessibility settings) can lock the device to only the Rose experience.</p>
+            <p style="margin-top:24px;color:#555;font-size:14px;"><strong>A note on privacy:</strong> leaving the iPad unlocked all day only affects how quickly ${resolvedCompanion} can start — it doesn't expose anything else. ${resolvedCompanion} never asks for or has access to banking, passwords, or financial information of any kind, and apps like banking apps require their own separate login regardless of the iPad's own lock setting. If you'd still like extra peace of mind, Guided Access (in iPad Accessibility settings) can lock the device to only the ${resolvedCompanion} experience.</p>
             <p style="margin-top:24px;color:#555;">If you have any questions, just reply to this email.</p>
           </div>
         `
