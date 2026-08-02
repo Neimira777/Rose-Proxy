@@ -77,6 +77,13 @@ export default async function handler(req, res) {
     const resolvedVoiceId = isJim
       ? (process.env.LIVEAVATAR_JIM_VOICE_ID || 'b952f553-f7f3-4e52-8625-86b4c415384f') // Dexter — Professional, verified against real catalog
       : (process.env.LIVEAVATAR_ROSE_VOICE_ID || '4f3b1e99-b580-4f05-9b67-a5f585be0232');
+    // Each companion needs its own Context in LiveAvatar's dashboard —
+    // previously Jim's sessions were silently using Rose's context (her
+    // "Hello there!" opening intro and a prompt literally identifying him
+    // as Rose), since the context_id was hardcoded and shared.
+    const resolvedContextId = isJim
+      ? (process.env.LIVEAVATAR_JIM_CONTEXT_ID || 'd3589677-f504-4d16-88c0-b0e6cbb33862')
+      : (process.env.LIVEAVATAR_ROSE_CONTEXT_ID || 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c');
 
     console.log(`Creating session for patientId: ${resolvedPatientId}, visitCount: ${resolvedVisitCount}, language: ${preferredLanguageCode}, companion: ${companion}`);
 
@@ -88,7 +95,7 @@ export default async function handler(req, res) {
         // ── Embed patientId directly in context_id system message ──
         // Instead of relying on HeyGen dynamic_variables substitution,
         // we pass the IDs directly in the system prompt sent to our LLM
-        context_id: 'dbbae8d4-7026-4026-b29b-e3bf18cf0b7c',
+        context_id: resolvedContextId,
         language: preferredLanguageCode, // now per-member via Preferred Language Airtable field, replacing the earlier hardcoded 'es' test
         voice_settings: {
           provider: 'elevenLabs',
