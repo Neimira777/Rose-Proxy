@@ -158,7 +158,7 @@ function getSeasonalContext(hometown) {
 }
 
 // ── Claude API call ──
-async function callClaude(systemPrompt, messages) {
+async function callClaude(systemPrompt, messages, maxTokens = 400) {
   const ANTHROPIC_HEADERS = {
     'Content-Type': 'application/json',
     'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -166,7 +166,7 @@ async function callClaude(systemPrompt, messages) {
   };
   const CLAUDE_BODY = (msgs) => JSON.stringify({
     model: 'claude-haiku-4-5-20251001',
-    max_tokens: 400, // trimmed from 600 — natural spoken replies rarely need this much, and lower caps encourage snappier generation without risking cutting off longer demo-mode explanations
+    max_tokens: maxTokens, // trimmed to 400 by default for snappier replies, but the first message of a morning session gets more room — see call site — since it has to cover the date, weather/clothing, AND music in one reply, and a tight cap was silently truncating music off the end.
     system: systemPrompt,
     messages: msgs,
     tools: [{ type: 'web_search_20250305', name: 'web_search' }]
@@ -642,7 +642,11 @@ ${sessionSignalInstruction}`;
     }));
 
     const finalMessages = cleanedMessages.length > 0 ? cleanedMessages : [{ role: 'user', content: 'Hello' }];
-    const replyText = await callClaude(systemPrompt, finalMessages);
+    // First message of a morning session has to cover a lot in one reply —
+    // date/day, weather-based clothing, AND music — so it gets more room
+    // than a normal turn to avoid silently truncating one of those off the end.
+    const replyMaxTokens = (isMorningSession(hometown) && isFirstMessage) ? 600 : 400;
+    const replyText = await callClaude(systemPrompt, finalMessages, replyMaxTokens);
 
     const photoMatch = replyText.match(/SHOW_PHOTO:([^\n]+)/);
     if (photoMatch) {
