@@ -507,7 +507,24 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
         const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
-        if (randomSong) morningMusicInstruction += `\nMORNING MUSIC: Naturally mention "I put on ${randomSong} for you this morning" and include "PLAY_MUSIC:${artistHint}${randomSong}" in your response. Do NOT also include STOP_MUSIC in this same message — you are starting the music, not stopping it.`;
+        if (randomSong) {
+          morningMusicInstruction += `\nMORNING MUSIC: Music is already being started for this resident behind the scenes — you don't need to trigger it yourself. Just naturally mention "I put on ${randomSong} for you this morning" somewhere warm and early in your reply.`;
+          // Queue the song directly, deterministically — this used to rely
+          // entirely on the model remembering to include PLAY_MUSIC: in its
+          // generated reply, which proved unreliable across a couple of real
+          // mornings (the instruction would get followed for weather/clothing
+          // but silently dropped for music). This is a simple, predictable
+          // rule — first message of a morning session, song exists, play it —
+          // exactly the kind of thing that shouldn't depend on an LLM
+          // choosing to comply correctly every single time.
+          try {
+            await fetch('https://rose-proxy.vercel.app/api/music-queue', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ patientId, query: `${artistHint}${randomSong}`.trim() })
+            });
+          } catch (e) { console.error('Deterministic morning music queue failed:', e.message); }
+        }
       }
       morningMusicInstruction += `\nMORNING CLOTHING REMINDER: Using the CURRENT WEATHER data provided below (not a search), warmly suggest what to wear referencing their Favorite Colors and Clothing.`;
       morningMusicInstruction += `\nMORNING MOVEMENT OFFER: Later in this first conversation (not immediately, don't stack it on top of the greeting/music/clothing all at once), warmly offer a gentle stretch as a choice, not an instruction — for example "Want to start with a little stretch together this morning, or ease in with your coffee first?" If they say yes or show interest, use the CHAIR EXERCISE ROUTINES below to guide them. If they'd rather not, or don't respond to the offer, drop it completely and never push.`;
