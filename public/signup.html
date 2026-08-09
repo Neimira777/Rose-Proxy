@@ -77,6 +77,17 @@
     .consent-detail { display: none; font-size: 12px; line-height: 1.6; color: var(--text-muted); margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(0,0,0,0.08); }
     .consent-detail.expanded { display: block; }
 
+    .companion-listen { display: inline-flex; align-items: center; gap: 7px; margin-top: 12px; font-size: 12px; letter-spacing: 0.5px; color: var(--cyan); background: rgba(0,188,212,0.08); border: 1px solid rgba(0,188,212,0.25); border-radius: 20px; padding: 7px 14px; cursor: pointer; transition: all 0.2s; }
+    .companion-listen:hover { background: rgba(0,188,212,0.15); }
+    .companion-listen .play-tri { display: inline-block; width: 0; height: 0; border-top: 5px solid transparent; border-bottom: 5px solid transparent; border-left: 8px solid var(--cyan); }
+
+    #videoModal { display: none; position: fixed; inset: 0; background: rgba(10,14,26,0.88); z-index: 100; align-items: center; justify-content: center; padding: 24px; backdrop-filter: blur(6px); }
+    #videoModal.visible { display: flex; }
+    .video-modal-inner { position: relative; width: 100%; max-width: 420px; border-radius: 20px; overflow: hidden; box-shadow: 0 24px 64px rgba(0,0,0,0.5); background: #000; }
+    .video-modal-inner video { width: 100%; display: block; }
+    .video-modal-close { position: absolute; top: 12px; right: 12px; width: 34px; height: 34px; border-radius: 50%; background: rgba(255,255,255,0.18); border: none; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); z-index: 2; }
+    .video-modal-close:hover { background: rgba(255,255,255,0.3); }
+
     .companion-options { display: flex; gap: 12px; }
     .companion-option {
       flex: 1; position: relative; display: block; cursor: pointer;
@@ -135,17 +146,23 @@
   <div class="container">
     <div class="card" id="companionCard">
       <div class="card-title">Choose a companion</div>
-      <div class="card-subtitle">Both are warm, caring, and remember every conversation — just different personalities.</div>
+      <div class="card-subtitle">Both are warm, caring, and remember every conversation — just different personalities. Tap "Hear from" to meet them.</div>
       <div class="companion-options">
         <label class="companion-option selected" id="roseOption">
           <input type="radio" name="companion" value="Rose" checked>
           <div class="companion-name">Rose</div>
           <div class="companion-desc">Warm and genuine — like a trusted old friend, always glad to see you.</div>
+          <div class="companion-listen" onclick="playCompanionVideo(event, 'rose')">
+            <span class="play-tri"></span> Hear from Rose
+          </div>
         </label>
         <label class="companion-option" id="jimOption">
           <input type="radio" name="companion" value="Jim">
           <div class="companion-name">Jim</div>
           <div class="companion-desc">Steady and easygoing — porch-friend energy, comfortable with quiet moments.</div>
+          <div class="companion-listen" onclick="playCompanionVideo(event, 'jim')">
+            <span class="play-tri"></span> Hear from Jim
+          </div>
         </label>
       </div>
     </div>
@@ -233,10 +250,42 @@
     </div>
   </div>
 
+  <!-- Companion preview video modal -->
+  <div id="videoModal" onclick="closeCompanionVideo(event)">
+    <div class="video-modal-inner">
+      <button class="video-modal-close" onclick="closeCompanionVideo(event)">✕</button>
+      <video id="companionVideoPlayer" playsinline controls></video>
+    </div>
+  </div>
+
   <script>
     const API = window.location.origin;
     const IS_DEMO_SIGNUP = new URLSearchParams(window.location.search).get('demo') === 'true';
     let selectedCompanion = 'Rose';
+
+    const COMPANION_VIDEOS = {
+      rose: 'rose-preview.mp4',
+      jim: 'jim-preview.mp4'
+    };
+
+    function playCompanionVideo(e, who) {
+      e.preventDefault();
+      e.stopPropagation();
+      const modal = document.getElementById('videoModal');
+      const player = document.getElementById('companionVideoPlayer');
+      player.src = COMPANION_VIDEOS[who];
+      modal.classList.add('visible');
+      player.currentTime = 0;
+      player.play().catch(() => {});
+    }
+
+    function closeCompanionVideo(e) {
+      if (e && e.target.closest('.video-modal-inner') && !e.target.classList.contains('video-modal-close')) return;
+      const modal = document.getElementById('videoModal');
+      const player = document.getElementById('companionVideoPlayer');
+      player.pause();
+      modal.classList.remove('visible');
+    }
 
     function updateCompanionText() {
       document.getElementById('heroTitle').textContent = `Meet ${selectedCompanion}`;
@@ -246,7 +295,8 @@
     }
 
     document.querySelectorAll('.companion-option').forEach(option => {
-      option.addEventListener('click', () => {
+      option.addEventListener('click', (e) => {
+        if (e.target.closest('.companion-listen')) return;
         document.querySelectorAll('.companion-option').forEach(o => o.classList.remove('selected'));
         option.classList.add('selected');
         option.querySelector('input[type="radio"]').checked = true;
