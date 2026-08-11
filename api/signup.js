@@ -67,7 +67,10 @@ export default async function handler(req, res) {
     // ── Step 2: Build the personal links ──
     // Uses the access token, not the raw record ID — the link itself
     // reveals nothing about the underlying database.
-    const hubLink = `https://rose-proxy.vercel.app/family-hub.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
+    // Uses app.neimira.com (not the rose-proxy.vercel.app address) so every
+    // link a family sees — starting with this very first email — stays
+    // under the real Neimira domain rather than a generic Vercel URL.
+    const hubLink = `https://app.neimira.com/family-hub.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
 
     // ── Step 3: Send the welcome email via Gmail SMTP ──
     // Uses a Google Workspace account + App Password (not the account's
