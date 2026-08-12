@@ -68,6 +68,13 @@
     .status-msg.success { background: rgba(76,175,80,0.1); color: var(--success); }
     .status-msg.error { background: rgba(244,67,54,0.1); color: var(--error); }
 
+    .companion-toggle { display: flex; gap: 12px; margin-bottom: 4px; }
+    .companion-option { flex: 1; border: 2px solid var(--border); border-radius: 14px; padding: 18px 14px; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; background: var(--bg); }
+    .companion-option:hover { border-color: var(--cyan); }
+    .companion-option.selected { border-color: var(--cyan); background: rgba(0,188,212,0.08); }
+    .companion-option .name { font-family: 'Cormorant Garamond', serif; font-size: 20px; font-weight: 500; color: var(--navy); margin-bottom: 2px; }
+    .companion-option .desc { font-size: 11.5px; color: var(--text-muted); }
+
     .loading-name { text-align: center; padding: 40px; color: var(--text-muted); }
   </style>
 </head>
@@ -113,6 +120,22 @@
       <h2 id="visitTitle">Ready to visit?</h2>
       <p id="visitSubtitle">Start a conversation with Rose right now.</p>
       <a href="#" id="visitRoseBtn" class="visit-btn">Visit with Rose</a>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Choose Your Companion</div>
+      <div class="card-subtitle" id="companionSubtitle">Rose and Jim are both here whenever you'd like a change — switch anytime, it takes effect on the next visit.</div>
+      <div class="companion-toggle">
+        <div class="companion-option" id="companionOptionRose" data-companion="Rose">
+          <div class="name">Rose</div>
+          <div class="desc">Gentle, warm, easy to talk to</div>
+        </div>
+        <div class="companion-option" id="companionOptionJim" data-companion="Jim">
+          <div class="name">Jim</div>
+          <div class="desc">Easygoing, a familiar face on the porch</div>
+        </div>
+      </div>
+      <div class="status-msg" id="companionStatus"></div>
     </div>
 
     <div class="card">
@@ -166,7 +189,54 @@
     const token = urlParams.get('token');
     const isDemo = urlParams.get('demo') === 'true';
     let PATIENT_ID = null;
+    let CURRENT_COMPANION = 'Rose';
     let selectedPhotoFile = null;
+
+    // NOTE: launch-jim.html is not yet compatible with the token system
+    // (it still expects the older raw-ID link format), so the visit link
+    // itself points to launch.html regardless of companion for now.
+    // launch.html already handles both companions dynamically based on
+    // the member's Preferred Companion field.
+    const LAUNCH_PAGE = 'launch.html';
+
+    function updateCompanionText(companion) {
+      document.getElementById('visitTitle').textContent = 'Ready to visit?';
+      document.getElementById('visitSubtitle').textContent = `Start a conversation with ${companion} right now.`;
+      document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
+      document.getElementById('visitRoseBtn').href = `${API}/${LAUNCH_PAGE}?token=${token}${isDemo ? '&demo=true' : ''}`;
+      document.getElementById('datesSubtitle').textContent = `Birthdays, appointments, anniversaries — ${companion} will naturally bring these up as they get close, never as an alert or checklist.`;
+      document.getElementById('interestsSubtitle').textContent = `Favorite teams, tournaments, or shows — ${companion} checks each morning and mentions it if something's on today.`;
+      document.getElementById('photoSubtitle').textContent = `${companion} can talk through cherished photos during conversations. Add names and the occasion so ${companion.toLowerCase() === 'jim' ? 'he' : 'she'} knows the story.`;
+      document.getElementById('photoBtn').textContent = `Share with ${companion}`;
+    }
+
+    function setCompanionSelection(companion) {
+      CURRENT_COMPANION = companion;
+      document.getElementById('companionOptionRose').classList.toggle('selected', companion === 'Rose');
+      document.getElementById('companionOptionJim').classList.toggle('selected', companion === 'Jim');
+    }
+
+    async function switchCompanion(companion) {
+      if (companion === CURRENT_COMPANION) return;
+      const previous = CURRENT_COMPANION;
+      setCompanionSelection(companion); // optimistic — feels instant
+      try {
+        const res = await fetch(`${API}/api/switch-companion`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, companion })
+        });
+        if (!res.ok) throw new Error('Failed to switch');
+        updateCompanionText(companion);
+        showStatus('companionStatus', 'success', `Switched to ${companion} — ready on your next visit.`);
+      } catch (e) {
+        setCompanionSelection(previous); // roll back on failure
+        showStatus('companionStatus', 'error', 'Could not switch companions right now — please try again.');
+      }
+    }
+
+    document.getElementById('companionOptionRose').addEventListener('click', () => switchCompanion('Rose'));
+    document.getElementById('companionOptionJim').addEventListener('click', () => switchCompanion('Jim'));
 
     async function init() {
       if (!token) {
@@ -180,25 +250,13 @@
         PATIENT_ID = data.patientId;
         const name = data.name || 'there';
         const companion = data.preferredCompanion || 'Rose';
-        // NOTE: launch-jim.html is not yet compatible with the token system
-        // (it still expects the older raw-ID link format), so the link
-        // itself points to launch.html regardless of companion for now.
-        // The wording below still correctly reflects whoever the member's
-        // preferred companion is.
-        const launchPage = 'launch.html';
 
         document.getElementById('heroGreeting').textContent = `Welcome, ${name}`;
-        document.getElementById('visitTitle').textContent = 'Ready to visit?';
-        document.getElementById('visitSubtitle').textContent = `Start a conversation with ${companion} right now.`;
-        document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
-        document.getElementById('visitRoseBtn').href = `${API}/${launchPage}?token=${token}${isDemo ? '&demo=true' : ''}`;
-        document.getElementById('datesSubtitle').textContent = `Birthdays, appointments, anniversaries — ${companion} will naturally bring these up as they get close, never as an alert or checklist.`;
-        document.getElementById('interestsSubtitle').textContent = `Favorite teams, tournaments, or shows — ${companion} checks each morning and mentions it if something's on today.`;
-        document.getElementById('photoSubtitle').textContent = `${companion} can talk through cherished photos during conversations. Add names and the occasion so ${companion.toLowerCase() === 'jim' ? 'he' : 'she'} knows the story.`;
-        document.getElementById('photoBtn').textContent = `Share with ${companion}`;
+        updateCompanionText(companion);
 
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('hubContent').style.display = 'block';
+        setCompanionSelection(companion);
         loadDates();
         loadInterests();
       } catch (e) {
