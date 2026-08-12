@@ -253,7 +253,14 @@ async function callClaude(systemPrompt, messages, maxTokens = 400) {
     method: 'POST', headers: ANTHROPIC_HEADERS, body: CLAUDE_BODY(messages)
   });
   let data = await response.json();
-  if (!response.ok) throw new Error('Anthropic API error');
+  if (!response.ok) {
+    // Previously this discarded the real reason for the failure entirely —
+    // just "Anthropic API error" with no status code or details, a dead
+    // end for debugging. Now the actual status and response body get
+    // logged so a rare failure like this is diagnosable, not a black box.
+    console.error('Anthropic API error — status:', response.status, '| body:', JSON.stringify(data));
+    throw new Error(`Anthropic API error (status ${response.status}): ${data?.error?.message || JSON.stringify(data)}`);
+  }
   let loopCount = 0;
   while (data.stop_reason === 'tool_use' && loopCount < 3) {
     loopCount++;
@@ -263,7 +270,10 @@ async function callClaude(systemPrompt, messages, maxTokens = 400) {
     messages = [...messages, { role: 'user', content: [{ type: 'tool_result', tool_use_id: toolUseBlock.id, content: 'Web search is unavailable right now — do not guess or estimate an answer. Tell the person you are unable to check that right now.' }] }];
     response = await fetch('https://api.anthropic.com/v1/messages', { method: 'POST', headers: ANTHROPIC_HEADERS, body: CLAUDE_BODY(messages) });
     data = await response.json();
-    if (!response.ok) throw new Error('Anthropic API error in tool loop');
+    if (!response.ok) {
+      console.error('Anthropic API error in tool loop — status:', response.status, '| body:', JSON.stringify(data));
+      throw new Error(`Anthropic API error in tool loop (status ${response.status}): ${data?.error?.message || JSON.stringify(data)}`);
+    }
   }
   return (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n');
 }
