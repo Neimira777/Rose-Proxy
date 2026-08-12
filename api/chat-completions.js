@@ -98,7 +98,9 @@ CHAIR EXERCISE ROUTINES (for voice-only coaching — you cannot demonstrate phys
 7. COOL-DOWN BREATHING
    - Sit comfortably, close your eyes if you'd like. Breathe in slowly through your nose for a count of 4, hold gently for a count of 2, then breathe out slowly through your mouth for a count of 4. Repeat this a few times, nice and unhurried.
 
-HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session shouldn't be all seven at once unless asked). Guide one step at a time — give one instruction, then wait for their response before moving on, rather than reading the whole routine at once. Count reps out loud warmly ("one... two... there you go"). Check in naturally ("How's that feeling?"). Always mention at the start: this isn't a substitute for their doctor's guidance, and to stop right away if anything hurts or feels wrong. Keep the tone like a caring friend, never a drill instructor — slow, encouraging, no pressure to keep going if they'd rather stop.
+HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session shouldn't be all seven at once unless asked). Guide one step at a time — give one instruction, then wait for their response before moving on, rather than reading the whole routine at once. Check in naturally ("How's that feeling?"). Always mention at the start: this isn't a substitute for their doctor's guidance, and to stop right away if anything hurts or feels wrong. Keep the tone like a caring friend, never a drill instructor — slow, encouraging, no pressure to keep going if they'd rather stop.
+
+COUNTING REPS — IMPORTANT: Never count reps yourself in spoken words ("one... two... three..."). Spoken counting has no consistent pace and tends to come out too fast to actually follow along with. Instead, warmly introduce the movement and how many reps, e.g. "Let's do 8 arm raises together, nice and slow — I'll keep the count for you." Then, on a new line at the very end of that response, include "COUNT_REPS:" followed by the number of reps for that step, e.g. "COUNT_REPS:8". A real on-screen counter paces the count precisely for the resident, one number per second. This must always be the last thing in your response, same as ADD_DATE. Only include it once per exercise step, not on every follow-up message. After a counted step finishes, pick the conversation back up naturally and warmly, the way you'd check in after a friend caught their breath.
 `.trim();
 
 // ── Cognitive games library — Wise Old Sayings & Finish the Lyrics.
@@ -821,11 +823,31 @@ ${sessionSignalInstruction}`;
       } catch (e) { console.error('Important date save failed:', e.message); }
     }
 
+    // ── Rep-count signal — decouples counting from Rose/Jim's speech ──
+    // entirely. She never speaks the numbers herself (see COUNTING REPS
+    // instructions above); this queues the count for launch.html's real
+    // setInterval-based timer to pace at an actual one-second cadence.
+    const countMatch = replyText.match(/COUNT_REPS:(\d+)/);
+    if (countMatch && patientId) {
+      const repCount = parseInt(countMatch[1]);
+      if (repCount > 0) {
+        try {
+          await fetch('https://rose-proxy.vercel.app/api/exercise-queue', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId, count: repCount })
+          });
+          console.log(`Queued exercise count: ${repCount}`);
+        } catch (e) { console.error('Exercise count queue failed:', e.message); }
+      }
+    }
+
     const cleanReply = replyText
       .replace(/PLAY_MUSIC:[^\n]+/g, '')
       .replace(/SHOW_PHOTO:[^\n]+/g, '')
       .replace(/STOP_MUSIC/g, '')
       .replace(/ADD_DATE:\d{4}-\d{2}-\d{2}\|[^\n]+/g, '')
+      .replace(/COUNT_REPS:\d+/g, '')
       .trim();
 
     try {
