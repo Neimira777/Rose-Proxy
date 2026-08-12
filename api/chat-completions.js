@@ -907,6 +907,33 @@ ${sessionSignalInstruction}`;
 
   } catch (error) {
     console.error('Handler error:', error.message);
-    return res.status(500).json({ error: { message: error.message, type: 'server_error' } });
+    // Even on a real failure, the companion should never just go silent —
+    // for a member mid-conversation, unexplained dead air is confusing at
+    // best and worrying at worst. This returns a warm, human fallback line
+    // instead of a bare error, in the exact same response shape as a normal
+    // successful reply (streaming or not) so the avatar actually says it.
+    const fallbackReply = "I'm having a little trouble connecting right now — give me just a moment, and let's try again in a bit.";
+    const isStreamingFallback = req.body && req.body.stream === true;
+    if (isStreamingFallback) {
+      res.setHeader('Content-Type', 'text/event-stream');
+      res.setHeader('Cache-Control', 'no-cache');
+      res.setHeader('Connection', 'keep-alive');
+      res.status(200);
+      const chunkId = 'chatcmpl-' + Date.now();
+      const created = Math.floor(Date.now() / 1000);
+      res.write('data: ' + JSON.stringify({ id: chunkId, object: 'chat.completion.chunk', created, model: 'claude-haiku-4-5-20251001', choices: [{ index: 0, delta: { role: 'assistant', content: fallbackReply }, finish_reason: null }] }) + '\n\n');
+      res.write('data: ' + JSON.stringify({ id: chunkId, object: 'chat.completion.chunk', created, model: 'claude-haiku-4-5-20251001', choices: [{ index: 0, delta: {}, finish_reason: 'stop' }] }) + '\n\n');
+      res.write('data: [DONE]\n\n');
+      res.end();
+      return;
+    }
+    return res.status(200).json({
+      id: 'chatcmpl-' + Date.now(),
+      object: 'chat.completion',
+      created: Math.floor(Date.now() / 1000),
+      model: 'claude-haiku-4-5-20251001',
+      choices: [{ index: 0, message: { role: 'assistant', content: fallbackReply }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+    });
   }
 }
