@@ -85,6 +85,16 @@
     .sound-bar:nth-child(5) { height: 8px; animation-delay: 0.6s; }
     @keyframes sound-wave { from { transform: scaleY(0.4); opacity: 0.6; } to { transform: scaleY(1); opacity: 1; } }
 
+    /* ── Rep counter overlay ── */
+    /* Fully independent of Rose/Jim's speech — driven by a real
+       setInterval in JS, one tick per second, not TTS pacing. */
+    #repCounterOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 12; display: flex; flex-direction: column; align-items: center; gap: 12px; opacity: 0; pointer-events: none; transition: opacity 0.3s ease; }
+    #repCounterOverlay.active { opacity: 1; }
+    #repCounterNumber { font-family: 'Cormorant Garamond', serif; font-size: 140px; font-weight: 400; color: white; line-height: 1; text-shadow: 0 4px 24px rgba(0,0,0,0.5); }
+    #repCounterNumber.pulse { animation: rep-pulse 0.35s ease-out; }
+    @keyframes rep-pulse { 0% { transform: scale(1.35); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
+    .rep-counter-label { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
+
     /* ── Music bar ── */
     #musicBar { position: fixed; top: 0; left: 0; right: 0; background: rgba(10,14,26,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20; transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 16px; }
     #musicBar.visible { transform: translateY(0); }
@@ -244,6 +254,10 @@
       </div>
       <div class="status-label" id="speakingLabel">Rose is speaking</div>
     </div>
+    <div id="repCounterOverlay">
+      <div id="repCounterNumber">1</div>
+      <div class="rep-counter-label">Nice and steady</div>
+    </div>
     <div id="musicBar">
       <div class="music-icon">♪</div>
       <div class="music-info">
@@ -378,6 +392,8 @@
     let isPlaying = false;
     let musicPollInterval = null;
     let photoPollInterval = null;
+    let repCountPollInterval = null;
+    let repCounterRunning = false;
     let keepAliveInterval = null;
     let photoShown = false;
     let pendingPhoto = null;
@@ -421,6 +437,26 @@
           osc.start(start); osc.stop(start + 0.8);
         });
       } catch(e) { console.warn('Chime failed:', e); }
+    }
+
+    // ── Soft tick sound for the rep counter — a single short, gentle tone,
+    // deliberately much quieter and simpler than playChime() so it reads as
+    // a metronome beat, not an alert. Reuses the same Web Audio API pattern
+    // already established by playChime() rather than introducing a new
+    // audio approach. ──
+    function playRepTick() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.type = 'sine'; osc.frequency.value = 440;
+        const start = ctx.currentTime;
+        gain.gain.setValueAtTime(0, start);
+        gain.gain.linearRampToValueAtTime(0.12, start + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, start + 0.18);
+        osc.start(start); osc.stop(start + 0.2);
+      } catch(e) { console.warn('Rep tick failed:', e); }
     }
 
     async function sendCheckIn() {
@@ -559,6 +595,51 @@
     function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
     function setListening(on) { document.getElementById('listenIndicator').classList.toggle('active', on); if (on) document.getElementById('speakingIndicator').classList.remove('active'); }
     function setSpeaking(on) { document.getElementById('speakingIndicator').classList.toggle('active', on); if (on) document.getElementById('listenIndicator').classList.remove('active'); }
+
+    // ── Rep counter — the actual fix for the too-fast counting bug ──
+    // Completely decoupled from Rose/Jim's speech and from TTS pacing.
+    // Driven by a genuine setInterval ticking at exactly 1000ms, so the
+    // pace on screen (and the soft tick sound) is always a real second,
+    // no matter how the avatar's own speech timing behaves.
+    function runRepCounter(totalReps) {
+      if (repCounterRunning || !totalReps || totalReps <= 0) return;
+      repCounterRunning = true;
+      const overlay = document.getElementById('repCounterOverlay');
+      const numberEl = document.getElementById('repCounterNumber');
+      let current = 1;
+      numberEl.textContent = current;
+      overlay.classList.add('active');
+      playRepTick();
+
+      const tickInterval = setInterval(() => {
+        current++;
+        if (current > totalReps) {
+          clearInterval(tickInterval);
+          setTimeout(() => {
+            overlay.classList.remove('active');
+            repCounterRunning = false;
+          }, 500); // brief pause on the final number before fading, so it doesn't feel cut off
+          return;
+        }
+        numberEl.textContent = current;
+        numberEl.classList.remove('pulse');
+        void numberEl.offsetWidth; // restart the pulse animation each tick
+        numberEl.classList.add('pulse');
+        playRepTick();
+      }, 1000); // the actual fix — a real second between counts, every time
+    }
+
+    function startRepCountPolling(patientId) {
+      if (repCountPollInterval) clearInterval(repCountPollInterval);
+      repCountPollInterval = setInterval(async () => {
+        if (repCounterRunning) return; // don't fetch mid-count, just let the current one finish
+        try {
+          const res = await fetch(`${API}/api/exercise-queue?patientId=${patientId}`);
+          const data = await res.json();
+          if (data.count) runRepCounter(data.count);
+        } catch(e) {}
+      }, 1000);
+    }
 
     function showPhoto(url, caption) {
       document.getElementById('photoImg').src = url;
@@ -760,6 +841,9 @@
       // the start of the NEXT session, completely disconnected from
       // anything Rose/Jim actually says, which is confusing for everyone.
       try { await fetch(`${API}/api/photos?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
+      // Same idea for any leftover exercise-count signal from a session
+      // that ended before it was ever picked up.
+      try { await fetch(`${API}/api/exercise-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       let visitCountToday = 1;
       try {
@@ -811,6 +895,7 @@
         if (!spotifyPlayer) { await initSpotify(PATIENT_ID); }
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
+        startRepCountPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
 
         if (isMorningHour()) {
@@ -844,6 +929,9 @@
       if (sessionTimer) { clearTimeout(sessionTimer); sessionTimer = null; }
       if (musicPollInterval) { clearInterval(musicPollInterval); musicPollInterval = null; }
       if (photoPollInterval) { clearInterval(photoPollInterval); photoPollInterval = null; }
+      if (repCountPollInterval) { clearInterval(repCountPollInterval); repCountPollInterval = null; }
+      repCounterRunning = false;
+      document.getElementById('repCounterOverlay').classList.remove('active');
       if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
       clearSilenceTimers();
 
