@@ -101,6 +101,82 @@ CHAIR EXERCISE ROUTINES (for voice-only coaching — you cannot demonstrate phys
 HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session shouldn't be all seven at once unless asked). Guide one step at a time — give one instruction, then wait for their response before moving on, rather than reading the whole routine at once. Count reps out loud warmly ("one... two... there you go"). Check in naturally ("How's that feeling?"). Always mention at the start: this isn't a substitute for their doctor's guidance, and to stop right away if anything hurts or feels wrong. Keep the tone like a caring friend, never a drill instructor — slow, encouraging, no pressure to keep going if they'd rather stop.
 `.trim();
 
+// ── Cognitive games library — Wise Old Sayings & Finish the Lyrics.
+// Same voice-only-coaching spirit as EXERCISE_ROUTINES: Rose/Jim cannot
+// show anything on screen, so both games are led entirely through
+// spoken back-and-forth. Never framed as a test — the point is the joy
+// of remembering together, not accuracy or scoring.
+//
+// Copyright note: WISE_OLD_SAYINGS are public-domain proverbs. The
+// PUBLIC_DOMAIN_SONGS lines are short excerpts from genuinely
+// public-domain folk/patriotic/hymn songs. MODERN_SONGS are
+// intentionally title/artist only — Rose/Jim must never recite or
+// "check" lyrics for these; the member recalls and sings/says the
+// line themselves, and Rose/Jim just responds warmly to whatever
+// they offer. This keeps the product out of the business of
+// reproducing copyrighted lyrics entirely. ──
+const COGNITIVE_GAMES = `
+WISE OLD SAYINGS (finish the proverb):
+A stitch in time... / saves nine.
+The early bird... / catches the worm.
+Don't count your chickens... / before they hatch.
+Actions speak louder than... / words.
+A penny saved is... / a penny earned.
+When it rains... / it pours.
+Better late than... / never.
+Don't judge a book by... / its cover.
+Birds of a feather... / flock together.
+Every cloud has a... / silver lining.
+You can't have your cake and... / eat it too.
+Practice makes... / perfect.
+Absence makes the heart... / grow fonder.
+The grass is always greener... / on the other side.
+Where there's a will... / there's a way.
+Don't cry over spilled... / milk.
+Two heads are better than... / one.
+A watched pot never... / boils.
+Honesty is the best... / policy.
+Curiosity killed the... / cat.
+All that glitters is not... / gold.
+When in Rome, do as the... / Romans do.
+The pen is mightier than the... / sword.
+You can lead a horse to water, but... / you can't make it drink.
+Out of sight... / out of mind.
+Slow and steady wins the... / race.
+A friend in need is a... / friend indeed.
+Rome wasn't built in a... / day.
+The apple doesn't fall far from the... / tree.
+Look before you... / leap.
+
+FINISH THE LYRICS — PUBLIC DOMAIN SONGS (safe to sing the line yourself, these are genuinely out of copyright):
+"You Are My Sunshine": You are my sunshine, my only sunshine... / you make me happy, when skies are gray.
+"This Land Is Your Land": This land is your land, this land is my land... / from California, to the New York island.
+"Amazing Grace": Amazing grace, how sweet the sound... / that saved a wretch like me.
+"Take Me Out to the Ball Game": Take me out to the ball game... / take me out with the crowd.
+"Home on the Range": Oh, give me a home... / where the buffalo roam.
+"Oh Susanna": Oh, Susanna, oh don't you cry for me... / for I come from Alabama, with my banjo on my knee.
+"When the Saints Go Marching In": Oh, when the saints... / go marching in.
+"Down by the Riverside": Gonna lay down my burden... / down by the riverside.
+"My Old Kentucky Home": The sun shines bright... / on my old Kentucky home.
+"For He's a Jolly Good Fellow": For he's a jolly good fellow... / for he's a jolly good fellow.
+
+FINISH THE LYRICS — MODERN CLASSICS (title/artist ONLY — you do not have the actual lyrics and must NEVER recite or invent them; name the song and let the resident recall and sing/say a line themselves, then respond warmly to whatever they offer):
+"Fly Me to the Moon" — Frank Sinatra (1960s standard)
+"What a Wonderful World" — Louis Armstrong (1960s)
+"Stand By Me" — Ben E. King (1960s)
+"My Girl" — The Temptations (1960s Motown)
+"Unchained Melody" — The Righteous Brothers (1960s)
+"Sweet Caroline" — Neil Diamond (1969)
+"I Walk the Line" — Johnny Cash (1950s)
+"Blue Suede Shoes" — Elvis Presley (1950s)
+"Moon River" — Andy Williams (1960s)
+"Dancing Queen" — ABBA (1970s)
+"You've Got a Friend" — Carole King / James Taylor (1970s)
+"Bridge Over Troubled Water" — Simon & Garfunkel (1970s)
+
+HOW TO PLAY: Introduce it warmly and low-key, e.g. "I love these old sayings — want to finish a few with me?" or "Want to sing a few old favorites with me?" Never frame either game as a test, quiz, or memory check. Pick 3-5 items for this visit, not the whole list. For Wise Old Sayings and the public-domain songs, say the first part, then pause for the resident to finish it. For modern classics, just name the song and artist and invite them to recall or sing a line — never supply or verify the words yourself. Respond with genuine warmth to whatever they offer, correct or not ("That's it exactly!" or, if they don't finish it, share the ending yourself as if reminiscing together and move on right away). Never keep score, never say "you got X right," never compare across visits. If they'd rather not play or seem done, drop it completely and move on naturally.
+`.trim();
+
 function getSeasonalContext(hometown) {
 
 
@@ -415,6 +491,25 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     const lastAssistantContent = messages.filter(m => m.role === 'assistant').pop()?.content || '';
     const wantsExercise = exerciseKeywords.test(lastUserContent) || exerciseKeywords.test(lastAssistantContent) || (isMorningSession(hometown) && isFirstMessage);
     const exerciseContext = wantsExercise ? `\n${EXERCISE_ROUTINES}` : '';
+
+    // ── Cognitive games trigger (Wise Old Sayings & Finish the Lyrics) ──
+    // Same two-part pattern as exercise: keyword match on either side of
+    // the conversation (so a simple "yes" after Rose/Jim's own offer still
+    // counts), PLUS an occasional proactive offer to keep visits varied —
+    // deliberately placed outside the morning slot so it doesn't compete
+    // with the exercise offer, and only from the second visit of the day
+    // onward so it never gets in the way of first-visit getting-to-know-you
+    // conversation. This mirrors the same "part of the regular visit
+    // rotation" spirit as chair exercises, just filling a different slot.
+    const gamesKeywords = /\b(game|games|play a game|old saying|old sayings|proverb|proverbs|wise old sayings|finish the lyric|finish the lyrics|lyrics|sing along|name that tune)\b/i;
+    const wantsGame = gamesKeywords.test(lastUserContent) || gamesKeywords.test(lastAssistantContent);
+    const gameProactiveOffer = !isFirstVisit && !isMorningSession(hometown) && Math.random() < 0.35;
+    const includeGames = wantsGame || gameProactiveOffer;
+    const gamesContext = includeGames ? `\n${COGNITIVE_GAMES}` : '';
+    const gamesProactiveInstruction = (gameProactiveOffer && !wantsGame)
+      ? `\nGAME OFFER: Somewhere natural in this visit (not stacked on top of the greeting), warmly offer to play Wise Old Sayings or Finish the Lyrics as a choice, not an instruction — e.g. "Want to finish a few old sayings with me, or sing a few favorites together?" If they're interested, use the COGNITIVE GAMES content above. If they'd rather not or don't respond to the offer, drop it completely and never push.`
+      : '';
+
     if (needsWeather) {
       try {
         const weatherRes = await fetch(`https://rose-proxy.vercel.app/api/weather?hometown=${encodeURIComponent(hometown)}`);
@@ -644,6 +739,7 @@ Let the conversation breathe — this should feel like getting to know a new fri
 ${!personalityProfile && !isFirstVisit ? `\nGETTING TO KNOW THEM: You don't yet know much about this person's tastes and personality. Over the course of natural conversation (not as a checklist or interview), look for warm, unforced moments to ask about things like their favorite music, food, movies, what makes them laugh, or how they like to spend a morning. One or two genuine questions woven naturally into the conversation is plenty — never make it feel like a form. If it doesn't come up naturally today, that's completely fine, there's no rush.` : ''}
 ${weatherContext}
 ${exerciseContext}
+${gamesContext}${gamesProactiveInstruction}
 ${isDemo ? `\nDEMO MODE — you are being shown to a potential pilot partner or evaluator today, not a resident. If they ask what you are, what Neimira is, or how you work, you can speak openly and proudly about yourself — this overrides the "never say you're an AI" rule for this conversation only. Be accurate and don't overstate what's built:\n\nWhat Neimira is: An AI companion technology company. Its mission is helping older adults feel less alone — whether they live independently or with family — through daily conversation with a warm, familiar companion.\n\nWhat you (${companion}) can genuinely do today: Have natural spoken conversation; remember details across visits (you keep real notes from past conversations); play music matched to a person's own taste; look at and talk through cherished family photos when asked; share one uplifting news story a session; help with weather and sports; adapt your greeting to morning, afternoon, or evening.\n\nEthical commitments, always true: You always identify as AI if asked directly — you never pretend to be a real family member or impersonate anyone. You do not use any camera or visual monitoring — you only work from conversation. You use the person's actual preferred name, never diminutives like "honey" or "sweetie," and never age-labeling terms like "senior" or "elderly."\n\nWhat's on the roadmap, NOT live yet — be clear these are planned, not current, if asked: automatic emergency alerts to family if concerning language comes up, and a daily reminder to wear a medical alert pendant.` : ''}
 ${seasonalContext ? `\n${seasonalContext}` : ''}
 ${importantDatesInstruction ? `\n${importantDatesInstruction}` : ''}
