@@ -96,11 +96,13 @@ CHAIR EXERCISE ROUTINES (for voice-only coaching — you cannot demonstrate phys
    - Slowly rotate your wrists in circles, 5 times each direction.
 
 7. COOL-DOWN BREATHING
-   - Sit comfortably, close your eyes if you'd like. Breathe in slowly through your nose for a count of 4, hold gently for a count of 2, then breathe out slowly through your mouth for a count of 4. Repeat this a few times, nice and unhurried.
+   - Sit comfortably, close your eyes if you'd like. We'll breathe in slowly, hold for a moment, then breathe out slowly, a few times together, nice and unhurried.
 
 HOW TO COACH: Pick ONE or TWO routines that fit the conversation (a full session shouldn't be all seven at once unless asked). Guide one step at a time — give one instruction, then wait for their response before moving on, rather than reading the whole routine at once. Check in naturally ("How's that feeling?"). Always mention at the start: this isn't a substitute for their doctor's guidance, and to stop right away if anything hurts or feels wrong. Keep the tone like a caring friend, never a drill instructor — slow, encouraging, no pressure to keep going if they'd rather stop.
 
 COUNTING REPS — IMPORTANT: Never count reps yourself in spoken words ("one... two... three..."). Spoken counting has no consistent pace and tends to come out too fast to actually follow along with. Instead, warmly introduce the movement and how many reps, e.g. "Let's do 8 arm raises together, nice and slow — I'll keep the count for you." Then, on a new line at the very end of that response, include "COUNT_REPS:" followed by the number of reps for that step, e.g. "COUNT_REPS:8". A real on-screen counter paces the count precisely for the resident, one number per second. This must always be the last thing in your response, same as ADD_DATE. Only include it once per exercise step, not on every follow-up message. After a counted step finishes, pick the conversation back up naturally and warmly, the way you'd check in after a friend caught their breath.
+
+COOL-DOWN BREATHING — IMPORTANT: Never narrate the breathing counts yourself ("breathe in for 4, hold for 2..."). Like counting reps, spoken pacing for something this precise doesn't work reliably. Instead, warmly introduce that you'll breathe together, e.g. "Let's do a few slow breaths together — I'll guide the pace for you." Then, on a new line at the very end of that response, include "BREATHING:" followed by inhale seconds, hold seconds, exhale seconds, and number of cycles, separated by hyphens, e.g. "BREATHING:4-2-4-3" for a 4-second inhale, 2-second hold, 4-second exhale, repeated 3 times. A real on-screen guide paces each phase precisely for the resident. This must always be the last thing in your response, same as COUNT_REPS and ADD_DATE. Only include it once per breathing step. After it finishes, check in warmly before moving on.
 `.trim();
 
 // ── Cognitive games library — Wise Old Sayings & Finish the Lyrics.
@@ -852,12 +854,31 @@ ${sessionSignalInstruction}`;
       }
     }
 
+    // ── Breathing signal — same decoupling logic as COUNT_REPS, but for
+    // three phases of different lengths instead of one number ticking up.
+    // Rose/Jim never narrates the counts; a real front-end timer paces
+    // inhale/hold/exhale precisely instead of relying on TTS pacing. ──
+    const breathingMatch = replyText.match(/BREATHING:(\d+)-(\d+)-(\d+)-(\d+)/);
+    if (breathingMatch && patientId) {
+      const [, inhale, hold, exhale, cycles] = breathingMatch;
+      const pattern = `${inhale}-${hold}-${exhale}-${cycles}`;
+      try {
+        await fetch('https://rose-proxy.vercel.app/api/breathing-queue', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId, pattern })
+        });
+        console.log(`Queued breathing pattern: ${pattern}`);
+      } catch (e) { console.error('Breathing queue failed:', e.message); }
+    }
+
     const cleanReply = replyText
       .replace(/PLAY_MUSIC:[^\n]+/g, '')
       .replace(/SHOW_PHOTO:[^\n]+/g, '')
       .replace(/STOP_MUSIC/g, '')
       .replace(/ADD_DATE:\d{4}-\d{2}-\d{2}\|[^\n]+/g, '')
       .replace(/COUNT_REPS:\d+/g, '')
+      .replace(/BREATHING:\d+-\d+-\d+-\d+/g, '')
       .trim();
 
     try {
