@@ -314,6 +314,16 @@
     const API = 'https://rose-proxy.vercel.app';
     const IS_DEMO = _urlParams.get('demo') === 'true';
 
+    // ── Spotify bypass (Aug 13, 2026) ──
+    // Spotify's Developer Mode changes (5-user allowlist cap, Artist Top
+    // Tracks endpoint removed, Extended Quota now requires 250k+ monthly
+    // active users) make Spotify unusable for real families right now —
+    // YouTube is the actual primary music path going forward. Rather than
+    // ripping the Spotify integration out, it's fully bypassed behind this
+    // one flag — flip back to true if Spotify's rules change, or once a
+    // real per-family Connect flow + a path around the user cap exists.
+    const SPOTIFY_ENABLED = false;
+
     let PATIENT_ID = null;
     let RESOLVED_NAME = null;
     let DEVICE_KEY = null; // what we key the "verified on this device" flag off of
@@ -845,6 +855,7 @@
     }
 
     async function spotifyPlayBySearch(query) {
+      if (!SPOTIFY_ENABLED) return youtubePlayBySearch(query);
       try {
         const tokenRes = await fetch(`${API}/api/spotify-token`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
         const tokenData = await tokenRes.json();
@@ -1016,7 +1027,7 @@
           setTimeout(resolve, 5000);
         });
 
-        if (!spotifyPlayer) { await initSpotify(PATIENT_ID); }
+        if (SPOTIFY_ENABLED && !spotifyPlayer) { await initSpotify(PATIENT_ID); }
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
         startRepCountPolling(PATIENT_ID);
@@ -1030,13 +1041,19 @@
           if (!clientProfile) { try { await loadClientProfile(); } catch(e) {} }
           const morningSong = getMorningSong();
           console.log('Morning music intro:', morningSong);
-          let waited = 0;
-          while (!spotifyDeviceId && waited < 10000) { await new Promise(r => setTimeout(r, 500)); waited += 500; }
-          if (spotifyDeviceId) {
-            await spotifyPlayBySearch(morningSong);
-            console.log('Morning music playing on device:', spotifyDeviceId);
-            await new Promise(r => setTimeout(r, 12000));
-          } else { console.warn('Morning music skipped — Spotify device not ready'); }
+          // Previously this waited up to 10 seconds specifically for a
+          // Spotify device to connect, and if one never appeared, morning
+          // music was skipped ENTIRELY — it never reached YouTube at all.
+          // That's exactly what happens for every family with no Spotify
+          // connected (every real family today, since there's no Connect
+          // flow built yet), meaning morning music silently never played
+          // for them, regardless of the Spotify→YouTube fallback fix
+          // elsewhere. Now this just calls spotifyPlayBySearch directly —
+          // it already knows how to try Spotify if available and fall
+          // back to YouTube immediately otherwise, same as every other
+          // PLAY_MUSIC moment in the app.
+          await spotifyPlayBySearch(morningSong);
+          await new Promise(r => setTimeout(r, 12000));
         }
 
         try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
@@ -1137,7 +1154,7 @@
       // no tap involved. Pre-warming here on the day's first tap means the
       // audio context is already unlocked for later scheduled sessions,
       // since the page stays open between visits.
-      if (PATIENT_ID && !spotifyPlayer) {
+      if (SPOTIFY_ENABLED && PATIENT_ID && !spotifyPlayer) {
         initSpotify(PATIENT_ID).catch(e => console.warn('Spotify pre-warm failed:', e));
       }
       // Prime the YouTube fallback player the same way — Spotify has its own
