@@ -95,6 +95,19 @@
     @keyframes rep-pulse { 0% { transform: scale(1.35); opacity: 0.6; } 100% { transform: scale(1); opacity: 1; } }
     .rep-counter-label { font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
 
+    /* ── Breathing overlay ── */
+    /* Same decoupling principle as the rep counter, but paced across
+       three phases of DIFFERENT lengths (inhale/hold/exhale) via real
+       per-second setInterval ticks, not TTS pacing. The circle's
+       transition duration is set to match each phase's real length in
+       JS, so its grow/shrink motion is an honest visual timer, not
+       decorative. */
+    #breathingOverlay { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 12; display: flex; flex-direction: column; align-items: center; gap: 18px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+    #breathingOverlay.active { opacity: 1; }
+    #breathingCircle { width: 140px; height: 140px; border-radius: 50%; background: radial-gradient(circle, rgba(0,188,212,0.32), rgba(0,188,212,0.06)); border: 2px solid rgba(0,188,212,0.55); display: flex; align-items: center; justify-content: center; transition: transform linear; }
+    #breathingNumber { font-family: 'Cormorant Garamond', serif; font-size: 52px; font-weight: 300; color: white; text-shadow: 0 2px 12px rgba(0,0,0,0.4); }
+    .breathing-phase-label { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: var(--cyan); }
+
     /* ── Music bar ── */
     #musicBar { position: fixed; top: 0; left: 0; right: 0; background: rgba(10,14,26,0.85); backdrop-filter: blur(20px); border-bottom: 1px solid rgba(29,185,84,0.3); padding: 14px 32px; z-index: 20; transform: translateY(-100%); transition: transform 0.5s cubic-bezier(0.34,1.56,0.64,1); display: flex; align-items: center; gap: 16px; }
     #musicBar.visible { transform: translateY(0); }
@@ -258,6 +271,10 @@
       <div id="repCounterNumber">1</div>
       <div class="rep-counter-label">Nice and steady</div>
     </div>
+    <div id="breathingOverlay">
+      <div id="breathingCircle"><div id="breathingNumber">4</div></div>
+      <div class="breathing-phase-label" id="breathingPhaseLabel">Breathe In</div>
+    </div>
     <div id="musicBar">
       <div class="music-icon">♪</div>
       <div class="music-info">
@@ -394,6 +411,7 @@
     let photoPollInterval = null;
     let repCountPollInterval = null;
     let repCounterRunning = false;
+    let breathingPollInterval = null;
     let keepAliveInterval = null;
     let photoShown = false;
     let pendingPhoto = null;
@@ -641,6 +659,79 @@
       }, 1000);
     }
 
+    // ── Breathing exercise timer — the real fix for the breathing/timer
+    // mismatch. Three phases of DIFFERENT lengths, each paced by a genuine
+    // setInterval ticking once per real second — completely independent
+    // of anything Rose/Jim says or how fast she talks. The circle's CSS
+    // transition duration is set to match each phase's real length, so
+    // its grow/shrink motion is an honest pacing cue, not decoration. ──
+    let breathingRunning = false;
+
+    function runBreathingPhase(label, seconds, scaleTo, onDone) {
+      const labelEl = document.getElementById('breathingPhaseLabel');
+      const numberEl = document.getElementById('breathingNumber');
+      const circleEl = document.getElementById('breathingCircle');
+      labelEl.textContent = label;
+      circleEl.style.transitionDuration = seconds + 's';
+      circleEl.style.transform = `scale(${scaleTo})`;
+      let remaining = seconds;
+      numberEl.textContent = remaining;
+      if (remaining <= 0) { onDone(); return; }
+      const phaseInterval = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(phaseInterval);
+          numberEl.textContent = 0;
+          onDone();
+          return;
+        }
+        numberEl.textContent = remaining;
+      }, 1000); // the actual fix — a real second per count, matching the phase's real spoken-free pace
+    }
+
+    function runBreathingExercise(inhaleSec, holdSec, exhaleSec, cycles) {
+      if (breathingRunning || !inhaleSec || !exhaleSec || !cycles) return;
+      breathingRunning = true;
+      const overlay = document.getElementById('breathingOverlay');
+      overlay.classList.add('active');
+      let cycleIndex = 0;
+      function nextCycle() {
+        if (cycleIndex >= cycles) {
+          setTimeout(() => {
+            overlay.classList.remove('active');
+            breathingRunning = false;
+          }, 600); // brief pause on the last exhale before fading, so it doesn't feel cut off
+          return;
+        }
+        cycleIndex++;
+        runBreathingPhase('Breathe In', inhaleSec, 1.3, () => {
+          if (holdSec > 0) {
+            runBreathingPhase('Hold', holdSec, 1.3, () => {
+              runBreathingPhase('Breathe Out', exhaleSec, 1.0, nextCycle);
+            });
+          } else {
+            runBreathingPhase('Breathe Out', exhaleSec, 1.0, nextCycle);
+          }
+        });
+      }
+      nextCycle();
+    }
+
+    function startBreathingPolling(patientId) {
+      if (breathingPollInterval) clearInterval(breathingPollInterval);
+      breathingPollInterval = setInterval(async () => {
+        if (breathingRunning) return; // let the current pattern finish before checking for a new one
+        try {
+          const res = await fetch(`${API}/api/breathing-queue?patientId=${patientId}`);
+          const data = await res.json();
+          if (data.pattern) {
+            const [inhale, hold, exhale, cycles] = data.pattern.split('-').map(Number);
+            if (inhale && exhale && cycles) runBreathingExercise(inhale, hold || 0, exhale, cycles);
+          }
+        } catch(e) {}
+      }, 1000);
+    }
+
     function showPhoto(url, caption) {
       document.getElementById('photoImg').src = url;
       document.getElementById('photoCaption').textContent = caption || '';
@@ -765,21 +856,52 @@
         }
         let uri = null;
         const artistRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=artist&limit=1`, { headers: { 'Authorization': 'Bearer ' + access_token } });
+        // ── Real success checks, not just "did fetch() throw" ──
+        // fetch() does NOT throw on HTTP error statuses like 401/403/404 —
+        // it resolves normally with response.ok = false. Previously nothing
+        // here ever checked .ok, so a token that LOOKED present but was
+        // actually rejected by Spotify (expired, wrong scope, app in
+        // restricted mode, whatever) caused every step to silently come up
+        // empty-handed, with no fallback ever triggering — the member just
+        // got no music at all. Now any real failure falls back to YouTube,
+        // the same as a genuinely missing token always did.
+        if (!artistRes.ok) {
+          console.warn('Spotify artist search failed — status:', artistRes.status, '— falling back to YouTube');
+          return youtubePlayBySearch(query);
+        }
         const artistData = await artistRes.json();
         const artist = artistData.artists?.items?.[0];
         if (artist) {
           const topRes = await fetch(`https://api.spotify.com/v1/artists/${artist.id}/top-tracks?market=US`, { headers: { 'Authorization': 'Bearer ' + access_token } });
-          const tracks = (await topRes.json()).tracks || [];
-          if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
+          if (topRes.ok) {
+            const tracks = (await topRes.json()).tracks || [];
+            if (tracks.length > 0) uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 10))].uri;
+          } else {
+            console.warn('Spotify top-tracks lookup failed — status:', topRes.status, '(will try broader search next, not falling back yet)');
+          }
         }
         if (!uri) {
           const searchRes = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query + ' jazz OR oldies')}&type=track&limit=10`, { headers: { 'Authorization': 'Bearer ' + access_token } });
+          if (!searchRes.ok) {
+            console.warn('Spotify track search failed — status:', searchRes.status, '— falling back to YouTube');
+            return youtubePlayBySearch(query);
+          }
           const tracks = ((await searchRes.json()).tracks?.items || []).filter(t => !t.artists[0].name.toLowerCase().includes('tribute'));
-          if (tracks.length === 0) return;
+          if (tracks.length === 0) {
+            console.warn('Spotify search returned no usable tracks — falling back to YouTube');
+            return youtubePlayBySearch(query);
+          }
           uri = tracks[Math.floor(Math.random() * Math.min(tracks.length, 5))].uri;
         }
-        await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ uris: [uri] }) });
-      } catch(e) { console.error('Spotify play error:', e); }
+        const playRes = await fetch(`https://api.spotify.com/v1/me/player/play?device_id=${spotifyDeviceId}`, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + access_token, 'Content-Type': 'application/json' }, body: JSON.stringify({ uris: [uri] }) });
+        if (!playRes.ok) {
+          console.warn('Spotify play command failed — status:', playRes.status, '— falling back to YouTube');
+          return youtubePlayBySearch(query);
+        }
+      } catch(e) {
+        console.error('Spotify play error:', e, '— falling back to YouTube');
+        return youtubePlayBySearch(query);
+      }
     }
 
     function startMusicQueuePolling(patientId) {
@@ -844,6 +966,8 @@
       // Same idea for any leftover exercise-count signal from a session
       // that ended before it was ever picked up.
       try { await fetch(`${API}/api/exercise-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
+      // Same idea for any leftover breathing-pattern signal too.
+      try { await fetch(`${API}/api/breathing-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       let visitCountToday = 1;
       try {
@@ -896,6 +1020,7 @@
         startMusicQueuePolling(PATIENT_ID);
         startPhotoPolling(PATIENT_ID);
         startRepCountPolling(PATIENT_ID);
+        startBreathingPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
 
         if (isMorningHour()) {
@@ -932,6 +1057,9 @@
       if (repCountPollInterval) { clearInterval(repCountPollInterval); repCountPollInterval = null; }
       repCounterRunning = false;
       document.getElementById('repCounterOverlay').classList.remove('active');
+      if (breathingPollInterval) { clearInterval(breathingPollInterval); breathingPollInterval = null; }
+      breathingRunning = false;
+      document.getElementById('breathingOverlay').classList.remove('active');
       if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
       clearSilenceTimers();
 
