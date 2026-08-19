@@ -135,6 +135,43 @@
     .photo-caption { position: absolute; bottom: 0; left: 0; right: 0; padding: 20px 24px; background: linear-gradient(transparent, rgba(0,0,0,0.7)); font-family: "Cormorant Garamond", serif; font-size: 24px; font-weight: 300; letter-spacing: 2px; color: white; text-align: center; }
     .photo-close { position: absolute; top: 16px; right: 16px; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: white; font-size: 18px; cursor: pointer; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px); transition: background 0.2s; }
     .photo-close:hover { background: rgba(255,255,255,0.35); }
+
+    /* ── Soothing Sounds ── */
+    /* A fully independent feature from Rose/Jim's avatar sessions — plain
+       HTML5 <audio>, no HeyGen credits, no YouTube ads. Available directly
+       from the waiting screen so it never requires a companion visit. */
+    #soothingBtn { position: fixed; top: 24px; right: 28px; z-index: 5; width: 52px; height: 52px; border-radius: 50%; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.25); backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; font-size: 22px; cursor: pointer; transition: background 0.2s, transform 0.2s; }
+    #soothingBtn:hover { background: rgba(255,255,255,0.2); }
+    #soothingBtn.playing { background: rgba(0,188,212,0.35); border-color: rgba(0,188,212,0.6); animation: soothing-pulse 2.4s ease-in-out infinite; }
+    @keyframes soothing-pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(0,188,212,0.35); } 50% { box-shadow: 0 0 0 10px rgba(0,188,212,0); } }
+
+    #soothingOverlay { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+    #soothingOverlay.visible { opacity: 1; pointer-events: all; }
+    .soothing-panel { width: 90%; max-width: 420px; max-height: 84vh; overflow-y: auto; background: linear-gradient(160deg, #17205e 0%, #0d3a75 100%); border: 1px solid rgba(255,255,255,0.15); border-radius: 24px; padding: 28px 26px 30px; box-shadow: 0 24px 64px rgba(0,0,0,0.5); }
+    .soothing-title { font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; color: white; text-align: center; margin-bottom: 4px; }
+    .soothing-sub { font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: #80DEEA; text-align: center; margin-bottom: 22px; }
+    .soothing-section-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(255,255,255,0.5); margin: 18px 0 10px; }
+    .soothing-sounds-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .soothing-sound-option { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 8px; border-radius: 14px; border: 1.5px solid rgba(255,255,255,0.15); background: rgba(255,255,255,0.05); cursor: pointer; transition: all 0.2s; color: white; font-family: 'Jost', sans-serif; font-size: 13px; }
+    .soothing-sound-option .icon { font-size: 24px; }
+    .soothing-sound-option.selected { border-color: #00BCD4; background: rgba(0,188,212,0.18); }
+    .soothing-time-row { display: flex; align-items: center; gap: 10px; }
+    .soothing-time-row input[type="time"] { flex: 1; padding: 10px; border-radius: 10px; border: none; font-size: 16px; text-align: center; background: rgba(255,255,255,0.9); }
+    .soothing-time-row span { color: rgba(255,255,255,0.6); font-size: 13px; }
+    .soothing-toggle-row { display: flex; align-items: center; justify-content: space-between; margin-top: 18px; padding: 12px 14px; background: rgba(255,255,255,0.06); border-radius: 12px; }
+    .soothing-toggle-row span { color: white; font-size: 14px; }
+    .soothing-switch { position: relative; width: 46px; height: 26px; }
+    .soothing-switch input { opacity: 0; width: 0; height: 0; }
+    .soothing-switch-track { position: absolute; inset: 0; background: rgba(255,255,255,0.25); border-radius: 999px; cursor: pointer; transition: background 0.2s; }
+    .soothing-switch-track::before { content: ''; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; }
+    .soothing-switch input:checked + .soothing-switch-track { background: #00BCD4; }
+    .soothing-switch input:checked + .soothing-switch-track::before { transform: translateX(20px); }
+    .soothing-btn-row { display: flex; gap: 10px; margin-top: 22px; }
+    .soothing-action-btn { flex: 1; padding: 13px; border-radius: 12px; border: none; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .soothing-play-now { background: #00BCD4; color: white; }
+    .soothing-stop-now { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.25); }
+    .soothing-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: white; font-size: 16px; cursor: pointer; }
+    .soothing-status { text-align: center; font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 14px; min-height: 16px; }
   </style>
 </head>
 <body>
@@ -202,6 +239,7 @@
 
   <!-- Waiting screen -->
   <div class="screen" id="waitingScreen">
+    <button id="soothingBtn" title="Soothing Sounds" onclick="openSoothingPanel()">🌙</button>
     <div id="waitingBgOverlay"></div>
     <video id="waitingBgVideo" autoplay muted loop playsinline
       style="position:fixed;inset:0;width:100%;height:100%;object-fit:cover;z-index:0;opacity:0;transition:opacity 1.5s ease;">
@@ -293,6 +331,41 @@
       <button class="end-btn" onclick="endSession()">End Visit</button>
     </div>
   </div>
+
+  <!-- Soothing Sounds panel -->
+  <div id="soothingOverlay">
+    <div class="soothing-panel">
+      <button class="soothing-close" onclick="closeSoothingPanel()">✕</button>
+      <div class="soothing-title">Soothing Sounds</div>
+      <div class="soothing-sub">Nature sounds to relax or fall asleep to</div>
+
+      <div class="soothing-section-label">Choose a sound</div>
+      <div class="soothing-sounds-grid" id="soothingSoundsGrid"></div>
+
+      <div class="soothing-section-label">Play automatically</div>
+      <div class="soothing-time-row">
+        <input type="time" id="soothingStartTime" value="21:00">
+        <span>to</span>
+        <input type="time" id="soothingEndTime" value="06:00">
+      </div>
+
+      <div class="soothing-toggle-row">
+        <span>Play daily on this schedule</span>
+        <label class="soothing-switch">
+          <input type="checkbox" id="soothingEnabledToggle">
+          <span class="soothing-switch-track"></span>
+        </label>
+      </div>
+
+      <div class="soothing-btn-row">
+        <button class="soothing-action-btn soothing-play-now" onclick="soothingPlayNow()">Play Now</button>
+        <button class="soothing-action-btn soothing-stop-now" onclick="soothingStopNow()">Stop</button>
+      </div>
+
+      <div class="soothing-status" id="soothingStatus"></div>
+    </div>
+  </div>
+  <audio id="soothingAudio" loop preload="none"></audio>
 
   <!-- Photo overlay -->
   <div id="photoOverlay">
@@ -1197,6 +1270,18 @@
           setTimeout(() => { try { youtubePlayer.stopVideo(); youtubePlayer.unMute(); } catch(e) {} }, 600);
         } catch(e) { console.warn('YouTube pre-warm failed:', e); }
       }
+      // Prime the soothing-sounds <audio> element the same way, on this
+      // same real tap — otherwise an overnight scheduled play (with no
+      // human interaction at 9pm) could get silently blocked by Safari,
+      // the exact bug this priming pattern already fixes for Spotify/YouTube.
+      try {
+        soothingAudioEl.muted = true;
+        soothingAudioEl.play().then(() => {
+          soothingAudioEl.pause();
+          soothingAudioEl.muted = false;
+        }).catch(() => { soothingAudioEl.muted = false; });
+      } catch(e) {}
+
       if (youtubePlayerReady) {
         primeYoutubePlayer();
       } else {
@@ -1267,6 +1352,181 @@
       e.stopPropagation();
       if (e.key === 'Enter') submitNameCheck();
     });
+
+    // ── Soothing Sounds ──
+    // Fully independent of Rose/Jim's avatar sessions: plain HTML5 <audio>,
+    // no HeyGen credits, no YouTube/ads. Curated tracks only (no open
+    // search) since this is meant to run unattended overnight — a search
+    // result landing on the wrong thing is a much worse experience here
+    // than for daytime music. Files are self-hosted (see SOOTHING_SOUNDS
+    // below) so there is never a mid-track ad interruption.
+    //
+    // NOTE FOR LINDA: the "src" paths below assume mp3 files placed at
+    // /public/sounds/rain.mp3, ocean.mp3, birds.mp3, crickets.mp3, and
+    // white-noise.mp3 in the rose-proxy project (so they end up served at
+    // https://app.neimira.com/sounds/rain.mp3 etc). Long (1hr+) looping
+    // tracks work best. Pixabay Audio (pixabay.com/music, filter by
+    // "Nature" or search "rain," "ocean waves," "birds," "crickets") and
+    // Freesound.org (Creative Commons) both have real recordings free for
+    // this kind of commercial use. Swap in real filenames once uploaded —
+    // the feature is fully wired and will work the moment files exist at
+    // these paths.
+    const SOOTHING_SOUNDS = [
+      { id: 'rain',    label: 'Rain',        icon: '🌧️', src: '/sounds/rain.mp3' },
+      { id: 'ocean',   label: 'Ocean Waves', icon: '🌊', src: '/sounds/ocean.mp3' },
+      { id: 'birds',   label: 'Birds',       icon: '🐦', src: '/sounds/birds.mp3' },
+      { id: 'crickets',label: 'Crickets',    icon: '🦗', src: '/sounds/crickets.mp3' },
+      { id: 'noise',   label: 'White Noise', icon: '🌫️', src: '/sounds/white-noise.mp3' }
+    ];
+
+    let soothingSelectedId = SOOTHING_SOUNDS[0].id;
+    let soothingCheckInterval = null;
+    let soothingManualStop = false; // true = manually stopped; re-arms next time we EXIT the range (see checker)
+    let soothingWasInRange = false;
+    const soothingAudioEl = document.getElementById('soothingAudio');
+
+    function soothingStorageKey() {
+      // Per-device setting, same pattern as neimira_verified_<DEVICE_KEY>
+      return 'neimira_soothing_' + (DEVICE_KEY || 'default');
+    }
+
+    function loadSoothingSettings() {
+      try {
+        const raw = localStorage.getItem(soothingStorageKey());
+        if (raw) {
+          const s = JSON.parse(raw);
+          soothingSelectedId = s.soundId || soothingSelectedId;
+          document.getElementById('soothingStartTime').value = s.startTime || '21:00';
+          document.getElementById('soothingEndTime').value = s.endTime || '06:00';
+          document.getElementById('soothingEnabledToggle').checked = !!s.enabled;
+        }
+      } catch(e) {}
+    }
+
+    function saveSoothingSettings() {
+      try {
+        localStorage.setItem(soothingStorageKey(), JSON.stringify({
+          soundId: soothingSelectedId,
+          startTime: document.getElementById('soothingStartTime').value,
+          endTime: document.getElementById('soothingEndTime').value,
+          enabled: document.getElementById('soothingEnabledToggle').checked
+        }));
+      } catch(e) {}
+    }
+
+    function renderSoothingGrid() {
+      const grid = document.getElementById('soothingSoundsGrid');
+      grid.innerHTML = '';
+      SOOTHING_SOUNDS.forEach(s => {
+        const el = document.createElement('div');
+        el.className = 'soothing-sound-option' + (s.id === soothingSelectedId ? ' selected' : '');
+        el.innerHTML = `<div class="icon">${s.icon}</div><div>${s.label}</div>`;
+        el.onclick = () => {
+          soothingSelectedId = s.id;
+          renderSoothingGrid();
+          saveSoothingSettings();
+          // If already playing, switch track live so the change is felt immediately
+          if (!soothingAudioEl.paused) soothingStartPlayback();
+        };
+        grid.appendChild(el);
+      });
+    }
+
+    function soothingSoundById(id) { return SOOTHING_SOUNDS.find(s => s.id === id) || SOOTHING_SOUNDS[0]; }
+
+    function soothingStartPlayback() {
+      const sound = soothingSoundById(soothingSelectedId);
+      if (soothingAudioEl.getAttribute('data-current') !== sound.id) {
+        soothingAudioEl.src = sound.src;
+        soothingAudioEl.setAttribute('data-current', sound.id);
+      }
+      soothingAudioEl.play().catch(e => console.warn('Soothing sound play blocked (needs a tap first today):', e));
+      document.getElementById('soothingBtn').classList.add('playing');
+      const statusEl = document.getElementById('soothingStatus');
+      if (statusEl) statusEl.textContent = `Now playing: ${sound.label}`;
+    }
+
+    function soothingStopPlayback() {
+      soothingAudioEl.pause();
+      document.getElementById('soothingBtn').classList.remove('playing');
+      const statusEl = document.getElementById('soothingStatus');
+      if (statusEl) statusEl.textContent = '';
+    }
+
+    // Handles ranges that cross midnight (e.g. 21:00 → 06:00), which a
+    // simple start<now<end check would get wrong.
+    function soothingIsInRange(nowMinutes, startMinutes, endMinutes) {
+      if (startMinutes === endMinutes) return false;
+      if (startMinutes < endMinutes) return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+      return nowMinutes >= startMinutes || nowMinutes < endMinutes; // overnight wrap
+    }
+
+    function parseHM(hm) {
+      const [h, m] = (hm || '0:0').split(':').map(Number);
+      return h * 60 + m;
+    }
+
+    // Real timer, checked every 20s — same "actual code drives timing, not
+    // TTS or guesswork" principle as today's rep-counter/breathing fixes.
+    function startSoothingScheduleChecker() {
+      if (soothingCheckInterval) clearInterval(soothingCheckInterval);
+      soothingCheckInterval = setInterval(() => {
+        const enabled = document.getElementById('soothingEnabledToggle')?.checked;
+        if (!enabled) { soothingWasInRange = false; return; }
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        const startMinutes = parseHM(document.getElementById('soothingStartTime').value);
+        const endMinutes = parseHM(document.getElementById('soothingEndTime').value);
+        const inRange = soothingIsInRange(nowMinutes, startMinutes, endMinutes);
+
+        if (!inRange) {
+          // Leaving the window resets the manual-stop flag, so tomorrow's
+          // window starts fresh even if it was stopped manually today.
+          soothingManualStop = false;
+          if (!soothingAudioEl.paused) soothingStopPlayback();
+        } else if (inRange && !soothingWasInRange && !soothingManualStop && soothingAudioEl.paused) {
+          // Just entered the window — start automatically (avoid a
+          // relentless restart loop by only firing on the range TRANSITION)
+          soothingStartPlayback();
+        } else if (inRange && !soothingManualStop && soothingAudioEl.paused) {
+          // Mid-window but not playing (e.g. page was reloaded) — resume
+          soothingStartPlayback();
+        }
+        soothingWasInRange = inRange;
+      }, 20000);
+    }
+
+    window.openSoothingPanel = function() {
+      loadSoothingSettings();
+      renderSoothingGrid();
+      document.getElementById('soothingOverlay').classList.add('visible');
+    };
+    window.closeSoothingPanel = function() {
+      saveSoothingSettings();
+      document.getElementById('soothingOverlay').classList.remove('visible');
+    };
+    window.soothingPlayNow = function() {
+      soothingManualStop = false;
+      saveSoothingSettings();
+      soothingStartPlayback();
+    };
+    window.soothingStopNow = function() {
+      soothingManualStop = true; // stays off until the schedule window is next exited (see checker)
+      soothingStopPlayback();
+    };
+
+    document.getElementById('soothingEnabledToggle').addEventListener('change', saveSoothingSettings);
+    document.getElementById('soothingStartTime').addEventListener('change', saveSoothingSettings);
+    document.getElementById('soothingEndTime').addEventListener('change', saveSoothingSettings);
+    // Tapping the overlay backdrop (not the panel itself) closes it, same UX pattern as the photo overlay
+    document.getElementById('soothingOverlay').addEventListener('click', (e) => {
+      if (e.target.id === 'soothingOverlay') closeSoothingPanel();
+    });
+
+    (function initSoothing() {
+      loadSoothingSettings();
+      startSoothingScheduleChecker();
+    })();
 
     window.speechSynthesis?.cancel();
     updateClock();
