@@ -934,16 +934,19 @@
       }, 2000);
     }
 
+    // ── FIX (Aug 19, 2026): morning song was always getting glued to
+    // Favorite Artist #1 regardless of which of the 3 playlist songs was
+    // randomly picked — so even though the SONG rotated, the ARTIST NAME
+    // in the search query never did, and that fixed artist name kept
+    // dominating the YouTube search result. Now the song title alone is
+    // searched, so all 3 playlist songs actually get a fair chance to
+    // surface their own correct video instead of being pulled toward
+    // Favorite Artist #1's own catalog. ──
     function getMorningSong() {
-      // Use the member's own Morning Playlist (or Favorite Songs as backup).
-      // Previously this was a hardcoded Frank Sinatra/Fred Astaire list that
-      // played for every member regardless of their own preferences.
       const playlistSource = clientProfile?.morningPlaylist || clientProfile?.favoriteSongs || '';
       const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
       if (songs.length > 0) {
-        const song = songs[Math.floor(Math.random() * songs.length)];
-        const artist = (clientProfile?.favoriteArtists || '').split(',')[0].trim();
-        return artist ? `${artist} ${song}` : song;
+        return songs[Math.floor(Math.random() * songs.length)];
       }
       // Generic fallback only if the member has no music preferences on file at all
       return 'relaxing instrumental morning music';
@@ -1000,7 +1003,14 @@
         liveAvatarSession.on('session.stream_ready', () => { liveAvatarSession.attach(document.getElementById('roseVideo')); });
         liveAvatarSession.on('avatar.speak_started', () => {
           setSpeaking(true);
+          // ── Ducking (FIX Aug 19, 2026): previously only spotifyPlayer was
+          // ducked here. Since SPOTIFY_ENABLED is false, spotifyPlayer is
+          // always null now, so this whole line silently did nothing and
+          // music never ducked during real sessions. YouTube's IFrame API
+          // uses a 0–100 volume scale (not Spotify's 0.0–1.0), so the same
+          // 7%/22% ducking ratio is expressed as 7/22 here. ──
           if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+          if (youtubePlayer && youtubePlayerReady) youtubePlayer.setVolume(7);
           resetSilenceTimer();
           if (pendingPhoto && !photoShown) {
             const photo = pendingPhoto;
@@ -1010,9 +1020,24 @@
             setTimeout(() => { photoShown = true; showPhoto(photo.url, photo.label); }, 1200);
           }
         });
-        liveAvatarSession.on('avatar.speak_ended', () => { setSpeaking(false); setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); resetSilenceTimer(); });
-        liveAvatarSession.on('user.speak_started', () => { setListening(true); if (spotifyPlayer) spotifyPlayer.setVolume(0.07); resetSilenceTimer(); if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; } });
-        liveAvatarSession.on('user.speak_ended', () => { setListening(false); if (spotifyPlayer) spotifyPlayer.setVolume(0.22); });
+        liveAvatarSession.on('avatar.speak_ended', () => {
+          setSpeaking(false); setListening(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.22);
+          if (youtubePlayer && youtubePlayerReady) youtubePlayer.setVolume(22);
+          resetSilenceTimer();
+        });
+        liveAvatarSession.on('user.speak_started', () => {
+          setListening(true);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.07);
+          if (youtubePlayer && youtubePlayerReady) youtubePlayer.setVolume(7);
+          resetSilenceTimer();
+          if (checkInTimer) { clearTimeout(checkInTimer); checkInTimer = null; checkInSent = false; }
+        });
+        liveAvatarSession.on('user.speak_ended', () => {
+          setListening(false);
+          if (spotifyPlayer) spotifyPlayer.setVolume(0.22);
+          if (youtubePlayer && youtubePlayerReady) youtubePlayer.setVolume(22);
+        });
         liveAvatarSession.on('session.stopped', () => { console.log('HeyGen session stopped'); if (sessionActive) endSession(); });
 
         try { await liveAvatarSession.start(); } catch(e) { console.warn('session.start() threw:', e?.message); }
