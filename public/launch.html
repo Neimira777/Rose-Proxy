@@ -180,6 +180,16 @@
     .soothing-stop-now { background: rgba(255,255,255,0.12); color: white; border: 1px solid rgba(255,255,255,0.25); }
     .soothing-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: white; font-size: 16px; cursor: pointer; }
     .soothing-status { text-align: center; font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 14px; min-height: 16px; }
+
+    .soothing-now-playing { display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; padding: 12px; background: rgba(0,188,212,0.12); border: 1px solid rgba(0,188,212,0.3); border-radius: 12px; }
+    .soothing-now-playing.active { display: flex; }
+    .soothing-now-playing svg { width: 18px; height: 18px; flex-shrink: 0; }
+    .soothing-now-playing svg rect { animation: soothing-bar 1s ease-in-out infinite alternate; transform-origin: center; }
+    .soothing-now-playing svg rect:nth-child(1) { animation-delay: 0s; }
+    .soothing-now-playing svg rect:nth-child(2) { animation-delay: 0.15s; }
+    .soothing-now-playing svg rect:nth-child(3) { animation-delay: 0.3s; }
+    .soothing-now-playing svg rect:nth-child(4) { animation-delay: 0.45s; }
+    .soothing-now-playing span { color: white; font-size: 13px; font-weight: 500; }
   </style>
 </head>
 <body>
@@ -378,7 +388,15 @@
         <button class="soothing-action-btn soothing-stop-now" onclick="soothingStopNow()">Stop</button>
       </div>
 
-      <div class="soothing-status" id="soothingStatus"></div>
+      <div class="soothing-now-playing" id="soothingNowPlaying">
+        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect x="3" y="9" width="3" height="6" rx="1.5" fill="#00BCD4"/>
+          <rect x="8.5" y="5" width="3" height="14" rx="1.5" fill="#4DD9E8"/>
+          <rect x="14" y="2" width="3" height="20" rx="1.5" fill="#00BCD4"/>
+          <rect x="19.5" y="7" width="3" height="10" rx="1.5" fill="#4DD9E8"/>
+        </svg>
+        <span id="soothingStatus"></span>
+      </div>
     </div>
   </div>
   <audio id="soothingAudio" loop preload="none"></audio>
@@ -1458,14 +1476,18 @@
       }
       soothingAudioEl.play().catch(e => console.warn('Soothing sound play blocked (needs a tap first today):', e));
       document.getElementById('soothingBtn').classList.add('playing');
+      const nowPlayingEl = document.getElementById('soothingNowPlaying');
       const statusEl = document.getElementById('soothingStatus');
+      if (nowPlayingEl) nowPlayingEl.classList.add('active');
       if (statusEl) statusEl.textContent = `Now playing: ${sound.label}`;
     }
 
     function soothingStopPlayback() {
       soothingAudioEl.pause();
       document.getElementById('soothingBtn').classList.remove('playing');
+      const nowPlayingEl = document.getElementById('soothingNowPlaying');
       const statusEl = document.getElementById('soothingStatus');
+      if (nowPlayingEl) nowPlayingEl.classList.remove('active');
       if (statusEl) statusEl.textContent = '';
     }
 
@@ -1516,6 +1538,12 @@
       loadSoothingSettings();
       renderSoothingGrid();
       document.getElementById('soothingOverlay').classList.add('visible');
+      // Reflect actual current playback state (e.g. reopening the panel
+      // after it was already playing, rather than assuming it's stopped)
+      if (!soothingAudioEl.paused) {
+        document.getElementById('soothingNowPlaying').classList.add('active');
+        document.getElementById('soothingStatus').textContent = `Now playing: ${soothingSoundById(soothingSelectedId).label}`;
+      }
     };
     window.closeSoothingPanel = function() {
       saveSoothingSettings();
