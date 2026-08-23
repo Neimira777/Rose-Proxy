@@ -6,7 +6,6 @@
 //
 //  GET /api/resolve-token?token=XXXX
 // ─────────────────────────────────────────────
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -15,10 +14,8 @@ export default async function handler(req, res) {
   res.setHeader('Expires', '0');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
-
   const { token } = req.query || {};
   if (!token) return res.status(400).json({ error: 'Missing token' });
-
   try {
     const airtableRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula={Access Token}="${token}"`,
@@ -26,16 +23,18 @@ export default async function handler(req, res) {
     );
     const data = await airtableRes.json();
     const record = data.records?.[0];
-
     if (!record) {
       return res.status(404).json({ error: 'Invalid or expired link' });
     }
-
     const f = record.fields || {};
     return res.status(200).json({
       patientId: record.id,
       name: f['Preferred Name'] || f['Client Full Name'] || '',
-      preferredCompanion: f['Preferred Companion'] || 'Rose'
+      preferredCompanion: f['Preferred Companion'] || 'Rose',
+      // Included so the Family Hub can always display it, even if the
+      // original welcome email is lost — see family-hub.html's
+      // "Your Family Code" card.
+      familyCode: f['Family Code'] || ''
     });
   } catch (e) {
     console.error('Token resolution error:', e.message);
