@@ -1614,10 +1614,6 @@
 
     function activateScreenDim() { document.getElementById('soothingDimOverlay').classList.add('active'); }
     function deactivateScreenDim() { document.getElementById('soothingDimOverlay').classList.remove('active'); }
-    function updateScreenDim() {
-      if (soothingPlaybackSource === 'schedule' && !soothingAudioEl.paused) activateScreenDim();
-      else deactivateScreenDim();
-    }
 
     function soothingStartPlayback(source) {
       if (source) soothingPlaybackSource = source;
@@ -1632,7 +1628,14 @@
       const statusEl = document.getElementById('soothingStatus');
       if (nowPlayingEl) nowPlayingEl.classList.add('active');
       if (statusEl) statusEl.textContent = `Now playing: ${sound.label}`;
-      updateScreenDim();
+      // Set dim state directly from intent (we ARE starting playback right
+      // now), rather than re-checking soothingAudioEl.paused — that
+      // property isn't guaranteed to have flipped to false synchronously
+      // right after calling play() in every browser engine, which was the
+      // actual bug: audio audibly played, but the dim never activated
+      // because this check ran before .paused had updated.
+      if (soothingPlaybackSource === 'schedule') activateScreenDim();
+      else deactivateScreenDim();
     }
 
     function soothingStopPlayback() {
