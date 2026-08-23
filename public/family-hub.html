@@ -34,6 +34,16 @@
     .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--navy); margin-bottom: 6px; }
     .card-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
 
+    /* ── Family Code card ── */
+    /* Always visible on the Hub — the one place this code can never be
+       truly lost, even if the original welcome email is deleted or a
+       second device/family member needs it later. Not tied to the
+       companion toggle since the code itself never changes when
+       switching companions (see resolve-token.js). */
+    .family-code-card { text-align: center; }
+    .family-code-display { display: inline-block; background: var(--bg); border: 2px dashed var(--cyan); color: var(--navy); padding: 14px 32px; border-radius: 12px; font-size: 26px; font-weight: 700; letter-spacing: 4px; margin: 6px 0 4px; }
+    .family-code-hint { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+
     .date-list { margin-bottom: 20px; }
     .date-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg); border-radius: 10px; margin-bottom: 10px; }
     .date-item .info { display: flex; flex-direction: column; }
@@ -112,7 +122,7 @@
 
   <div class="hero">
     <h1 id="heroGreeting">Welcome</h1>
-    <p>Everything for your visits with Rose, all in one place.</p>
+    <p id="heroSubtitle">Everything for your visits with Rose, all in one place.</p>
   </div>
 
   <div class="container" id="hubContent" style="display:none;">
@@ -120,6 +130,13 @@
       <h2 id="visitTitle">Ready to visit?</h2>
       <p id="visitSubtitle">Start a conversation with Rose right now.</p>
       <a href="#" id="visitRoseBtn" class="visit-btn">Visit with Rose</a>
+    </div>
+
+    <div class="card family-code-card" id="familyCodeCard" style="display:none;">
+      <div class="card-title">Your Family Code</div>
+      <div class="card-subtitle">Use this to sign in on the Neimira app for iPad. You'll only need to enter it once per device.</div>
+      <div class="family-code-display" id="familyCodeDisplay"></div>
+      <div class="family-code-hint">Keep this page bookmarked — you can always find your code here.</div>
     </div>
 
     <div class="card">
@@ -200,6 +217,7 @@
     const LAUNCH_PAGE = 'launch.html';
 
     function updateCompanionText(companion) {
+      document.getElementById('heroSubtitle').textContent = `Everything for your visits with ${companion}, all in one place.`;
       document.getElementById('visitTitle').textContent = 'Ready to visit?';
       document.getElementById('visitSubtitle').textContent = `Start a conversation with ${companion} right now.`;
       document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
@@ -253,6 +271,15 @@
 
         document.getElementById('heroGreeting').textContent = `Welcome, ${name}`;
         updateCompanionText(companion);
+
+        // Family Code — shown whenever a code exists for this member.
+        // Older records created before this feature existed may not have
+        // one yet; the card simply stays hidden in that case rather than
+        // showing a blank/broken box.
+        if (data.familyCode) {
+          document.getElementById('familyCodeDisplay').textContent = data.familyCode;
+          document.getElementById('familyCodeCard').style.display = 'block';
+        }
 
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('hubContent').style.display = 'block';
