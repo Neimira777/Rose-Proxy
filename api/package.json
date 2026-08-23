@@ -1,6 +1,7 @@
 {
   "type": "module",
   "dependencies": {
-    "nodemailer": "^6.9.14"
+    "nodemailer": "^6.9.14",
+    "jsonwebtoken": "^9.0.2"
   }
 }
