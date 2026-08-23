@@ -168,6 +168,18 @@
     </div>
 
     <div class="card">
+      <div class="card-title" id="remindersTitle">Voice Reminders</div>
+      <div class="card-subtitle" id="remindersSubtitle">Rose will speak these out loud at the time you set — a gentle spoken reminder, like "It's 2:00. Time to take your medication."</div>
+      <div class="date-list" id="reminderList"></div>
+      <div class="add-date-form">
+        <input type="time" id="newReminderTimeInput">
+        <input type="text" id="newReminderLabelInput" placeholder="e.g. Time to take your blood pressure medication">
+        <button id="addReminderBtn" type="button">Add</button>
+      </div>
+      <div class="status-msg" id="remindersStatus"></div>
+    </div>
+
+    <div class="card">
       <div class="card-title">Shows &amp; Sports They Love</div>
       <div class="card-subtitle" id="interestsSubtitle">Favorite teams, tournaments, or shows — Rose checks each morning and mentions it if something's on today.</div>
       <div class="input-group">
@@ -223,6 +235,7 @@
       document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
       document.getElementById('visitRoseBtn').href = `${API}/${LAUNCH_PAGE}?token=${token}${isDemo ? '&demo=true' : ''}`;
       document.getElementById('datesSubtitle').textContent = `Birthdays, appointments, anniversaries — ${companion} will naturally bring these up as they get close, never as an alert or checklist.`;
+      document.getElementById('remindersSubtitle').textContent = `${companion} will speak these out loud at the time you set — a gentle spoken reminder, like "It's 2:00. Time to take your medication."`;
       document.getElementById('interestsSubtitle').textContent = `Favorite teams, tournaments, or shows — ${companion} checks each morning and mentions it if something's on today.`;
       document.getElementById('photoSubtitle').textContent = `${companion} can talk through cherished photos during conversations. Add names and the occasion so ${companion.toLowerCase() === 'jim' ? 'he' : 'she'} knows the story.`;
       document.getElementById('photoBtn').textContent = `Share with ${companion}`;
@@ -285,6 +298,7 @@
         document.getElementById('hubContent').style.display = 'block';
         setCompanionSelection(companion);
         loadDates();
+        loadReminders();
         loadInterests();
       } catch (e) {
         document.getElementById('loadingState').textContent = 'This link looks invalid or expired. Please check your welcome email.';
@@ -378,6 +392,85 @@
         renderDates(data.dates);
       } catch (e) {
         showStatus('datesStatus', 'error', e.message);
+      }
+    }
+
+    // ── Voice Reminders ──
+    // Same shape as Important Dates (time + label pairs), but spoken
+    // aloud by the companion at the set time rather than mentioned in
+    // conversation — see api/voice-reminders.js and
+    // api/voice-reminder-speak.js.
+    function formatReminderTimeForDisplay(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+    }
+
+    async function loadReminders() {
+      try {
+        const res = await fetch(`${API}/api/voice-reminders?patientId=${PATIENT_ID}`);
+        const data = await res.json();
+        renderReminders(data.reminders || []);
+      } catch (e) {
+        document.getElementById('reminderList').innerHTML = '<div class="empty-state">Couldn\'t load reminders right now.</div>';
+      }
+    }
+
+    function renderReminders(reminders) {
+      const list = document.getElementById('reminderList');
+      if (reminders.length === 0) {
+        list.innerHTML = '<div class="empty-state">No voice reminders added yet.</div>';
+        return;
+      }
+      const sorted = [...reminders].sort((a, b) => a.time.localeCompare(b.time));
+      list.innerHTML = sorted.map(r => `
+        <div class="date-item">
+          <div class="info">
+            <div class="label">${escapeHtml(r.label)}</div>
+            <div class="when">${formatReminderTimeForDisplay(r.time)} daily</div>
+          </div>
+          <button class="delete-btn" data-time="${r.time}" data-label="${escapeHtml(r.label)}" title="Remove">✕</button>
+        </div>
+      `).join('');
+      list.querySelectorAll('.delete-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteReminder(btn.dataset.time, btn.dataset.label));
+      });
+    }
+
+    document.getElementById('addReminderBtn').addEventListener('click', async () => {
+      const time = document.getElementById('newReminderTimeInput').value;
+      const label = document.getElementById('newReminderLabelInput').value.trim();
+      if (!time || !label) return showStatus('remindersStatus', 'error', 'Please add both a time and what to say.');
+      try {
+        const res = await fetch(`${API}/api/voice-reminders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, time, label })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to add');
+        renderReminders(data.reminders);
+        document.getElementById('newReminderTimeInput').value = '';
+        document.getElementById('newReminderLabelInput').value = '';
+        showStatus('remindersStatus', 'success', 'Added!');
+      } catch (e) {
+        showStatus('remindersStatus', 'error', e.message);
+      }
+    });
+
+    async function deleteReminder(time, label) {
+      try {
+        const res = await fetch(`${API}/api/voice-reminders`, {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, time, label })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Failed to remove');
+        renderReminders(data.reminders);
+      } catch (e) {
+        showStatus('remindersStatus', 'error', e.message);
       }
     }
 
