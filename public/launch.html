@@ -1471,6 +1471,21 @@
         }).catch(() => { soothingAudioEl.muted = false; });
       } catch(e) {}
 
+      // Prime the Voice Reminders <audio> element the same way — this was
+      // the actual bug behind reminders silently not being heard: without
+      // this unlock, Safari blocks the reminder's autoplay attempt hours
+      // later with no error shown to the person, since it fires with no
+      // fresh tap of its own (same root cause as the Soothing Sounds fix
+      // above, just missed when reminders were first built).
+      try {
+        const reminderAudioEl = document.getElementById('reminderAudio');
+        reminderAudioEl.muted = true;
+        reminderAudioEl.play().then(() => {
+          reminderAudioEl.pause();
+          reminderAudioEl.muted = false;
+        }).catch(() => { reminderAudioEl.muted = false; });
+      } catch(e) {}
+
       if (youtubePlayerReady) {
         primeYoutubePlayer();
       } else {
