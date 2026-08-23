@@ -181,6 +181,19 @@
     .soothing-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: white; font-size: 16px; cursor: pointer; }
     .soothing-status { text-align: center; font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 14px; min-height: 16px; }
 
+    /* ── Screen dimming during scheduled overnight Soothing Sounds ── */
+    /* Only ever activated by the SCHEDULE (see soothingPlaybackSource) —
+       never for a manual daytime "Play Now". A bright waiting screen would
+       work against someone trying to fall asleep next to it. This fades
+       the whole screen to near-black; a faint pulsing dot confirms the
+       device is still on and working. Tapping anywhere opens the Soothing
+       Sounds panel (with its Stop button) — the panel's own backdrop sits
+       above this overlay, so it stays fully legible even while dimmed. */
+    #soothingDimOverlay { position: fixed; inset: 0; z-index: 8; background: #000; opacity: 0; pointer-events: none; transition: opacity 3s ease; display: flex; align-items: center; justify-content: center; }
+    #soothingDimOverlay.active { opacity: 0.94; pointer-events: all; }
+    #soothingDimDot { width: 7px; height: 7px; border-radius: 50%; background: rgba(0,188,212,0.5); animation: soothing-dim-pulse 3.5s ease-in-out infinite; }
+    @keyframes soothing-dim-pulse { 0%,100% { opacity: 0.25; } 50% { opacity: 0.7; } }
+
     /* ── Family Code entry screen ── */
     /* Shown instead of the normal splash/name-check flow when the app
        has no token at all — the real-world case for a family installing
@@ -422,6 +435,7 @@
     </div>
   </div>
   <audio id="soothingAudio" loop preload="none"></audio>
+  <div id="soothingDimOverlay"><div id="soothingDimDot"></div></div>
 
   <!-- Photo overlay -->
   <div id="photoOverlay">
@@ -1588,7 +1602,25 @@
 
     function soothingSoundById(id) { return SOOTHING_SOUNDS.find(s => s.id === id) || SOOTHING_SOUNDS[0]; }
 
-    function soothingStartPlayback() {
+    // ── Screen dimming — only for SCHEDULE-triggered playback ──
+    // soothingPlaybackSource tracks WHY audio is currently playing:
+    // 'schedule' (the overnight auto-play window) or 'manual' (someone
+    // tapped Play Now). Only 'schedule' dims the screen — a manual daytime
+    // listen shouldn't darken the waiting screen. Passing no source to
+    // soothingStartPlayback() (e.g. resuming after a paused visit) keeps
+    // whatever source was already active, so dimming correctly persists
+    // or stays off across a visit interruption.
+    let soothingPlaybackSource = null;
+
+    function activateScreenDim() { document.getElementById('soothingDimOverlay').classList.add('active'); }
+    function deactivateScreenDim() { document.getElementById('soothingDimOverlay').classList.remove('active'); }
+    function updateScreenDim() {
+      if (soothingPlaybackSource === 'schedule' && !soothingAudioEl.paused) activateScreenDim();
+      else deactivateScreenDim();
+    }
+
+    function soothingStartPlayback(source) {
+      if (source) soothingPlaybackSource = source;
       const sound = soothingSoundById(soothingSelectedId);
       if (soothingAudioEl.getAttribute('data-current') !== sound.id) {
         soothingAudioEl.src = sound.src;
@@ -1600,6 +1632,7 @@
       const statusEl = document.getElementById('soothingStatus');
       if (nowPlayingEl) nowPlayingEl.classList.add('active');
       if (statusEl) statusEl.textContent = `Now playing: ${sound.label}`;
+      updateScreenDim();
     }
 
     function soothingStopPlayback() {
@@ -1609,6 +1642,7 @@
       const statusEl = document.getElementById('soothingStatus');
       if (nowPlayingEl) nowPlayingEl.classList.remove('active');
       if (statusEl) statusEl.textContent = '';
+      deactivateScreenDim();
     }
 
     // Handles ranges that cross midnight (e.g. 21:00 → 06:00), which a
@@ -1650,10 +1684,10 @@
         } else if (inRange && !soothingWasInRange && !soothingManualStop && soothingAudioEl.paused) {
           // Just entered the window — start automatically (avoid a
           // relentless restart loop by only firing on the range TRANSITION)
-          soothingStartPlayback();
+          soothingStartPlayback('schedule');
         } else if (inRange && !soothingManualStop && soothingAudioEl.paused) {
           // Mid-window but not playing (e.g. page was reloaded) — resume
-          soothingStartPlayback();
+          soothingStartPlayback('schedule');
         }
         soothingWasInRange = inRange;
       }, 20000);
@@ -1677,7 +1711,7 @@
     window.soothingPlayNow = function() {
       soothingManualStop = false;
       saveSoothingSettings();
-      soothingStartPlayback();
+      soothingStartPlayback('manual');
     };
     window.soothingStopNow = function() {
       soothingManualStop = true; // stays off until the schedule window is next exited (see checker)
@@ -1691,6 +1725,12 @@
     // Tapping the overlay backdrop (not the panel itself) closes it, same UX pattern as the photo overlay
     document.getElementById('soothingOverlay').addEventListener('click', (e) => {
       if (e.target.id === 'soothingOverlay') closeSoothingPanel();
+    });
+    // Tapping anywhere on the dimmed screen opens the Soothing Sounds panel
+    // (which has the Stop button) — a gentle way back in without needing
+    // to hunt for the small button underneath the dim.
+    document.getElementById('soothingDimOverlay').addEventListener('click', () => {
+      openSoothingPanel();
     });
 
     (function initSoothing() {
