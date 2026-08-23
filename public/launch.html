@@ -435,6 +435,7 @@
     </div>
   </div>
   <audio id="soothingAudio" loop preload="none"></audio>
+  <audio id="reminderAudio" preload="none"></audio>
   <div id="soothingDimOverlay"><div id="soothingDimDot"></div></div>
 
   <!-- Photo overlay -->
@@ -711,6 +712,91 @@
         updateNextVisitTime();
       } catch(e) { console.error('Profile load error:', e); }
     }
+
+    // ── Voice Reminders ──
+    // e.g. "It's 2:00. Time to take your medication." — spoken in the
+    // member's current companion's voice via ElevenLabs directly (see
+    // api/voice-reminder-speak.js), NOT a HeyGen avatar session — zero
+    // streaming credits used, costs a fraction of a cent per reminder.
+    let voiceReminders = [];
+    let firedRemindersToday = new Set();
+    let lastReminderCheckDate = null;
+    let reminderCheckInterval = null;
+
+    async function loadVoiceReminders() {
+      try {
+        const res = await fetch(`${API}/api/voice-reminders?patientId=${PATIENT_ID}`);
+        const data = await res.json();
+        voiceReminders = data.reminders || [];
+      } catch(e) { console.warn('Voice reminders load failed:', e); }
+    }
+
+    function formatReminderTimeSpoken(hhmm) {
+      const [h, m] = hhmm.split(':').map(Number);
+      const ampm = h >= 12 ? 'PM' : 'AM';
+      const h12 = h % 12 || 12;
+      const mStr = m === 0 ? '' : `:${String(m).padStart(2, '0')}`;
+      return `${h12}${mStr} ${ampm}`;
+    }
+
+    async function playVoiceReminder(reminder) {
+      const spokenText = `It's ${formatReminderTimeSpoken(reminder.time)}. ${reminder.label}.`;
+      console.log('Playing voice reminder:', spokenText);
+      // Duck Soothing Sounds if it's currently playing, same spirit as
+      // ducking during avatar speech, so the reminder is actually audible
+      // over ambient background sound rather than competing with it.
+      const soothingWasPlaying = soothingAudioEl && !soothingAudioEl.paused;
+      if (soothingWasPlaying) soothingAudioEl.volume = 0.15;
+      try {
+        const res = await fetch(`${API}/api/voice-reminder-speak`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientId: PATIENT_ID, text: spokenText })
+        });
+        if (!res.ok) throw new Error('Reminder speech generation failed');
+        const blob = await res.blob();
+        const reminderAudioEl = document.getElementById('reminderAudio');
+        reminderAudioEl.src = URL.createObjectURL(blob);
+        reminderAudioEl.onended = () => {
+          if (soothingWasPlaying) soothingAudioEl.volume = 1;
+          URL.revokeObjectURL(reminderAudioEl.src);
+        };
+        await reminderAudioEl.play();
+      } catch (e) {
+        console.warn('Voice reminder playback failed:', e);
+        if (soothingWasPlaying) soothingAudioEl.volume = 1;
+      }
+    }
+
+    // Real timer, checked every 30s — same honest-clock principle as
+    // Soothing Sounds and the rep-counter/breathing fixes.
+    function startVoiceReminderChecker() {
+      if (reminderCheckInterval) clearInterval(reminderCheckInterval);
+      reminderCheckInterval = setInterval(() => {
+        const now = new Date();
+        const todayStr = now.toDateString();
+        if (lastReminderCheckDate !== todayStr) {
+          // New calendar day — every reminder is eligible to fire again.
+          firedRemindersToday = new Set();
+          lastReminderCheckDate = todayStr;
+        }
+        // Reminders never interrupt an active Rose/Jim visit — a spoken
+        // reminder playing over a live conversation would be jarring and
+        // confusing. If the window is missed because a visit was active,
+        // that occurrence is simply skipped for today rather than queued,
+        // the same trade-off already accepted for the schedule checker.
+        if (sessionActive) return;
+        const nowHHMM = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+        voiceReminders.forEach(r => {
+          const key = `${todayStr}|${r.time}|${r.label}`;
+          if (r.time === nowHHMM && !firedRemindersToday.has(key)) {
+            firedRemindersToday.add(key);
+            playVoiceReminder(r);
+          }
+        });
+      }, 30000);
+    }
+
 
     function updateNextVisitTime() {
       if (!clientProfile?.visitTimes) { document.getElementById('waitingNext').style.display = 'none'; return; }
@@ -1442,6 +1528,7 @@
           loadClientProfile();
           startScheduleChecker();
           startEventReminderChecker();
+          loadVoiceReminders().then(startVoiceReminderChecker);
         } else {
           errorEl.style.display = 'block';
           input.value = '';
@@ -1753,6 +1840,7 @@
         loadClientProfile();
         startScheduleChecker();
         startEventReminderChecker();
+        loadVoiceReminders().then(startVoiceReminderChecker);
       }
       loadYoutubeApi();
       setInterval(loadBackgroundVideo, 10 * 60 * 1000);
