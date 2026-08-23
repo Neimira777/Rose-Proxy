@@ -13,19 +13,26 @@ import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
 // ── Family Code generation ──
-// A short, human-typeable code (e.g. "ROSE4829") for the native app's
+// A short, human-typeable code (e.g. "NMR4829") for the native app's
 // "Enter your family code" screen — see api/resolve-code.js. This is
 // deliberately separate from the long Access Token used in email links:
 // that token is fine to click, but nobody should have to type 32 random
 // hex characters by hand on a tablet.
+//
+// Uses a neutral "NMR" prefix rather than the companion name (Rose/Jim) —
+// members can switch companions at will (see switch-companion.js), and a
+// code that said "ROSE4829" while someone is now actually visiting with
+// Jim would read as a mismatch or make them second-guess whether they
+// typed it right. The code identifies the PERSON, not their current
+// companion choice, so it should stay stable regardless of switches.
 //
 // Checks Airtable for a collision before accepting a code, since two
 // members sharing a code would let one see the other's data. Retries a
 // few times with a fresh random suffix rather than trusting randomness
 // alone — the pool of 4-digit suffixes is small enough that a collision,
 // while unlikely, is realistic once there are hundreds of members.
-async function generateUniqueFamilyCode(companion) {
-  const prefix = companion === 'Jim' ? 'JIM' : 'ROSE';
+async function generateUniqueFamilyCode() {
+  const prefix = 'NMR';
   for (let attempt = 0; attempt < 6; attempt++) {
     const suffix = Math.floor(1000 + Math.random() * 9000); // 4 digits, never leading-zero
     const candidate = `${prefix}${suffix}`;
@@ -71,7 +78,7 @@ export default async function handler(req, res) {
 
     // Generate their short Family Code up front so it can be saved in the
     // same create call as everything else, rather than a separate write.
-    const familyCode = await generateUniqueFamilyCode(resolvedCompanion);
+    const familyCode = await generateUniqueFamilyCode();
 
     const createRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
