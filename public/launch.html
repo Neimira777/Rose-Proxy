@@ -181,6 +181,20 @@
     .soothing-close { position: absolute; top: 14px; right: 14px; width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.12); border: none; color: white; font-size: 16px; cursor: pointer; }
     .soothing-status { text-align: center; font-size: 12px; color: rgba(255,255,255,0.55); margin-top: 14px; min-height: 16px; }
 
+    /* ── Family Code entry screen ── */
+    /* Shown instead of the normal splash/name-check flow when the app
+       has no token at all — the real-world case for a family installing
+       the native app fresh via TestFlight, since the build's Website URL
+       has no per-member token baked in (that only works for one person).
+       Reuses the exact same visual language as the existing splash panel. */
+    #familyCodePanel { display: none; flex-direction: column; align-items: center; gap: 14px; width: 100%; max-width: 320px; }
+    .family-code-heading { color: white; font-family: 'Cormorant Garamond', serif; font-size: 26px; font-weight: 400; text-align: center; }
+    .family-code-sub { color: #E1F5FE; font-size: 15px; text-align: center; line-height: 1.5; }
+    #familyCodeInput { width: 100%; padding: 16px; border-radius: 12px; border: none; font-size: 22px; letter-spacing: 3px; text-align: center; text-transform: uppercase; box-sizing: border-box; font-family: 'Jost', sans-serif; }
+    #familyCodeSubmit { width: 100%; padding: 14px; border-radius: 12px; border: none; background: #00BCD4; color: white; font-size: 16px; font-weight: 600; cursor: pointer; }
+    #familyCodeError { display: none; color: #FFCDD2; font-size: 14px; text-align: center; line-height: 1.4; }
+    .family-code-hint { color: rgba(255,255,255,0.45); font-size: 12px; text-align: center; margin-top: 4px; }
+
     .soothing-now-playing { display: none; align-items: center; justify-content: center; gap: 10px; margin-top: 18px; padding: 12px; background: rgba(0,188,212,0.12); border: 1px solid rgba(0,188,212,0.3); border-radius: 12px; }
     .soothing-now-playing.active { display: flex; }
     .soothing-now-playing svg { width: 18px; height: 18px; flex-shrink: 0; }
@@ -230,6 +244,14 @@
       <div class="splash-logo-tag">AI Companion Technology</div>
     </div>
     <div class="splash-tap" id="splashTapPrompt">Tap to Begin</div>
+    <div id="familyCodePanel">
+      <div class="family-code-heading">Welcome to Neimira</div>
+      <div class="family-code-sub">Please enter your family code to get started.</div>
+      <input id="familyCodeInput" type="text" placeholder="ROSE4829" autocomplete="off" autocapitalize="characters" maxlength="12">
+      <button id="familyCodeSubmit" type="button">Continue</button>
+      <div id="familyCodeError">That code doesn't match what we have on file. Please check with your family member, or try again.</div>
+      <div class="family-code-hint">Your family code was included in your welcome email.</div>
+    </div>
     <div id="nameCheckPanel" style="display:none; flex-direction:column; align-items:center; gap:14px; width:100%; max-width:320px;">
       <div style="color:#E1F5FE; font-size:16px; text-align:center; line-height:1.5;">
         Welcome! To get started,<br>please tell us your first name.
@@ -434,6 +456,7 @@
     let PATIENT_ID = null;
     let RESOLVED_NAME = null;
     let DEVICE_KEY = null; // what we key the "verified on this device" flag off of
+    let NEEDS_FAMILY_CODE = false; // true when nothing resolved at all — see resolveIdentity()
 
     // Resolves who this link belongs to. Token-based links (new signups)
     // never expose the real Airtable record ID — we look it up server-side.
@@ -507,10 +530,19 @@
         return;
       }
 
-      // Nothing resolvable — fall back to default demo record, no identity gate
-      PATIENT_ID = 'recMLLC4fJHBUhE5w';
-      DEVICE_KEY = null;
-      RESOLVED_NAME = null;
+      // Nothing resolvable at all — this is the real situation for a
+      // family who just installed the native app fresh via TestFlight,
+      // since Median's build loads one generic URL with no per-member
+      // token baked in. Only fall back to the demo record when ?demo=true
+      // is explicitly present (Linda's own testing/demo use); otherwise
+      // this device needs a family code before anything else can happen.
+      if (IS_DEMO) {
+        PATIENT_ID = 'recMLLC4fJHBUhE5w';
+        DEVICE_KEY = null;
+        RESOLVED_NAME = null;
+      } else {
+        NEEDS_FAMILY_CODE = true;
+      }
     }
 
     const identityReady = resolveIdentity();
@@ -1077,6 +1109,19 @@
       sessionActive = true;
       showLoading(true);
 
+      // ── Pause Soothing Sounds for the duration of the visit ──
+      // Fix for a real bug Linda hit Aug 21: Soothing Sounds kept playing
+      // right through a scheduled morning conversation with Jim, competing
+      // with it instead of stepping aside. This is NOT the same as the
+      // manual Stop button — soothingPausedForVisit tracks that this was
+      // an automatic pause, so endSession() below knows to resume it
+      // afterward, and the schedule checker (see sessionActive guard) won't
+      // try to restart it mid-visit.
+      if (soothingAudioEl && !soothingAudioEl.paused) {
+        soothingPausedForVisit = true;
+        soothingStopPlayback();
+      }
+
       try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
       try { await fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
       // Clear any photo left queued from a previous session that ended
@@ -1244,6 +1289,16 @@
       photoShown = false; pendingPhoto = null; sessionActive = false; currentSessionId = null;
       showWaitingScreen();
 
+      // ── Resume Soothing Sounds, if the visit was the reason it paused ──
+      // Only resumes what launchRose() itself paused (soothingPausedForVisit)
+      // — never overrides a genuine manual Stop the person tapped during
+      // the visit, and never starts it up if it wasn't already playing
+      // before the visit began.
+      if (soothingPausedForVisit) {
+        soothingPausedForVisit = false;
+        soothingStartPlayback();
+      }
+
       // ── Brief cooldown before a new session can start ──
       // Stopping a session doesn't guarantee the browser has fully released
       // the previous WebRTC/video decoder pipeline the instant .stop()
@@ -1337,6 +1392,57 @@
       setTimeout(() => input.focus(), 300);
     }
 
+    // ── Family Code entry — for a fresh native-app install with no
+    // per-member token baked in. See NEEDS_FAMILY_CODE in resolveIdentity(). ──
+    function showFamilyCodePanel() {
+      document.getElementById('splashTapPrompt').style.display = 'none';
+      const panel = document.getElementById('familyCodePanel');
+      panel.style.display = 'flex';
+      const input = document.getElementById('familyCodeInput');
+      setTimeout(() => input.focus(), 300);
+    }
+
+    async function submitFamilyCode() {
+      const input = document.getElementById('familyCodeInput');
+      const errorEl = document.getElementById('familyCodeError');
+      const submitBtn = document.getElementById('familyCodeSubmit');
+      const code = (input.value || '').trim();
+      if (!code) return;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Checking...';
+      try {
+        const res = await fetch(`${API}/api/resolve-code?code=${encodeURIComponent(code)}`);
+        const data = await res.json();
+        if (data.patientId && data.token) {
+          PATIENT_ID = data.patientId;
+          RESOLVED_NAME = data.name || null;
+          DEVICE_KEY = data.token;
+          NEEDS_FAMILY_CODE = false;
+          try { localStorage.setItem('neimira_access_token', data.token); } catch(e) {}
+          markVerifiedOnThisDevice(); // they've already identified themselves via the code — no need for a second name check
+          errorEl.style.display = 'none';
+          document.getElementById('familyCodePanel').style.display = 'none';
+          actuallyDismissSplash();
+          // None of this ran at page-load time since identity was unknown
+          // then — start it now that we actually know who this is.
+          loadClientProfile();
+          startScheduleChecker();
+          startEventReminderChecker();
+        } else {
+          errorEl.style.display = 'block';
+          input.value = '';
+          input.focus();
+        }
+      } catch(e) {
+        console.warn('Family code lookup failed:', e);
+        errorEl.textContent = "Something went wrong checking that code. Please try again.";
+        errorEl.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Continue';
+      }
+    }
+
     function submitNameCheck() {
       const input = document.getElementById('nameCheckInput');
       const typed = (input.value || '').trim().toLowerCase();
@@ -1354,11 +1460,14 @@
     }
 
     window.dismissSplash = async function(e) {
-      // Ignore taps that land on the name-check panel itself — it has its own handlers
-      if (e && e.target && e.target.closest && e.target.closest('#nameCheckPanel')) return;
+      // Ignore taps that land on either gate panel — they have their own handlers
+      if (e && e.target && e.target.closest && (e.target.closest('#nameCheckPanel') || e.target.closest('#familyCodePanel'))) return;
       await identityReady;
       if (document.getElementById('nameCheckPanel').style.display === 'flex') return; // already showing the check
-      if (isVerifiedOnThisDevice() || !RESOLVED_NAME) {
+      if (document.getElementById('familyCodePanel').style.display === 'flex') return; // already showing the code entry
+      if (NEEDS_FAMILY_CODE) {
+        showFamilyCodePanel();
+      } else if (isVerifiedOnThisDevice() || !RESOLVED_NAME) {
         actuallyDismissSplash();
       } else {
         showNameCheckPanel();
@@ -1368,11 +1477,11 @@
     // Add both click and touchend for mobile compatibility
     document.getElementById('splashScreen').addEventListener('click', window.dismissSplash);
     document.getElementById('splashScreen').addEventListener('touchend', function(e) {
-      // Don't preventDefault() on taps landing inside the name-check panel —
+      // Don't preventDefault() on taps landing inside either gate panel —
       // doing so unconditionally was blocking the native tap-to-focus
-      // behavior on the name input field, so it looked like the field
-      // simply wasn't tappable at all.
-      if (e.target && e.target.closest && e.target.closest('#nameCheckPanel')) return;
+      // behavior on the input fields, so it looked like they simply
+      // weren't tappable at all.
+      if (e.target && e.target.closest && (e.target.closest('#nameCheckPanel') || e.target.closest('#familyCodePanel'))) return;
       e.preventDefault();
       window.dismissSplash(e);
     });
@@ -1385,6 +1494,16 @@
     document.getElementById('nameCheckInput').addEventListener('keydown', function(e) {
       e.stopPropagation();
       if (e.key === 'Enter') submitNameCheck();
+    });
+
+    document.getElementById('familyCodeSubmit').addEventListener('click', function(e) {
+      e.stopPropagation();
+      submitFamilyCode();
+    });
+    document.getElementById('familyCodeInput').addEventListener('click', function(e) { e.stopPropagation(); });
+    document.getElementById('familyCodeInput').addEventListener('keydown', function(e) {
+      e.stopPropagation();
+      if (e.key === 'Enter') submitFamilyCode();
     });
 
     // ── Soothing Sounds ──
@@ -1417,6 +1536,7 @@
     let soothingCheckInterval = null;
     let soothingManualStop = false; // true = manually stopped; re-arms next time we EXIT the range (see checker)
     let soothingWasInRange = false;
+    let soothingPausedForVisit = false; // true = auto-paused because a Rose/Jim visit started, NOT a manual stop — resumed automatically in endSession()
     const soothingAudioEl = document.getElementById('soothingAudio');
 
     function soothingStorageKey() {
@@ -1509,6 +1629,11 @@
     function startSoothingScheduleChecker() {
       if (soothingCheckInterval) clearInterval(soothingCheckInterval);
       soothingCheckInterval = setInterval(() => {
+        // Never let the schedule auto-resume playback during an active
+        // Rose/Jim visit — that's exactly the bug being fixed here. The
+        // visit's own launchRose()/endSession() handle pausing and
+        // resuming Soothing Sounds around the conversation itself.
+        if (sessionActive) return;
         const enabled = document.getElementById('soothingEnabledToggle')?.checked;
         if (!enabled) { soothingWasInRange = false; return; }
         const now = new Date();
@@ -1556,6 +1681,7 @@
     };
     window.soothingStopNow = function() {
       soothingManualStop = true; // stays off until the schedule window is next exited (see checker)
+      soothingPausedForVisit = false; // an explicit manual stop overrides any pending auto-resume from a visit
       soothingStopPlayback();
     };
 
@@ -1577,12 +1703,16 @@
     setInterval(updateClock, 1000);
     (async () => {
       await identityReady;
-      console.log('PATIENT_ID resolved:', PATIENT_ID);
-      loadClientProfile();
+      console.log('PATIENT_ID resolved:', PATIENT_ID, '| needs family code:', NEEDS_FAMILY_CODE);
+      // Nothing to load yet if a family code hasn't been entered — these
+      // all run once submitFamilyCode() resolves a real PATIENT_ID instead.
+      if (!NEEDS_FAMILY_CODE) {
+        loadClientProfile();
+        startScheduleChecker();
+        startEventReminderChecker();
+      }
       loadYoutubeApi();
       setInterval(loadBackgroundVideo, 10 * 60 * 1000);
-      startScheduleChecker();
-      startEventReminderChecker();
     })();
 
     // ── Load Unsplash photo behind splash screen ──
