@@ -12,6 +12,43 @@
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
 
+// ── Family Code generation ──
+// A short, human-typeable code (e.g. "ROSE4829") for the native app's
+// "Enter your family code" screen — see api/resolve-code.js. This is
+// deliberately separate from the long Access Token used in email links:
+// that token is fine to click, but nobody should have to type 32 random
+// hex characters by hand on a tablet.
+//
+// Checks Airtable for a collision before accepting a code, since two
+// members sharing a code would let one see the other's data. Retries a
+// few times with a fresh random suffix rather than trusting randomness
+// alone — the pool of 4-digit suffixes is small enough that a collision,
+// while unlikely, is realistic once there are hundreds of members.
+async function generateUniqueFamilyCode(companion) {
+  const prefix = companion === 'Jim' ? 'JIM' : 'ROSE';
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const suffix = Math.floor(1000 + Math.random() * 9000); // 4 digits, never leading-zero
+    const candidate = `${prefix}${suffix}`;
+    try {
+      const checkRes = await fetch(
+        `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=${encodeURIComponent(`UPPER({Family Code})="${candidate}"`)}&maxRecords=1`,
+        { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
+      );
+      const checkData = await checkRes.json();
+      if (!checkData.records || checkData.records.length === 0) {
+        return candidate; // no collision — safe to use
+      }
+      console.warn(`Family Code collision on ${candidate}, retrying (attempt ${attempt + 1})`);
+    } catch (e) {
+      console.warn('Family Code uniqueness check failed, using candidate anyway:', e.message);
+      return candidate; // don't let a transient Airtable hiccup block signup entirely
+    }
+  }
+  // Extremely unlikely fallback after 6 collisions — add a longer random
+  // suffix so signup never hard-fails over this.
+  return `${prefix}${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -32,6 +69,10 @@ export default async function handler(req, res) {
     // database structure and, if guessed/enumerated, other members' data).
     const accessToken = crypto.randomBytes(16).toString('hex');
 
+    // Generate their short Family Code up front so it can be saved in the
+    // same create call as everything else, rather than a separate write.
+    const familyCode = await generateUniqueFamilyCode(resolvedCompanion);
+
     const createRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}`,
       {
@@ -48,7 +89,8 @@ export default async function handler(req, res) {
             'Visit Times': visitTimes || '',
             'Preferred Companion': resolvedCompanion,
             'Preferred Language': preferredLanguage || '',
-            'Access Token': accessToken
+            'Access Token': accessToken,
+            'Family Code': familyCode
           }
         })
       }
@@ -62,7 +104,7 @@ export default async function handler(req, res) {
 
     const recordId = createData.id;
     const nmrId = createData.fields['Client ID'] || '';
-    console.log(`Signup — new member created: ${recordId} (${nmrId})`);
+    console.log(`Signup — new member created: ${recordId} (${nmrId}) — Family Code: ${familyCode}`);
 
     // ── Step 2: Build the personal links ──
     // Uses the access token, not the raw record ID — the link itself
@@ -97,6 +139,12 @@ export default async function handler(req, res) {
             <p>
               <a href="${hubLink}" style="display:inline-block;background:#2563eb;color:white;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;">Open Family Hub</a>
             </p>
+            <h3 style="margin-top:32px;">Using the Neimira app</h3>
+            <p>If you've installed the Neimira app on an iPad, open it and enter this Family Code when asked:</p>
+            <p style="text-align:center;">
+              <span style="display:inline-block;background:#f0f4ff;color:#1e3a8a;padding:12px 28px;border-radius:8px;font-size:22px;font-weight:700;letter-spacing:3px;">${familyCode}</span>
+            </p>
+            <p style="color:#555;font-size:14px;">You'll only need to enter this once — the app will remember it on that device from then on.</p>
             <h3 style="margin-top:32px;">Setting up your iPad</h3>
             <ul>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
@@ -120,6 +168,7 @@ export default async function handler(req, res) {
         recordId,
         nmrId,
         hubLink,
+        familyCode,
         warning: 'Member created, but the welcome email failed to send. Links are included in this response for manual follow-up.'
       });
     }
@@ -128,6 +177,7 @@ export default async function handler(req, res) {
       ok: true,
       recordId,
       nmrId,
+      familyCode,
       message: 'Welcome email sent!'
     });
 
