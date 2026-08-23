@@ -2,15 +2,18 @@
 //  signup.js
 //  Public onboarding endpoint. Family or client fills out
 //  a short form on the website — this creates their Member
-//  Table record in Airtable and sends a welcome email with
+//  Table record in Airtable, sends a welcome email with
 //  their personal Rose link, photo upload link, and iPad
-//  setup instructions.
+//  setup instructions, AND automatically invites them to
+//  the Neimira TestFlight beta so they receive Apple's
+//  install invite without Linda adding them manually.
 //  POST /api/signup
 //  Body: { fullName, preferredName, familyEmail, visitTimes }
 // ─────────────────────────────────────────────
 
 import nodemailer from 'nodemailer';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 
 // ── Family Code generation ──
 // A short, human-typeable code (e.g. "NMR4829") for the native app's
@@ -54,6 +57,87 @@ async function generateUniqueFamilyCode() {
   // Extremely unlikely fallback after 6 collisions — add a longer random
   // suffix so signup never hard-fails over this.
   return `${prefix}${Math.floor(100000 + Math.random() * 900000)}`;
+}
+
+// ── App Store Connect API authentication ──
+// Apple's API uses a short-lived signed JWT, not a plain API key — every
+// request needs a fresh token (max 20 min lifetime) signed with the
+// downloaded .p8 private key. This mirrors exactly what Median itself
+// does behind the scenes with the same style of key.
+function generateAppleApiToken() {
+  const privateKey = process.env.APPLE_PRIVATE_KEY;
+  const keyId = process.env.APPLE_KEY_ID;
+  const issuerId = process.env.APPLE_ISSUER_ID;
+  if (!privateKey || !keyId || !issuerId) {
+    throw new Error('Missing Apple API credentials (APPLE_PRIVATE_KEY / APPLE_KEY_ID / APPLE_ISSUER_ID)');
+  }
+  return jwt.sign(
+    { iss: issuerId, aud: 'appstoreconnect-v1' },
+    privateKey,
+    { algorithm: 'ES256', expiresIn: '19m', header: { kid: keyId, typ: 'JWT' } }
+  );
+}
+
+// ── Automatically invite the new member to TestFlight ──
+// Closes the gap where Linda previously had to manually add every new
+// signup's email to the Pilot Testers group in App Store Connect. This
+// runs the exact same action, just triggered automatically at signup.
+//
+// Deliberately non-blocking and non-fatal: if Apple's API is down, the
+// key is misconfigured, or anything else goes wrong here, signup itself
+// must still succeed — a family should never be blocked from getting
+// their welcome email over a TestFlight hiccup. Failures are logged so
+// Linda can add someone manually as a fallback, same as before this
+// feature existed.
+async function inviteToTestFlight(email, fullName) {
+  const groupId = process.env.APPLE_PILOT_GROUP_ID || '368d1164-03f4-4bdd-96bf-992036c7e644';
+  try {
+    const appleToken = generateAppleApiToken();
+    const [firstName, ...rest] = (fullName || '').trim().split(/\s+/);
+    const lastName = rest.join(' ') || '';
+
+    const res = await fetch('https://api.appstoreconnect.apple.com/v1/betaTesters', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${appleToken}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        data: {
+          type: 'betaTesters',
+          attributes: {
+            email,
+            firstName: firstName || undefined,
+            lastName: lastName || undefined
+          },
+          relationships: {
+            betaGroups: {
+              data: [{ type: 'betaGroups', id: groupId }]
+            }
+          }
+        }
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      // Apple returns 409 if this email is already a tester — not a real
+      // failure, just means they're already invited (e.g. Linda added them
+      // manually earlier, or they signed up twice).
+      const alreadyExists = res.status === 409 || JSON.stringify(data).includes('ALREADY_EXISTS');
+      if (alreadyExists) {
+        console.log(`Signup — ${email} is already a TestFlight tester, skipping.`);
+        return { ok: true, alreadyExists: true };
+      }
+      console.error('Signup — TestFlight invite failed:', res.status, JSON.stringify(data));
+      return { ok: false, error: data };
+    }
+    console.log(`Signup — TestFlight invite sent to ${email}`);
+    return { ok: true };
+  } catch (e) {
+    console.error('Signup — TestFlight invite error:', e.message);
+    return { ok: false, error: e.message };
+  }
 }
 
 export default async function handler(req, res) {
@@ -113,7 +197,13 @@ export default async function handler(req, res) {
     const nmrId = createData.fields['Client ID'] || '';
     console.log(`Signup — new member created: ${recordId} (${nmrId}) — Family Code: ${familyCode}`);
 
-    // ── Step 2: Build the personal links ──
+    // ── Step 2: Invite them to TestFlight automatically ──
+    // Fired off before the email so any TestFlight invite (if it succeeds)
+    // and the welcome email arrive close together, rather than the email
+    // going out first and the invite trickling in separately later.
+    const testFlightResult = await inviteToTestFlight(familyEmail, fullName);
+
+    // ── Step 3: Build the personal links ──
     // Uses the access token, not the raw record ID — the link itself
     // reveals nothing about the underlying database.
     // Uses app.neimira.com (not the rose-proxy.vercel.app address) so every
@@ -121,7 +211,7 @@ export default async function handler(req, res) {
     // under the real Neimira domain rather than a generic Vercel URL.
     const hubLink = `https://app.neimira.com/family-hub.html?token=${accessToken}${isDemo ? '&demo=true' : ''}`;
 
-    // ── Step 3: Send the welcome email via Gmail SMTP ──
+    // ── Step 4: Send the welcome email via Gmail SMTP ──
     // Uses a Google Workspace account + App Password (not the account's
     // normal password — App Passwords are generated under Google Account
     // > Security > 2-Step Verification > App Passwords).
@@ -154,6 +244,7 @@ export default async function handler(req, res) {
             <p style="color:#555;font-size:14px;">You'll only need to enter this once — the app will remember it on that device from then on.</p>
             <h3 style="margin-top:32px;">Setting up your iPad</h3>
             <ul>
+              <li>You should receive a separate email from Apple/TestFlight shortly with instructions to install the Neimira app — look for a "View in TestFlight" button.</li>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
               <li>Open the Family Hub link above in Safari, tap "Visit with ${resolvedCompanion}," then tap the Share icon → "Add to Home Screen" for that page — this keeps microphone permissions saved</li>
@@ -176,6 +267,7 @@ export default async function handler(req, res) {
         nmrId,
         hubLink,
         familyCode,
+        testFlightInvited: testFlightResult.ok,
         warning: 'Member created, but the welcome email failed to send. Links are included in this response for manual follow-up.'
       });
     }
@@ -185,6 +277,7 @@ export default async function handler(req, res) {
       recordId,
       nmrId,
       familyCode,
+      testFlightInvited: testFlightResult.ok,
       message: 'Welcome email sent!'
     });
 
