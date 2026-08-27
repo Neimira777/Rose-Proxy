@@ -745,7 +745,7 @@
       // Duck Soothing Sounds if it's currently playing, same spirit as
       // ducking during avatar speech, so the reminder is actually audible
       // over ambient background sound rather than competing with it.
-      const soothingWasPlaying = soothingAudioEl && !soothingAudioEl.paused;
+      const soothingWasPlaying = soothingIsPlaying;
       if (soothingWasPlaying) soothingAudioEl.volume = 0.15;
       try {
         const res = await fetch(`${API}/api/voice-reminder-speak`, {
@@ -1217,7 +1217,20 @@
       // an automatic pause, so endSession() below knows to resume it
       // afterward, and the schedule checker (see sessionActive guard) won't
       // try to restart it mid-visit.
-      if (soothingAudioEl && !soothingAudioEl.paused) {
+      //
+      // FIX (Aug 24, 2026): this used to check `!soothingAudioEl.paused`
+      // directly — a real bug. The daily priming sequence (see
+      // actuallyDismissSplash) calls .play() then, a moment later,
+      // .pause() to unlock audio; between those two calls, .paused briefly
+      // reads false even though nothing is genuinely playing. If a visit
+      // started in that exact window (e.g. a scheduled visit firing right
+      // as the splash was dismissed), this incorrectly "detected" Soothing
+      // Sounds as already playing and resumed it after the visit — with no
+      // schedule active and no manual play, exactly what Linda reported.
+      // soothingIsPlaying is real intent, set only by
+      // soothingStartPlayback()/soothingStopPlayback(), never by this
+      // unreliable browser property.
+      if (soothingIsPlaying) {
         soothingPausedForVisit = true;
         soothingStopPlayback();
       }
@@ -1298,6 +1311,28 @@
         showRoseScreen();
         setListening(false);
 
+        // ── FIX (Aug 24, 2026): voiceChat now starts immediately, right
+        // after the avatar session itself begins — not after waiting for
+        // morning music to load plus a fixed 12-second pause. This is the
+        // real fix for a bug Linda hit: Jim's spoken greeting fires as
+        // soon as the session starts (below), but the OLD code didn't
+        // enable her microphone until much later — the YouTube search/
+        // load time plus a flat extra 12 seconds, easily 20-40+ seconds
+        // combined. She spoke right after his greeting, as anyone would,
+        // and got no response until the whole song had finished, because
+        // he genuinely wasn't listening yet.
+        //
+        // The old code ALSO explicitly called spotifyPlayBySearch() here
+        // before voiceChat started — but that's redundant: chat-completions.js
+        // already deterministically queues this same morning song via
+        // /api/music-queue on Jim's very first reply (see
+        // morningMusicInstruction there), which the polling loop below
+        // (already running) picks up and plays automatically. Removing
+        // this duplicate blocking call fixes both the redundancy and the
+        // listening delay in one move — the song still plays, just through
+        // the existing path, without gating the microphone behind it.
+        try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
+
         await new Promise(resolve => {
           if (window.Spotify) { resolve(); return; }
           window.onSpotifyWebPlaybackSDKReady = resolve;
@@ -1310,30 +1345,6 @@
         startRepCountPolling(PATIENT_ID);
         startBreathingPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
-
-        if (isMorningHour()) {
-          // Guard against a slow/unresolved profile fetch — clientProfile is
-          // normally already loaded by page-load time, but this keeps the
-          // morning song personalized even in a rare slow-network case.
-          if (!clientProfile) { try { await loadClientProfile(); } catch(e) {} }
-          const morningSong = getMorningSong();
-          console.log('Morning music intro:', morningSong);
-          // Previously this waited up to 10 seconds specifically for a
-          // Spotify device to connect, and if one never appeared, morning
-          // music was skipped ENTIRELY — it never reached YouTube at all.
-          // That's exactly what happens for every family with no Spotify
-          // connected (every real family today, since there's no Connect
-          // flow built yet), meaning morning music silently never played
-          // for them, regardless of the Spotify→YouTube fallback fix
-          // elsewhere. Now this just calls spotifyPlayBySearch directly —
-          // it already knows how to try Spotify if available and fall
-          // back to YouTube immediately otherwise, same as every other
-          // PLAY_MUSIC moment in the app.
-          await spotifyPlayBySearch(morningSong);
-          await new Promise(r => setTimeout(r, 12000));
-        }
-
-        try { await liveAvatarSession.voiceChat.start({ mode: 'CONVERSATIONAL' }); } catch(e) { console.warn('voiceChat.start() error:', e?.message); }
 
         setListening(true);
         resetSilenceTimer();
@@ -1653,6 +1664,7 @@
     let soothingManualStop = false; // true = manually stopped; re-arms next time we EXIT the range (see checker)
     let soothingWasInRange = false;
     let soothingPausedForVisit = false; // true = auto-paused because a Rose/Jim visit started, NOT a manual stop — resumed automatically in endSession()
+    let soothingIsPlaying = false; // tracks INTENT to play, set only by soothingStartPlayback()/soothingStopPlayback() — deliberately NOT derived from soothingAudioEl.paused, which is unreliable during the daily priming sequence (play() then an async pause() leaves a brief window where .paused reads false even though nothing is really playing; a visit starting in that exact window previously caused Soothing Sounds to incorrectly "resume" after the visit even with no schedule active — the real bug behind Aug 24's report)
     const soothingAudioEl = document.getElementById('soothingAudio');
 
     function soothingStorageKey() {
@@ -1696,7 +1708,7 @@
           renderSoothingGrid();
           saveSoothingSettings();
           // If already playing, switch track live so the change is felt immediately
-          if (!soothingAudioEl.paused) soothingStartPlayback();
+          if (soothingIsPlaying) soothingStartPlayback();
         };
         grid.appendChild(el);
       });
@@ -1719,6 +1731,7 @@
 
     function soothingStartPlayback(source) {
       if (source) soothingPlaybackSource = source;
+      soothingIsPlaying = true; // real intent, set directly — not derived from the audio element's own .paused property
       const sound = soothingSoundById(soothingSelectedId);
       if (soothingAudioEl.getAttribute('data-current') !== sound.id) {
         soothingAudioEl.src = sound.src;
@@ -1741,6 +1754,7 @@
     }
 
     function soothingStopPlayback() {
+      soothingIsPlaying = false;
       soothingAudioEl.pause();
       document.getElementById('soothingBtn').classList.remove('playing');
       const nowPlayingEl = document.getElementById('soothingNowPlaying');
@@ -1785,12 +1799,12 @@
           // Leaving the window resets the manual-stop flag, so tomorrow's
           // window starts fresh even if it was stopped manually today.
           soothingManualStop = false;
-          if (!soothingAudioEl.paused) soothingStopPlayback();
-        } else if (inRange && !soothingWasInRange && !soothingManualStop && soothingAudioEl.paused) {
+          if (soothingIsPlaying) soothingStopPlayback();
+        } else if (inRange && !soothingWasInRange && !soothingManualStop && !soothingIsPlaying) {
           // Just entered the window — start automatically (avoid a
           // relentless restart loop by only firing on the range TRANSITION)
           soothingStartPlayback('schedule');
-        } else if (inRange && !soothingManualStop && soothingAudioEl.paused) {
+        } else if (inRange && !soothingManualStop && !soothingIsPlaying) {
           // Mid-window but not playing (e.g. page was reloaded) — resume
           soothingStartPlayback('schedule');
         }
@@ -1804,7 +1818,7 @@
       document.getElementById('soothingOverlay').classList.add('visible');
       // Reflect actual current playback state (e.g. reopening the panel
       // after it was already playing, rather than assuming it's stopped)
-      if (!soothingAudioEl.paused) {
+      if (soothingIsPlaying) {
         document.getElementById('soothingNowPlaying').classList.add('active');
         document.getElementById('soothingStatus').textContent = `Now playing: ${soothingSoundById(soothingSelectedId).label}`;
       }
