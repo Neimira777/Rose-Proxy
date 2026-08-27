@@ -244,7 +244,7 @@ export default async function handler(req, res) {
             <p style="color:#555;font-size:14px;">You'll only need to enter this once — the app will remember it on that device from then on.</p>
             <h3 style="margin-top:32px;">Setting up your iPad</h3>
             <ul>
-              <li>You should receive a separate email from Apple/TestFlight shortly with instructions to install the Neimira app — look for a "View in TestFlight" button.</li>
+              <li>You should receive a separate email from Apple/TestFlight shortly with instructions to install the Neimira app — look for a "View in TestFlight" button. <strong>Important:</strong> this invite went to <em>${familyEmail}</em>. If that's the same email address tied to your Apple ID (the one used for the App Store), it should open smoothly. If it's a different email, Apple may prompt you to create a brand-new Apple ID for it — if that happens, it's easiest to cancel and let us know so we can resend the invite to your actual Apple ID email instead.</li>
               <li>Settings → Display & Brightness → Auto-Lock → Never</li>
               <li>Keep the iPad plugged in</li>
               <li>Open the Family Hub link above in Safari, tap "Visit with ${resolvedCompanion}," then tap the Share icon → "Add to Home Screen" for that page — this keeps microphone permissions saved</li>
