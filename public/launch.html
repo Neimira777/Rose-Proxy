@@ -691,9 +691,12 @@
     }
 
     async function loadClientProfile() {
+      console.log('loadClientProfile() starting — PATIENT_ID:', PATIENT_ID, 'at', new Date().toISOString());
       try {
         const res = await fetch(`${API}/api/patients?id=${PATIENT_ID}`);
+        console.log('loadClientProfile() fetch response status:', res.status, res.ok);
         const data = await res.json();
+        console.log('loadClientProfile() raw data received:', JSON.stringify(data));
         clientProfile = data;
         document.getElementById('waitingName').textContent = data.name || '';
         // ── Companion-aware display text ──
@@ -702,6 +705,7 @@
         // page still visually says "Rose" while a different avatar/voice
         // is actually speaking, which would be confusing.
         const companionName = data.preferredCompanion || 'Rose';
+        console.log('loadClientProfile() resolved companionName:', companionName, '(raw preferredCompanion was:', data.preferredCompanion, ')');
         document.title = `Neimira — ${companionName}`;
         const loadingMsg = document.getElementById('loadingMsg');
         if (loadingMsg) loadingMsg.textContent = `${companionName} is on ${companionName === 'Jim' ? 'his' : 'her'} way…`;
@@ -710,7 +714,10 @@
         const speakingLabel = document.getElementById('speakingLabel');
         if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
         updateNextVisitTime();
-      } catch(e) { console.error('Profile load error:', e); }
+        console.log('loadClientProfile() completed successfully');
+      } catch(e) {
+        console.error('loadClientProfile() FAILED — error name:', e.name, '| message:', e.message, '| stack:', e.stack, '| PATIENT_ID was:', PATIENT_ID);
+      }
     }
 
     // ── Voice Reminders ──
