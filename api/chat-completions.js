@@ -696,6 +696,22 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       }
     } catch (e) { console.warn('Music status fetch failed:', e.message); }
 
+    // ── Graceful wrap-up flag ──
+    // Set by launch.html a couple of minutes before a visit's normal
+    // duration is up (see wrapUpTimer there). Checked here, on every
+    // reply, the same way musicStatus is checked above — if set, this
+    // combines with the existing __WRAP_UP__ sentinel below so Rose/Jim
+    // naturally closes the conversation warmly on their next reply,
+    // instead of the resident being cut off abruptly by launch.html's
+    // hard timer mid-sentence. A long-winded resident just gets one more
+    // natural back-and-forth before the goodbye, rather than silence.
+    let visitTimeWrapUp = false;
+    try {
+      const wrapUpRes = await fetch(`https://rose-proxy.vercel.app/api/wrap-up-flag?patientId=${patientId}`);
+      const wrapUpData = await wrapUpRes.json();
+      visitTimeWrapUp = !!wrapUpData.wrapUp;
+    } catch (e) { console.warn('Wrap-up flag fetch failed:', e.message); }
+
     const greetingsRose = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -718,7 +734,7 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
     let sessionSignalInstruction = '';
     if (isCheckIn) {
       sessionSignalInstruction = `\nSESSION SIGNAL — CHECK IN: You have not heard from the resident in a while. Gently check in by saying something warm like "${greetingName}, are you still there? I'm right here if you'd like to chat." Keep it very brief and warm.`;
-    } else if (isWrapUp) {
+    } else if (isWrapUp || visitTimeWrapUp) {
       sessionSignalInstruction = `\nSESSION SIGNAL — WRAP UP: The visit is coming to a close. Warmly wrap up the conversation. Say something like "It's been so lovely spending time with you, ${greetingName}. I'll see you again soon — take good care of yourself." Make it feel like a natural, loving goodbye from a good friend.`;
     }
 

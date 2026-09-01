@@ -580,6 +580,7 @@
     let photoShown = false;
     let pendingPhoto = null;
     let sessionTimer = null;
+    let wrapUpTimer = null;
     let silenceTimer = null;
     let checkInTimer = null;
     let checkInSent = false;
@@ -1254,6 +1255,10 @@
       try { await fetch(`${API}/api/exercise-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
       // Same idea for any leftover breathing-pattern signal too.
       try { await fetch(`${API}/api/breathing-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
+      // Same idea for any leftover wrap-up flag from a session that ended
+      // before it was ever cleared — otherwise a brand new visit could
+      // start with Rose/Jim thinking it's already time to say goodbye.
+      try { await fetch(`${API}/api/wrap-up-flag?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
 
       let visitCountToday = 1;
       try {
@@ -1356,14 +1361,43 @@
         setListening(true);
         resetSilenceTimer();
 
+        // ── Graceful wrap-up instead of an abrupt mid-sentence cutoff ──
+        // Fix for a real gap Linda flagged: a long-winded resident who's
+        // still mid-conversation when visitDuration is reached previously
+        // got cut off instantly by endSession() with zero warning — even
+        // mid-sentence. Rather than guess at an unconfirmed LiveAvatar SDK
+        // method for injecting an unprompted line (there isn't one
+        // documented for @heygen/liveavatar-web-sdk), this reuses the
+        // exact same lightweight flag pattern already proven to work for
+        // music-status: ~2 minutes before the normal end, flag the visit
+        // as "wrapping up" via a tiny new endpoint. chat-completions.js
+        // checks that flag on every reply the same way it already checks
+        // music-status, and if set, naturally triggers the EXISTING
+        // "SESSION SIGNAL — WRAP UP" instruction on Rose/Jim's next
+        // natural reply to the resident — a warm, in-character goodbye,
+        // not an artificial interruption. The hard cutoff below moves out
+        // by 60s to give that goodbye room to actually finish before the
+        // session is forcibly ended as a safety net.
+        const WRAP_UP_BUFFER_MS = 2 * 60 * 1000;
+        const HARD_CUTOFF_GRACE_MS = 60 * 1000;
         const duration = (clientProfile?.visitDuration || 15) * 60 * 1000;
-        sessionTimer = setTimeout(() => endSession(), duration);
+        const wrapUpDelay = Math.max(duration - WRAP_UP_BUFFER_MS, 0);
+        wrapUpTimer = setTimeout(() => {
+          fetch(`${API}/api/wrap-up-flag`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId: PATIENT_ID })
+          }).catch(e => console.warn('Wrap-up flag failed:', e));
+        }, wrapUpDelay);
+        sessionTimer = setTimeout(() => endSession(), duration + HARD_CUTOFF_GRACE_MS);
 
       } catch(err) { console.error('Launch error:', err); showLoading(false); sessionActive = false; }
     }
 
     window.endSession = async function() {
       if (sessionTimer) { clearTimeout(sessionTimer); sessionTimer = null; }
+      if (wrapUpTimer) { clearTimeout(wrapUpTimer); wrapUpTimer = null; }
+      fetch(`${API}/api/wrap-up-flag?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(() => {});
       if (musicPollInterval) { clearInterval(musicPollInterval); musicPollInterval = null; }
       if (photoPollInterval) { clearInterval(photoPollInterval); photoPollInterval = null; }
       if (repCountPollInterval) { clearInterval(repCountPollInterval); repCountPollInterval = null; }
