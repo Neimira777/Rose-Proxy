@@ -412,7 +412,25 @@ export default async function handler(req, res) {
       .filter(m => m.role === 'user' || m.role === 'assistant')
       .map(m => ({ role: m.role, content: typeof m.content === 'string' ? m.content : m.content?.[0]?.text || '' }));
 
-    const isFirstMessage = !messages.some(m => m.role === 'assistant');
+    // ── FIX (Sep 1, 2026): isFirstMessage bug ──
+    // Previously computed as !messages.some(m => m.role === 'assistant') —
+    // "true only if no assistant turn exists yet." That's wrong for how
+    // HeyGen's LiveAvatar actually works: the avatar SPEAKS its opening
+    // greeting (from the "Your opening greeting for this session" line in
+    // the system prompt below) via HeyGen's own text-to-speech BEFORE this
+    // endpoint is ever called. By the time the resident replies and this
+    // endpoint fires for the first time, the message history HeyGen sends
+    // already contains that greeting as an assistant turn — so the OLD
+    // check evaluated to false on what is, in reality, the very first
+    // exchange of every single session. This silently broke morning music,
+    // the wardrobe/clothing suggestion, the Daily Interest Briefing, and
+    // the event-reminder opening line — all four gated on isFirstMessage —
+    // confirmed via Vercel logs showing isFirstMessage: false on a call
+    // whose lastUserContent was literally "Good morning." Now checks for
+    // exactly one USER message instead, which correctly identifies "the
+    // resident's first reply" regardless of whether HeyGen's own greeting
+    // already added an assistant turn to the history.
+    const isFirstMessage = messages.filter(m => m.role === 'user').length === 1;
 
     const lastUserContent = messages.filter(m => m.role === 'user').pop()?.content || '';
     const isCheckIn = lastUserContent.includes('__CHECK_IN__');
