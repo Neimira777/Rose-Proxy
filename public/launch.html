@@ -344,6 +344,12 @@
       <div class="waiting-next" id="waitingNext">
         <span id="waitingCompanionName">Rose</span> visits at <span id="nextVisitTime">—</span>
       </div>
+      <!-- Shown briefly in place of waitingNext above when the day's HeyGen
+           credit budget is already used up and a new visit is declined —
+           see showBudgetDeclineMessage(). Same class/styling as waitingNext
+           so this reuses the existing waiting-screen status text area
+           rather than introducing a new toast/banner component. -->
+      <div class="waiting-next" id="budgetDeclineMessage" style="display:none;"></div>
     </div>
   </div>
 
@@ -577,6 +583,8 @@
     let repCounterRunning = false;
     let breathingPollInterval = null;
     let keepAliveInterval = null;
+    let budgetPollInterval = null;
+    let lastBudgetTickAt = null;
     let photoShown = false;
     let pendingPhoto = null;
     let sessionTimer = null;
@@ -591,6 +599,17 @@
 
     const SILENCE_BEFORE_CHECKIN = 45 * 1000;
     const SILENCE_BEFORE_END = 60 * 1000;
+
+    // ── Daily HeyGen credit budget (Bergen pilot cost control) ──
+    // 2 credits/minute in full conversational mode. See api/daily-budget.js
+    // for the shared budget/taper/reset logic — this is just the client
+    // side that (a) gates every session start behind a budget check and
+    // (b) reports real elapsed usage back every BUDGET_POLL_INTERVAL_MS
+    // while a session is active, hard-ending the session the moment the
+    // daily budget hits zero as a safety net independent of whether the
+    // LLM's own taper instruction (chat-completions.js) actually lands.
+    const BUDGET_POLL_INTERVAL_MS = 20 * 1000;
+    const CREDITS_PER_MINUTE = 2;
 
     function resetSilenceTimer() {
       if (silenceTimer) clearTimeout(silenceTimer);
@@ -836,7 +855,7 @@
           // Fire if within 2 minutes of scheduled time to avoid missing exact minute
           if (parsed >= 0 && Math.abs(parsed - nowMinutes) <= 1 && !restartCooldown) {
             console.log('Scheduled visit time reached:', t);
-            launchRose();
+            launchRose(undefined, 'scheduled');
             break;
           }
         }
@@ -859,7 +878,7 @@
           const data = await res.json();
           if (data.remind && data.label) {
             console.log('Event reminder triggered:', data.label);
-            launchRose(data.label);
+            launchRose(data.label, 'event');
           }
         } catch (e) { /* non-fatal — just try again next minute */ }
       }, 60000);
@@ -1212,8 +1231,81 @@
     window.spotifyNext = () => { if (spotifyPlayer) spotifyPlayer.nextTrack(); };
     window.spotifyPrevious = () => { if (spotifyPlayer) spotifyPlayer.previousTrack(); };
 
-    async function launchRose(eventReminderLabel) {
+    // ── Daily budget: warm decline when today's credits are already used up ──
+    // Reuses the existing waiting-screen "visits at —" text area rather than
+    // a new UI component (see budgetDeclineMessage element above waitingNext).
+    function showBudgetDeclineMessage() {
+      const declineEl = document.getElementById('budgetDeclineMessage');
+      const nextEl = document.getElementById('waitingNext');
+      if (!declineEl || !nextEl) return;
+      declineEl.textContent = "We had our chat today — I'll see you tomorrow!";
+      nextEl.style.display = 'none';
+      declineEl.style.display = '';
+      setTimeout(() => {
+        declineEl.style.display = 'none';
+        nextEl.style.display = '';
+      }, 8000);
+    }
+
+    // ── Daily budget: continuous usage reporting + forced cutoff ──
+    // Runs every BUDGET_POLL_INTERVAL_MS while a session is active. Reports
+    // real elapsed time (not a fixed assumed interval, so this stays correct
+    // even if a background tab gets throttled) as credits consumed, and
+    // hard-ends the session the instant the daily budget hits zero — a
+    // deterministic safety net that does not depend on chat-completions.js's
+    // LLM-facing taper instruction actually being followed.
+    function startBudgetPolling(patientId) {
+      if (budgetPollInterval) clearInterval(budgetPollInterval);
+      lastBudgetTickAt = Date.now();
+      budgetPollInterval = setInterval(async () => {
+        if (!sessionActive) { clearInterval(budgetPollInterval); budgetPollInterval = null; return; }
+        const now = Date.now();
+        const elapsedMinutes = (now - lastBudgetTickAt) / 60000;
+        lastBudgetTickAt = now;
+        const creditsDelta = elapsedMinutes * CREDITS_PER_MINUTE;
+        try {
+          const res = await fetch(`${API}/api/daily-budget`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ patientId, creditsDelta })
+          });
+          const data = await res.json();
+          if (!data.ok) { console.warn('[BUDGET] usage report failed (skipping this tick, non-fatal):', data.error); return; }
+          console.log(`[BUDGET] ${new Date().toISOString()} usage tick — patientId=${patientId} delta=${creditsDelta.toFixed(2)} used=${data.creditsUsedToday.toFixed(2)} remaining=${data.creditsRemaining.toFixed(2)}`);
+          if (data.creditsRemaining <= 0) {
+            console.log(`[BUDGET][FORCED-CUTOFF] ${new Date().toISOString()} — daily budget exhausted mid-session for patientId=${patientId}, ending session now (distinct from a normal/taper end)`);
+            clearInterval(budgetPollInterval);
+            budgetPollInterval = null;
+            endSession();
+          }
+        } catch (e) { console.warn('[BUDGET] usage tick failed (non-fatal):', e); }
+      }, BUDGET_POLL_INTERVAL_MS);
+    }
+
+    async function launchRose(eventReminderLabel, trigger) {
+      trigger = trigger || 'tap';
       if (sessionActive) return;
+
+      // ── Daily credit budget gate — the single "can this member start a
+      // session, and with how much budget" check, called uniformly here
+      // regardless of whether launchRose was triggered by the scheduler,
+      // the event-reminder checker, or a member's own tap (all three call
+      // this same function). Runs before ANYTHING else — no HeyGen session
+      // is created if today's budget is already exhausted. ──
+      let budgetCheck = null;
+      try {
+        const budgetRes = await fetch(`${API}/api/daily-budget?patientId=${PATIENT_ID}`);
+        budgetCheck = await budgetRes.json();
+      } catch (e) {
+        console.warn('[BUDGET] pre-session check failed — failing open, allowing visit to start:', e);
+      }
+      if (budgetCheck && budgetCheck.ok !== false && budgetCheck.canStart === false) {
+        console.log(`[BUDGET][SKIPPED] ${new Date().toISOString()} — trigger=${trigger} patientId=${PATIENT_ID} remaining=${budgetCheck.creditsRemaining} — daily credit budget already exhausted, declining to start a new session`);
+        showBudgetDeclineMessage();
+        return;
+      }
+      console.log(`[BUDGET] ${new Date().toISOString()} pre-session check passed — trigger=${trigger} patientId=${PATIENT_ID} remaining=${budgetCheck ? budgetCheck.creditsRemaining : 'unknown (fail-open)'}`);
+
       sessionActive = true;
       showLoading(true);
 
@@ -1357,6 +1449,7 @@
         startRepCountPolling(PATIENT_ID);
         startBreathingPolling(PATIENT_ID);
         startKeepAlive(currentSessionId);
+        startBudgetPolling(PATIENT_ID);
 
         setListening(true);
         resetSilenceTimer();
@@ -1407,6 +1500,7 @@
       breathingRunning = false;
       document.getElementById('breathingOverlay').classList.remove('active');
       if (keepAliveInterval) { clearInterval(keepAliveInterval); keepAliveInterval = null; }
+      if (budgetPollInterval) { clearInterval(budgetPollInterval); budgetPollInterval = null; }
       clearSilenceTimers();
 
       // ── Generate session summary in background ──
@@ -1470,7 +1564,7 @@
       }, 2500);
     };
 
-    document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
+    document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(undefined, 'tap'); });
 
     function isVerifiedOnThisDevice() {
       if (!DEVICE_KEY) return true; // nothing to verify against (fallback/edge case) — don't block

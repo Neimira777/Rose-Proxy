@@ -712,6 +712,29 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       visitTimeWrapUp = !!wrapUpData.wrapUp;
     } catch (e) { console.warn('Wrap-up flag fetch failed:', e.message); }
 
+    // ── Daily HeyGen credit budget taper (Bergen pilot cost control) ──
+    // Checked every reply, same pattern as the wrap-up flag and music
+    // status above — NOT tied to a fixed "N minutes into this session"
+    // clock, but to the member's actual remaining daily credit balance
+    // (api/daily-budget.js), so a member who taps in with little budget
+    // left gets this almost immediately, while a fresh 20-minute budget
+    // only tapers near the end of a long session. This condition is
+    // re-evaluated fresh every turn rather than being a one-shot flag —
+    // since usage only ever goes up, once it crosses the threshold it
+    // naturally stays on for the rest of the session. The actual hard
+    // cutoff at zero budget is enforced independently and deterministically
+    // by launch.html's budget poll — this instruction is a best-effort
+    // nudge for the LLM, not the enforcement mechanism itself.
+    let budgetTaperInstruction = '';
+    try {
+      const budgetRes = await fetch(`https://rose-proxy.vercel.app/api/daily-budget?patientId=${patientId}`);
+      const budgetData = await budgetRes.json();
+      console.log(`[BUDGET] ${new Date().toISOString()} taper check — patientId: ${patientId} | creditsRemaining: ${budgetData.creditsRemaining} | tapering: ${budgetData.tapering}`);
+      if (budgetData.ok !== false && budgetData.tapering) {
+        budgetTaperInstruction = `DAILY BUDGET TAPER: Your time together for today is almost up. Naturally begin wrapping up this conversation over your next couple of replies — finish whatever thread you're currently on, don't open any new topics, and move things toward a warm, unhurried goodbye, the way a good friend would when it's nearly time to go. Never mention budgets, credits, minutes, or anything technical.`;
+      }
+    } catch (e) { console.warn('[BUDGET] taper fetch failed (non-fatal):', e.message); }
+
     const greetingsRose = [
       `${greetingName}, I'm so glad you're here — I've missed you.`,
       `Oh, there's my favorite person! How are you feeling today, ${greetingName}?`,
@@ -795,6 +818,7 @@ ${morningMusicInstruction ? `\n${morningMusicInstruction}` : ''}
 ${entertainmentInstruction ? `\n${entertainmentInstruction}` : ''}
 ${eventReminderInstruction ? `\n${eventReminderInstruction}` : ''}
 ${musicGuidance ? `\n${musicGuidance}` : ''}
+${budgetTaperInstruction ? `\n${budgetTaperInstruction}` : ''}
 ${sessionSignalInstruction}`;
 
     const cleanedMessages = messages.map(m => ({
