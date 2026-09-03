@@ -20,6 +20,16 @@
 - [ ] Confirm with Corrin: no hard cap on visits/credits per participant
       yet — monitoring usage manually via existing visit-count logging
       for this small pilot size.
+- [ ] Review draft paper pilot questionnaires (member, family member,
+      staff/coordinator — one form per audience, reused at pilot start
+      and end) in docs/pilot/questionnaires/. Member form uses the
+      3-item UCLA loneliness measure (Hughes et al., 2004, public
+      research measure) plus plain-language satisfaction/ease-of-use/
+      mood items; family and staff forms cover satisfaction, observed
+      wellbeing change, and program-fit feedback — the kind of outcome
+      data that would also support an SBIR application. Large
+      checkbox-style answers, minimal writing required. NOT YET
+      APPROVED by Linda.
 
 ## Bug Fixes — Ready to Commit
 - [ ] Commit isFirstMessage fix in chat-completions.js (root cause found
