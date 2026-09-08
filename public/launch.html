@@ -1106,6 +1106,11 @@
         if (!data.ok || !data.videoId) { console.warn('YouTube fallback found no result for:', query); return; }
         if (!youtubePlayerReady) { console.warn('YouTube player not ready yet'); return; }
         youtubePlayer.loadVideoById(data.videoId);
+        youtubePlayer.setVolume(22); // FIX (Sep 8, 2026): start at the same "normal" duck level used
+        // elsewhere in the code, instead of an unset/default (louder) volume. Without this, a freshly
+        // loaded song played loud enough to mask the resident's voice at the mic entirely — so the
+        // speak_started ducking below never got a chance to fire, since the avatar never detected
+        // speech to duck for in the first place. This is the fix for Jim not responding while music played.
         document.getElementById('youtubeCorner').classList.add('visible');
         document.getElementById('nowPlayingText').textContent = data.title || query;
         document.getElementById('musicBar').classList.add('visible');
