@@ -345,14 +345,41 @@ export default async function handler(req, res) {
 
       if (patientId === 'recMLLC4fJHBUhE5w') {
         try {
+          // Fetch the 2 most-recently-activated sessions, not just 1. This is
+          // the "guess the current member" fallback for a room we've never
+          // seen a message from before (see comment above) — it can only ever
+          // safely pick a single member when there's no other member whose
+          // session could plausibly be the one this message actually belongs
+          // to. With only the top record, two members starting visits within
+          // AMBIGUITY_WINDOW_MS of each other were indistinguishable, and
+          // whichever started (or was re-fetched) fractionally more recently
+          // silently won — meaning the loser's member could have the winner's
+          // profile, memories, and family photos surface in their visit.
           const searchRes = await fetch(
-            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&sort[0][field]=Active Session Timestamp&sort[0][direction]=desc&maxRecords=1`,
+            `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}?filterByFormula=NOT({Active Session}="")&sort[0][field]=Active Session Timestamp&sort[0][direction]=desc&maxRecords=2`,
             { headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}` } }
           );
           const searchData = await searchRes.json();
-          const record = searchData.records?.[0];
-          if (record?.fields?.['Active Session']) {
-            const [activePatientId] = record.fields['Active Session'].split('|');
+          const [topRecord, runnerUpRecord] = searchData.records || [];
+          const AMBIGUITY_WINDOW_MS = 3 * 60 * 1000;
+          const topTimestamp = topRecord?.fields?.['Active Session Timestamp'];
+          const runnerUpTimestamp = runnerUpRecord?.fields?.['Active Session Timestamp'];
+          const isAmbiguous = topTimestamp && runnerUpTimestamp &&
+            (new Date(topTimestamp).getTime() - new Date(runnerUpTimestamp).getTime()) < AMBIGUITY_WINDOW_MS;
+
+          if (isAmbiguous) {
+            // Two (or more) members have active sessions too close together in
+            // time to tell apart — refuse to guess. Falling through to the
+            // demo-record default below is a worse first message for this
+            // member than a correctly-resolved one, but it's safe: it never
+            // exposes another real member's data to the wrong person.
+            console.warn(
+              'Active Session lookup ambiguous — 2+ members active within',
+              AMBIGUITY_WINDOW_MS / 1000, 'seconds of each other. Refusing to guess. Candidates:',
+              topRecord?.id, topTimestamp, '/', runnerUpRecord?.id, runnerUpTimestamp
+            );
+          } else if (topRecord?.fields?.['Active Session']) {
+            const [activePatientId] = topRecord.fields['Active Session'].split('|');
             if (activePatientId && activePatientId !== 'recMLLC4fJHBUhE5w') {
               patientId = activePatientId;
               console.log('Using Airtable Active Session patientId:', patientId);
