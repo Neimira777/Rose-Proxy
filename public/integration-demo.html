@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Neimira — Partner Integration Preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy: #1A237E; --cyan: #00BCD4; --blue: #2979FF; --bg: #F5F6F8;
+      --white: #FFFFFF; --text: #1A237E; --text-body: #37474F; --text-muted: #90A4AE;
+      --border: #E0E7EF; --success: #4CAF50; --error: #F44336;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--text-body); min-height: 100vh; padding: 0 0 80px; }
+
+    .header { background: var(--white); border-bottom: 1px solid var(--border); padding: 32px 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: 0 2px 12px rgba(26,35,126,0.06); }
+    .logo-name { font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 400; letter-spacing: 14px; text-transform: uppercase; color: var(--navy); }
+    .logo-tag { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--cyan); font-weight: 500; margin-top: 6px; }
+
+    .hero { background: linear-gradient(135deg, var(--navy) 0%, #2979FF 100%); padding: 44px 40px; text-align: center; color: white; }
+    .hero h1 { font-family: 'Cormorant Garamond', serif; font-size: 34px; font-weight: 300; letter-spacing: .5px; margin-bottom: 10px; }
+    .hero p { font-size: 14.5px; font-weight: 300; color: rgba(255,255,255,0.85); max-width: 46ch; margin: 0 auto; line-height: 1.6; }
+
+    .container { max-width: 640px; margin: 0 auto; padding: 32px 24px; }
+
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-bottom: 24px; box-shadow: 0 4px 20px rgba(26,35,126,0.06); }
+    .card-title { font-family: 'Cormorant Garamond', serif; font-size: 22px; font-weight: 400; color: var(--navy); margin-bottom: 6px; }
+    .card-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 24px; line-height: 1.6; }
+
+    .input-group { margin-bottom: 18px; }
+    .input-group label { display: block; font-size: 11px; letter-spacing: 1.5px; color: var(--navy); margin-bottom: 8px; text-transform: uppercase; font-weight: 600; }
+    .input-group input { width: 100%; background: var(--bg); border: 1.5px solid var(--border); border-radius: 10px; padding: 14px 16px; font-family: 'Jost', sans-serif; font-size: 15px; outline: none; }
+    .input-group input:focus { border-color: var(--cyan); }
+    .input-group .hint { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
+
+    .btn-primary { width: 100%; background: linear-gradient(135deg, var(--cyan), var(--blue)); border: none; border-radius: 12px; padding: 16px; color: white; font-family: 'Jost', sans-serif; font-size: 14px; font-weight: 600; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .result { margin-top: 22px; border-radius: 14px; padding: 20px 22px; display: none; }
+    .result.visible { display: block; }
+    .result.ok { background: rgba(76,175,80,0.08); border: 1.5px solid rgba(76,175,80,0.35); }
+    .result.fail { background: rgba(244,67,54,0.08); border: 1.5px solid rgba(244,67,54,0.35); }
+    .result-title { font-size: 13px; font-weight: 600; letter-spacing: .5px; margin-bottom: 10px; }
+    .result.ok .result-title { color: var(--success); }
+    .result.fail .result-title { color: var(--error); }
+    .result pre { font-family: 'SFMono-Regular', Menlo, monospace; font-size: 12px; color: var(--text-body); background: var(--bg); border-radius: 8px; padding: 12px 14px; overflow-x: auto; white-space: pre-wrap; word-break: break-word; }
+
+    .open-btn { display: inline-block; margin-top: 16px; background: var(--navy); color: white; text-decoration: none; padding: 14px 28px; border-radius: 10px; font-size: 13px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; }
+
+    .note { font-size: 12.5px; color: var(--text-muted); line-height: 1.7; }
+    .note code { font-family: 'SFMono-Regular', Menlo, monospace; background: var(--bg); border-radius: 4px; padding: 1px 6px; color: var(--navy); }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <div class="logo-name">NEIMIRA</div>
+    <div class="logo-tag">Partner Integration Preview</div>
+  </div>
+
+  <div class="hero">
+    <h1>See it work as CareLink360</h1>
+    <p>This page sends the exact same request CareLink360's own backend would send — with their API key and a member's token — and shows the real response, live.</p>
+  </div>
+
+  <div class="container">
+
+    <div class="card">
+      <div class="card-title">Start a session as CareLink360</div>
+      <div class="card-subtitle">Enter the partner API key and a member token, then start the session — just as CareLink360's app would.</div>
+
+      <div class="input-group">
+        <label for="apiKey">CareLink360 API key</label>
+        <input type="password" id="apiKey" placeholder="Paste the key issued to CareLink360" autocomplete="off">
+        <div class="hint">Never saved on this page — typed fresh each time you demo.</div>
+      </div>
+
+      <div class="input-group">
+        <label for="memberToken">Member token</label>
+        <input type="text" id="memberToken" value="9f80a52974e629986f7afa4e" autocomplete="off">
+        <div class="hint">Defaults to Walter, the Jim demo profile set up for this pilot.</div>
+      </div>
+
+      <button class="btn-primary" id="startBtn" type="button">Start Session</button>
+
+      <div class="result" id="result">
+        <div class="result-title" id="resultTitle"></div>
+        <pre id="resultBody"></pre>
+        <a class="open-btn" id="openBtn" href="#" target="_blank" style="display:none;">Open Jim's companion page →</a>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title" style="font-size:16px;">What's actually happening</div>
+      <p class="note">
+        The button above calls <code>/api/carelink360-session</code> on Neimira's live backend — the same endpoint CareLink360's own system would call once they've built their integration. It checks the API key first; a missing or wrong key is rejected before anything about the member is even looked up. A correct key resolves the member's token and hands back a launch link, which opens the same companion experience a family member's private link opens — themed as Rose or Jim from that member's own profile. Nothing on this page is simulated or faked.
+      </p>
+    </div>
+
+  </div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const apiKeyInput = document.getElementById('apiKey');
+    const tokenInput = document.getElementById('memberToken');
+    const result = document.getElementById('result');
+    const resultTitle = document.getElementById('resultTitle');
+    const resultBody = document.getElementById('resultBody');
+    const openBtn = document.getElementById('openBtn');
+
+    startBtn.addEventListener('click', async () => {
+      const apiKey = apiKeyInput.value.trim();
+      const memberToken = tokenInput.value.trim();
+      if (!apiKey) { apiKeyInput.focus(); return; }
+
+      startBtn.disabled = true;
+      startBtn.textContent = 'Starting…';
+      result.className = 'result visible';
+      resultTitle.textContent = 'Calling api/carelink360-session…';
+      resultBody.textContent = '';
+      openBtn.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/carelink360-session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CareLink360-Api-Key': apiKey },
+          body: JSON.stringify({ memberToken })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.launchUrl) {
+          result.className = 'result visible ok';
+          resultTitle.textContent = `Success — HTTP ${res.status}`;
+          resultBody.textContent = JSON.stringify(data, null, 2);
+          openBtn.href = data.launchUrl;
+          openBtn.style.display = 'inline-block';
+        } else {
+          result.className = 'result visible fail';
+          resultTitle.textContent = `Rejected — HTTP ${res.status}`;
+          resultBody.textContent = JSON.stringify(data, null, 2);
+        }
+      } catch (e) {
+        result.className = 'result visible fail';
+        resultTitle.textContent = 'Request failed';
+        resultBody.textContent = e.message;
+      } finally {
+        startBtn.disabled = false;
+        startBtn.textContent = 'Start Session';
+      }
+    });
+  </script>
+
+</body>
+</html>
