@@ -223,6 +223,105 @@ Respond with ONLY a JSON object, no other text, no markdown fences:
       }
     }
 
+    // ── Family Digest — a weekly, family-facing update on how visits
+    // have been going, shown on the Family Hub. Deliberately generated
+    // separately from SessionNotes above: SessionNotes is written in
+    // the companion's own "I remember this" voice and can include
+    // anything the member shared, while this is filtered specifically
+    // for what's appropriate to hand to family — broad strokes, warm,
+    // never verbatim, respecting Topics To Avoid. Runs at most once
+    // every 7 days, gated by 'FamilyDigestLastGenerated'; if this fails
+    // for any reason it must never affect SessionNotes above, which has
+    // already succeeded by this point. ──
+    try {
+      const lastGenerated = bufferData.fields?.['FamilyDigestLastGenerated'] || '';
+      const daysSinceLastDigest = lastGenerated
+        ? (Date.now() - new Date(lastGenerated).getTime()) / (1000 * 60 * 60 * 24)
+        : Infinity;
+
+      if (daysSinceLastDigest >= 7) {
+        // Reuse this week's dated entries out of the SessionNotes stack
+        // we just built above, rather than re-reading the conversation
+        // buffer — 'sessions' already holds them newest-first, each
+        // starting with a '[Weekday, Month Day, Year]' header.
+        const weekEntries = sessions.filter(entry => {
+          const dateMatch = entry.match(/^\[(.+?)\]/);
+          if (!dateMatch) return false;
+          const parsed = new Date(dateMatch[1].replace(/^[A-Za-z]+,\s*/, ''));
+          if (isNaN(parsed)) return false;
+          return (Date.now() - parsed.getTime()) / (1000 * 60 * 60 * 24) <= 7;
+        });
+
+        if (weekEntries.length > 0) {
+          const topicsToAvoid = (bufferData.fields?.['Topics To Avoid'] || '').trim();
+
+          const digestRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-api-key': process.env.ANTHROPIC_API_KEY,
+              'anthropic-version': '2023-06-01'
+            },
+            body: JSON.stringify({
+              model: 'claude-haiku-4-5-20251001',
+              max_tokens: 300,
+              messages: [{
+                role: 'user',
+                content: `You are helping the family of a Neimira member understand how this week's visits with their companion, ${companion}, have been going.
+
+Below are ${companion}'s own private memory notes from this week's visits — write something different: a short, warm update FOR THE FAMILY to read, not for ${companion} to use as memory.
+
+This week's visit notes:
+${weekEntries.join('\n\n---\n\n')}
+
+${topicsToAvoid ? `The member has asked that these topics stay private — do NOT mention them, even in passing: ${topicsToAvoid}\n` : ''}
+Write two things:
+1. A short mood phrase (2-4 words) capturing the overall tone of the week's visits, e.g. "Cheerful", "A bit quiet", "Bright and talkative", "Reflective".
+2. A warm 2-4 sentence summary for family, in broad strokes — general topics and a specific happy or meaningful moment if there was one. NEVER quote verbatim, never include health or medical details, never anything that reads like a clinical report. Write like one friend giving another a warm update, not a monitoring log.
+
+CRITICAL — DO NOT INVENT DETAILS: if the week's visits were thin, garbled, or mostly technical difficulties, do not fabricate topics or tone to fill the summary. Write something honest and brief instead.
+
+Respond with ONLY raw JSON, no markdown fences, no other text:
+{"mood": "...", "summary": "..."}`
+              }]
+            })
+          });
+          const digestData = await digestRes.json();
+          const digestRaw = (digestData.content?.[0]?.text || '{}').trim();
+          const parsedDigest = JSON.parse(digestRaw.replace(/^```json\s*|\s*```$/g, ''));
+
+          if (parsedDigest.summary) {
+            const weekLabel = `Week ending ${today}`;
+            const newEntry = `[${weekLabel}]\nMOOD: ${parsedDigest.mood || ''}\n${parsedDigest.summary}`;
+            const existingDigest = bufferData.fields?.['FamilyDigest'] || '';
+            const stackedDigest = existingDigest ? newEntry + '\n\n---\n\n' + existingDigest : newEntry;
+            const trimmedDigest = stackedDigest.split('\n\n---\n\n').slice(0, 8).join('\n\n---\n\n');
+
+            const digestSaveRes = await fetch(
+              `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
+              {
+                method: 'PATCH',
+                headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  fields: {
+                    'FamilyDigest': trimmedDigest,
+                    'FamilyDigestLastGenerated': new Date().toISOString().slice(0, 10)
+                  }
+                })
+              }
+            );
+            if (!digestSaveRes.ok) {
+              console.error('Family digest save failed (non-fatal):', JSON.stringify(await digestSaveRes.json()));
+            } else {
+              console.log('Family digest saved successfully');
+            }
+          }
+        }
+      }
+    } catch (digestErr) {
+      console.error('Family digest generation error (non-fatal):', digestErr.message);
+    }
+
     // ── Clear Conversation Buffer ──
     const clearRes = await fetch(
       `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${patientId}`,
