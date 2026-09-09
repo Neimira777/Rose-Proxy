@@ -10,6 +10,7 @@
       --navy: #1A237E; --cyan: #00BCD4; --blue: #2979FF; --bg: #F5F6F8;
       --white: #FFFFFF; --text: #1A237E; --text-body: #37474F; --text-muted: #90A4AE;
       --border: #E0E7EF; --success: #4CAF50; --error: #F44336;
+      --warm: #E8A33D; --warm-bg: #FBF1DE; --warm-border: #EAD3A0;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Jost', sans-serif; background: var(--bg); color: var(--text-body); min-height: 100vh; padding: 0 0 80px; }
@@ -43,6 +44,22 @@
     .family-code-card { text-align: center; }
     .family-code-display { display: inline-block; background: var(--bg); border: 2px dashed var(--cyan); color: var(--navy); padding: 14px 32px; border-radius: 12px; font-size: 26px; font-weight: 700; letter-spacing: 4px; margin: 6px 0 4px; }
     .family-code-hint { font-size: 12px; color: var(--text-muted); margin-top: 10px; }
+
+    /* ── Family Digest card — a weekly, family-facing rollup generated
+       from session-summary.js. Deliberately not the same text Rose/Jim
+       use to remember visits (SessionNotes) — see api/session-summary.js
+       for the separate, privacy-filtered generation pass. ── */
+    .digest-card { border: 1.5px solid #C9E7EC; }
+    .digest-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; }
+    .digest-when { font-size: 12px; color: var(--text-muted); font-weight: 500; }
+    .mood-pill { display: inline-flex; align-items: center; gap: 6px; background: var(--warm-bg); border: 1px solid var(--warm-border); color: #9A6A18; font-size: 12px; font-weight: 600; padding: 5px 12px 5px 10px; border-radius: 100px; }
+    .mood-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--warm); flex: 0 0 auto; }
+    .digest-body { font-size: 15px; line-height: 1.75; color: var(--text-body); margin-bottom: 18px; }
+    .digest-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+    .digest-privacy { font-size: 12px; color: var(--text-muted); line-height: 1.6; max-width: 380px; }
+    .digest-link { font-size: 12.5px; color: var(--cyan); font-weight: 600; white-space: nowrap; text-decoration: none; background: none; border: none; cursor: pointer; font-family: 'Jost', sans-serif; padding: 0; }
+    .digest-link:hover { text-decoration: underline; }
+    .digest-link:disabled { color: var(--text-muted); cursor: default; text-decoration: none; }
 
     .date-list { margin-bottom: 20px; }
     .date-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 16px; background: var(--bg); border-radius: 10px; margin-bottom: 10px; }
@@ -130,6 +147,20 @@
       <h2 id="visitTitle">Ready to visit?</h2>
       <p id="visitSubtitle">Start a conversation with Rose right now.</p>
       <a href="#" id="visitRoseBtn" class="visit-btn">Visit with Rose</a>
+    </div>
+
+    <div class="card digest-card" id="familyDigestCard" style="display:none;">
+      <div class="card-title">How Visits Have Been Going</div>
+      <div class="card-subtitle" id="digestSubtitle">A gentle weekly note from Rose about your visits together — never a transcript, just the warmth of it.</div>
+      <div class="digest-meta">
+        <span class="digest-when" id="digestWhen"></span>
+        <span class="mood-pill" id="digestMoodPill"><span class="mood-dot"></span><span id="digestMood"></span></span>
+      </div>
+      <div class="digest-body" id="digestBody"></div>
+      <div class="digest-footer">
+        <div class="digest-privacy" id="digestPrivacy">Rose never repeats a full conversation, and anything they'd rather keep just between the two of them stays that way.</div>
+        <button class="digest-link" id="digestNavBtn" type="button" style="display:none;"></button>
+      </div>
     </div>
 
     <div class="card family-code-card" id="familyCodeCard" style="display:none;">
@@ -234,6 +265,8 @@
       document.getElementById('visitSubtitle').textContent = `Start a conversation with ${companion} right now.`;
       document.getElementById('visitRoseBtn').textContent = `Visit with ${companion}`;
       document.getElementById('visitRoseBtn').href = `${API}/${LAUNCH_PAGE}?token=${token}${isDemo ? '&demo=true' : ''}`;
+      document.getElementById('digestSubtitle').textContent = `A gentle weekly note from ${companion} about your visits together — never a transcript, just the warmth of it.`;
+      document.getElementById('digestPrivacy').textContent = `${companion} never repeats a full conversation, and anything they'd rather keep just between the two of them stays that way.`;
       document.getElementById('datesSubtitle').textContent = `Birthdays, appointments, anniversaries — ${companion} will naturally bring these up as they get close, never as an alert or checklist.`;
       document.getElementById('remindersSubtitle').textContent = `${companion} will speak these out loud at the time you set — a gentle spoken reminder, like "It's 2:00. Time to take your medication."`;
       document.getElementById('interestsSubtitle').textContent = `Favorite teams, tournaments, or shows — ${companion} checks each morning and mentions it if something's on today.`;
@@ -297,6 +330,7 @@
         document.getElementById('loadingState').style.display = 'none';
         document.getElementById('hubContent').style.display = 'block';
         setCompanionSelection(companion);
+        loadFamilyDigest();
         loadDates();
         loadReminders();
         loadInterests();
@@ -318,6 +352,50 @@
       if (daysUntil === 1) return `Tomorrow — ${monthName} ${d}`;
       return `${monthName} ${d} — in ${daysUntil} days`;
     }
+
+    // ── Family Digest — a weekly, family-facing note generated
+    // server-side after each visit (see api/session-summary.js). Entries
+    // come back newest-first; the "See last week" button just steps
+    // through what's already loaded, no extra fetch needed.
+    let digestEntries = [];
+    let digestIndex = 0;
+
+    async function loadFamilyDigest() {
+      try {
+        const res = await fetch(`${API}/api/family-digest?patientId=${PATIENT_ID}`);
+        const data = await res.json();
+        digestEntries = data.entries || [];
+        if (digestEntries.length === 0) return; // card stays hidden — nothing generated yet
+        digestIndex = 0;
+        renderDigest();
+        document.getElementById('familyDigestCard').style.display = 'block';
+      } catch (e) {
+        // Non-fatal — the card simply stays hidden rather than blocking the rest of the Hub.
+      }
+    }
+
+    function renderDigest() {
+      const entry = digestEntries[digestIndex];
+      document.getElementById('digestWhen').textContent = entry.weekLabel;
+      document.getElementById('digestMood').textContent = entry.mood;
+      document.getElementById('digestMoodPill').style.display = entry.mood ? 'inline-flex' : 'none';
+      document.getElementById('digestBody').textContent = entry.summary;
+
+      const navBtn = document.getElementById('digestNavBtn');
+      if (digestEntries.length > 1) {
+        const onOlder = digestIndex < digestEntries.length - 1;
+        navBtn.style.display = 'inline-block';
+        navBtn.disabled = false;
+        navBtn.textContent = digestIndex === 0 ? 'See last week →' : '← Back to this week';
+      } else {
+        navBtn.style.display = 'none';
+      }
+    }
+
+    document.getElementById('digestNavBtn').addEventListener('click', () => {
+      digestIndex = digestIndex === 0 ? 1 : 0;
+      if (digestIndex < digestEntries.length) renderDigest();
+    });
 
     async function loadDates() {
       try {
