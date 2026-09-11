@@ -1,6 +1,70 @@
 # Neimira — Outstanding TODO List
 (Compiled Sep 1, 2026 from product/dev planning)
 
+## CareLink360 Partnership Status (as of Sep 11, 2026)
+
+**Already built and live (main branch):**
+- `api/carelink360-session.js` — partner-facing endpoint, gated by
+  `CARELINK360_API_KEY` env var, resolves a member's Access Token to a
+  launch URL. Demo key currently in use (in Vercel); a fresh key was
+  generated and given to Linda to swap in once the contract is signed —
+  do NOT reuse the demo key for the real integration.
+- `public/integration-demo.html` — lets Linda simulate a CareLink360 API
+  call live (paste key + member token, see the real response, open the
+  resulting companion link). Used successfully in the Sep 10 dry run and
+  in the Sep 11 meeting with Paula.
+- Cross-member identity-leak fix in `chat-completions.js` (Sep 9) — no
+  longer guesses the wrong member when two visits' Active Session
+  timestamps are within 3 minutes of each other.
+- Demo member records in Airtable: "Walter" (generic demo, Jim,
+  recEdFG5AjQ8tnP1M) and Paula Muller's own real account (NMR-15,
+  Jim, token starting `abdbedfa5e...`, already has real visit history
+  from testing with Linda).
+- Neimira logo saved as `public/assets/neimira-logo.png` (see "Brand
+  assets" section of CLAUDE.md) — used in the pilot term sheet
+  letterhead.
+
+**Contract:** Pilot Integration & Confidentiality Term Sheet drafted,
+attorney-reviewed, filled in (60-day term w/ mutual-written-agreement
+extension clause, $0 fee, $0 liability cap, NJ governing law), sent to
+Paula with Neimira letterhead. **Not yet signed as of Sep 11.**
+
+**Open technical question with HeyGen (submitted Sep 11):** Paula
+proposed a mic-toggle sleep/wake UX for CareLink360's resident-facing
+tablets (mic muted = avatar minimized/idle, mic on = avatar wakes
+instantly, no lag, expands to front). This requires a LiveAvatar session
+to stay connected during idle periods and switch to conversational mode
+instantly — NOT confirmed possible yet. Sent HeyGen support:
+- Both current avatar IDs (Rose: `0b44776d-3211-44e5-a459-bcb6f49e0fcd`,
+  Jim: `fab08c79-fabb-4e04-90b8-926eb34982c6`)
+- Our actual session-creation and keep-alive request shapes
+- Escalated to HeyGen's engineering team (per their Sep 11 reply);
+  response pending.
+- Known constraint already confirmed by HeyGen support: **Business plan
+  caps individual sessions at 60 minutes** — "stay connected all day" is
+  not possible on the current plan regardless of the idle-billing
+  answer.
+
+**Open commercial question with HeyGen:** Their Enterprise sales
+qualification flow asked whether a $40k/year minimum commitment works.
+Linda paused this — she's unsure whether Neimira or CareLink360 is
+meant to own this cost. A clarifying (softened) email was sent to Paula
+on Sep 11 asking who should be driving the Enterprise conversation with
+HeyGen, without directly naming cost. **Awaiting Paula's reply before
+proceeding further with HeyGen's Enterprise sales flow.**
+
+**Product-direction note (Linda's call, made Sep 11):** Linda is open to
+an "always-connected, mic-toggle" experience for the CareLink360 device
+specifically — a real departure from Neimira's stated "structured
+visits, not always-on" philosophy elsewhere in this doc. Worth
+revisiting explicitly once HeyGen's technical answer comes back, since
+it affects both cost model and whether this becomes how Neimira works
+everywhere or just a CareLink360-specific mode.
+
+**Not yet built** (per Paula's original MVP list, deliberately paused
+until pilot is confirmed): create-user API, submit-profile-updates API,
+tap-bypass beyond the mic-toggle idea, general load-time reduction.
+
 ## Pilot Prep — Bergen Family Center (target: Thursday meeting w/ Corrin)
 - [ ] Finalize Audio Stories initial set (5-8 stories, 750-1,500 words each,
       mixed mood). Draft candidates: The Gift of the Magi, The Last Leaf
