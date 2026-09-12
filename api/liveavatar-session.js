@@ -150,26 +150,30 @@ export default async function handler(req, res) {
     // collide). Remove once confirmed either way.
     console.log('FULL session response shape:', JSON.stringify(data.data));
 
-    // ── Write patientId to Airtable for chat-completions.js to read ──
-    // Also timestamp this activation. If two members have an active
-    // session at once (e.g. a stale one left over from earlier testing),
-    // this timestamp is what lets the fallback lookup reliably find the
-    // genuinely current one instead of guessing.
-    try {
-      await fetch(
+    // ── Write patientId to Airtable + session-store, concurrently (FIX Sep
+    // 12, 2026 — load-time investigation for CareLink360) ──
+    // These two writes don't depend on each other, so there's no reason to
+    // wait for the Airtable PATCH to finish before starting the session-store
+    // POST — running them together instead of one-after-another shaves a
+    // full round trip off the time before the token response goes back to
+    // the browser.
+    await Promise.all([
+      // Also timestamp this activation. If two members have an active
+      // session at once (e.g. a stale one left over from earlier testing),
+      // this timestamp is what lets the fallback lookup reliably find the
+      // genuinely current one instead of guessing.
+      fetch(
         `https://api.airtable.com/v0/${process.env.AIRTABLE_BASE_ID}/${process.env.AIRTABLE_TABLE_ID}/${resolvedPatientId}`,
         {
           method: 'PATCH',
           headers: { 'Authorization': `Bearer ${process.env.AIRTABLE_TOKEN}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({ fields: { 'Active Session': `${resolvedPatientId}|${resolvedVisitCount}${demoFlag}${eventFlag}|lang:${preferredLanguageCode}`, 'Active Session Timestamp': new Date().toISOString() } })
         }
-      );
-      console.log(`Airtable Active Session updated: ${resolvedPatientId}`);
-    } catch(e) { console.warn('Airtable session write failed:', e.message); }
+      ).then(() => console.log(`Airtable Active Session updated: ${resolvedPatientId}`))
+        .catch(e => console.warn('Airtable session write failed:', e.message)),
 
-    // ── Store patientId in session-store for chat-completions.js ──
-    try {
-      await fetch('https://rose-proxy.vercel.app/api/session-store', {
+      // ── Store patientId in session-store for chat-completions.js ──
+      fetch('https://rose-proxy.vercel.app/api/session-store', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -177,9 +181,9 @@ export default async function handler(req, res) {
           patientId: resolvedPatientId,
           visitCountToday: resolvedVisitCount
         })
-      });
-      console.log(`Session store updated: latest → ${resolvedPatientId}`);
-    } catch(e) { console.warn('Session store failed:', e.message); }
+      }).then(() => console.log(`Session store updated: latest → ${resolvedPatientId}`))
+        .catch(e => console.warn('Session store failed:', e.message))
+    ]);
 
     // ── Store session ID → patientId mapping for chat-completions.js ──
     const sessionId = data.data.session_id;

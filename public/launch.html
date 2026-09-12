@@ -1339,30 +1339,37 @@
         soothingStopPlayback();
       }
 
-      try { await fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-      try { await fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-      // Clear any photo left queued from a previous session that ended
-      // before it was ever displayed — otherwise it silently pops up at
-      // the start of the NEXT session, completely disconnected from
-      // anything Rose/Jim actually says, which is confusing for everyone.
-      try { await fetch(`${API}/api/photos?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-      // Same idea for any leftover exercise-count signal from a session
-      // that ended before it was ever picked up.
-      try { await fetch(`${API}/api/exercise-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-      // Same idea for any leftover breathing-pattern signal too.
-      try { await fetch(`${API}/api/breathing-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-      // Same idea for any leftover wrap-up flag from a session that ended
-      // before it was ever cleared — otherwise a brand new visit could
-      // start with Rose/Jim thinking it's already time to say goodbye.
-      try { await fetch(`${API}/api/wrap-up-flag?patientId=${PATIENT_ID}`, { method: 'DELETE' }); } catch(e) {}
-
+      // ── Pre-visit cleanup + visit count, run concurrently (FIX Sep 12,
+      // 2026 — load-time investigation for CareLink360) ──
+      // None of these six leftover-signal clears depend on each other, or on
+      // the visit-count lookup, so there's no reason to wait for each one to
+      // finish before starting the next — that was adding up to 7 sequential
+      // network round trips before we'd even ask HeyGen for a session. Firing
+      // them all at once and waiting on the batch together cuts that to the
+      // time of the single slowest call instead of the sum of all seven.
       let visitCountToday = 1;
-      try {
-        const visitRes = await fetch(`${API}/api/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) });
-        const visitData = await visitRes.json();
-        visitCountToday = visitData.visitCount || 1;
-        console.log('Visit count today:', visitCountToday);
-      } catch(e) { console.warn('Visit count failed:', e); }
+      await Promise.all([
+        fetch(`${API}/api/music-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        fetch(`${API}/api/music-status?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        // Clear any photo left queued from a previous session that ended
+        // before it was ever displayed — otherwise it silently pops up at
+        // the start of the NEXT session, completely disconnected from
+        // anything Rose/Jim actually says, which is confusing for everyone.
+        fetch(`${API}/api/photos?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        // Same idea for any leftover exercise-count signal from a session
+        // that ended before it was ever picked up.
+        fetch(`${API}/api/exercise-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        // Same idea for any leftover breathing-pattern signal too.
+        fetch(`${API}/api/breathing-queue?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        // Same idea for any leftover wrap-up flag from a session that ended
+        // before it was ever cleared — otherwise a brand new visit could
+        // start with Rose/Jim thinking it's already time to say goodbye.
+        fetch(`${API}/api/wrap-up-flag?patientId=${PATIENT_ID}`, { method: 'DELETE' }).catch(e => {}),
+        fetch(`${API}/api/patients`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID }) })
+          .then(r => r.json())
+          .then(d => { visitCountToday = d.visitCount || 1; console.log('Visit count today:', visitCountToday); })
+          .catch(e => console.warn('Visit count failed:', e))
+      ]);
 
       try {
         const tokenRes = await fetch(`${API}/api/liveavatar-session`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ patientId: PATIENT_ID, visitCountToday, isDemo: IS_DEMO, eventReminderLabel: eventReminderLabel || null }) });
