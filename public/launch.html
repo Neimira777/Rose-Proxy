@@ -52,6 +52,18 @@
     .splash-tap { font-size: 13px; letter-spacing: 4px; text-transform: uppercase; color: rgba(255,255,255,0.5); animation: pulse-tap 2s ease-in-out infinite; margin-top: 40px; }
     @keyframes pulse-tap { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
+    /* ── Autostart tap-to-begin (CareLink360, Sep 2026) ──
+       The single real tap AUTOSTART sessions need — see the AUTOSTART
+       comment further down. Tapping the companion's own photo satisfies
+       the browser's audio/mic gesture requirement, the same way tapping
+       the waiting-screen logo already does for a regular visit. */
+    #autostartScreen { display: none; position: fixed; inset: 0; z-index: 45; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); flex-direction: column; align-items: center; justify-content: center; gap: 26px; }
+    #autostartScreen.active { display: flex; }
+    .autostart-photo { width: 220px; height: 220px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.25); box-shadow: 0 12px 40px rgba(0,0,0,0.4); cursor: pointer; animation: autostart-pulse 2.4s ease-in-out infinite; }
+    @keyframes autostart-pulse { 0%, 100% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 0 rgba(0,188,212,0.35); } 50% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 18px rgba(0,188,212,0); } }
+    .autostart-name { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; color: white; }
+    .autostart-hint { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.55); animation: pulse-tap 2s ease-in-out infinite; }
+
     /* ── Loading overlay ── */
     #loadingOverlay { position: fixed; inset: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
     #loadingOverlay.active { opacity: 1; pointer-events: all; }
@@ -350,6 +362,13 @@
     </div>
   </div>
 
+  <!-- Autostart tap-to-begin screen — see AUTOSTART in the script below -->
+  <div id="autostartScreen">
+    <img class="autostart-photo" id="autostartPhoto" src="" alt="Tap to start your visit">
+    <div class="autostart-name" id="autostartName"></div>
+    <div class="autostart-hint">Tap to begin</div>
+  </div>
+
   <!-- Rose screen -->
   <div class="screen hidden" id="roseScreen">
     <video id="roseVideo" autoplay playsinline></video>
@@ -467,14 +486,18 @@
     const IS_DEMO = _urlParams.get('demo') === 'true';
     // ── Partner autostart (CareLink360, Sep 2026) ──
     // Only ever set by carelink360-session.js's returned launchUrl — never
-    // present on a regular member's own link. Skips the splash tap and the
-    // waiting-icon tap entirely, going straight to "Connecting…". This
-    // deliberately skips the Spotify/YouTube/Soothing Sounds/Voice Reminders
-    // audio-unlock priming that the splash tap normally does (see
-    // actuallyDismissSplash) — CareLink360's device doesn't use any of those
-    // features, so there's nothing for that priming to protect here. Do not
-    // reuse this flag for a regular member's link; it would silently break
-    // their music/reminders/sounds later the same day.
+    // present on a regular member's own link. Skips the "Tap to Begin"
+    // splash and the small waiting-icon tap, replacing both with a single
+    // tap on the companion's own photo (see the autostartScreen setup in
+    // loadClientProfile() below) — a real gesture is still required for
+    // audio/mic to work at all (confirmed by testing: without any tap, the
+    // browser silently blocks playback even though the session connects
+    // fine). This also skips the Spotify/YouTube/Soothing Sounds/Voice
+    // Reminders audio-unlock priming the splash tap normally does (see
+    // actuallyDismissSplash) — CareLink360's device doesn't use any of
+    // those features, so there's nothing for that priming to protect here.
+    // Do not reuse this flag for a regular member's link; it would
+    // silently break their music/reminders/sounds later the same day.
     const AUTOSTART = _urlParams.get('autostart') === 'true';
     if (AUTOSTART) {
       // Hide, don't remove — later code (the click/touchend listeners
@@ -747,6 +770,26 @@
         if (roseAiTag) roseAiTag.textContent = `${companionName} is an AI Companion`;
         const speakingLabel = document.getElementById('speakingLabel');
         if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
+        // ── Autostart tap-to-begin (CareLink360) ──
+        // The one real tap this flow needs: tapping the companion's own
+        // photo, satisfying the browser's audio/mic gesture requirement the
+        // same way tapping the waiting-screen logo does for a regular
+        // visit. { once: true } so a rapid double-tap can't call
+        // launchRose() twice (sessionActive guards that too, as backup).
+        if (AUTOSTART) {
+          const autostartScreen = document.getElementById('autostartScreen');
+          const autostartPhoto = document.getElementById('autostartPhoto');
+          const autostartName = document.getElementById('autostartName');
+          if (autostartScreen && autostartPhoto && autostartName) {
+            autostartPhoto.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
+            autostartName.textContent = companionName;
+            autostartScreen.classList.add('active');
+            autostartPhoto.addEventListener('click', () => {
+              autostartScreen.classList.remove('active');
+              launchRose();
+            }, { once: true });
+          }
+        }
         updateNextVisitTime();
         console.log('loadClientProfile() completed successfully');
       } catch(e) {
@@ -1949,10 +1992,11 @@
         startScheduleChecker();
         startEventReminderChecker();
         loadVoiceReminders().then(startVoiceReminderChecker);
-        // Partner autostart — see AUTOSTART declaration above. Goes straight
-        // to launchRose() the moment identity resolves, same call the
-        // waiting-icon tap normally makes, just without waiting for it.
-        if (AUTOSTART) launchRose();
+        // Partner autostart no longer launches automatically here — browsers
+        // block audio/mic without a real tap, confirmed by testing (session
+        // connected server-side but the browser silently paused playback).
+        // The actual tap-to-begin now happens on the companion's photo,
+        // set up in loadClientProfile() once the companion name is known.
       }
       loadYoutubeApi();
       setInterval(loadBackgroundVideo, 10 * 60 * 1000);
