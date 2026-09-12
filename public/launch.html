@@ -138,6 +138,9 @@
 
     /* ── End Visit button ── */
     .end-btn-wrap { position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%); z-index: 20; }
+    /* Hidden for CareLink360 (AUTOSTART) — their own software handles
+       returning to their page, so our button would be redundant/confusing. */
+    #endBtnWrap.hidden { display: none; }
     .end-btn { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 20px; padding: 10px 28px; color: rgba(255,255,255,0.6); font-family: 'Jost', sans-serif; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.2s; backdrop-filter: blur(10px); }
     .end-btn:hover { background: rgba(255,255,255,0.18); color: white; }
 
@@ -415,7 +418,7 @@
       </div>
     </div>
     <div id="youtubeCorner"><div id="youtubePlayerEl"></div></div>
-    <div class="end-btn-wrap">
+    <div class="end-btn-wrap" id="endBtnWrap">
       <button class="end-btn" onclick="endSession()">End Visit</button>
     </div>
   </div>
@@ -515,6 +518,11 @@
       // the tap-to-begin photo screen is ready to show instead.
       const waiting = document.getElementById('waitingScreen');
       if (waiting) waiting.classList.add('hidden');
+      // CareLink360 handles returning to their own page themselves (per
+      // Paula, Sep 12, 2026), so our End Visit button is redundant on
+      // their device and would just be a confusing extra control.
+      const endBtnWrap = document.getElementById('endBtnWrap');
+      if (endBtnWrap) endBtnWrap.classList.add('hidden');
     }
 
     // ── Spotify bypass (Aug 13, 2026) ──
