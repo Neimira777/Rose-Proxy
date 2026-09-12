@@ -508,6 +508,13 @@
       // autostart launch itself further down — before it ever ran.
       const splash = document.getElementById('splashScreen');
       if (splash) splash.classList.add('hidden');
+      // Also hide the waiting/home screen immediately — it's visible by
+      // default (no member ever sees a blank page while waiting), but for
+      // autostart that meant the busy "Good evening" home screen flashed
+      // on screen for the moment before loadClientProfile() finishes and
+      // the tap-to-begin photo screen is ready to show instead.
+      const waiting = document.getElementById('waitingScreen');
+      if (waiting) waiting.classList.add('hidden');
     }
 
     // ── Spotify bypass (Aug 13, 2026) ──
@@ -770,25 +777,15 @@
         if (roseAiTag) roseAiTag.textContent = `${companionName} is an AI Companion`;
         const speakingLabel = document.getElementById('speakingLabel');
         if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
-        // ── Autostart tap-to-begin (CareLink360) ──
-        // The one real tap this flow needs: tapping the companion's own
-        // photo, satisfying the browser's audio/mic gesture requirement the
-        // same way tapping the waiting-screen logo does for a regular
-        // visit. { once: true } so a rapid double-tap can't call
-        // launchRose() twice (sessionActive guards that too, as backup).
+        // ── Autostart tap-to-begin (CareLink360) ── set the photo/name
+        // once here; showAutostartTapScreen() (below) handles showing it,
+        // both now and again after each visit ends.
         if (AUTOSTART) {
-          const autostartScreen = document.getElementById('autostartScreen');
           const autostartPhoto = document.getElementById('autostartPhoto');
           const autostartName = document.getElementById('autostartName');
-          if (autostartScreen && autostartPhoto && autostartName) {
-            autostartPhoto.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
-            autostartName.textContent = companionName;
-            autostartScreen.classList.add('active');
-            autostartPhoto.addEventListener('click', () => {
-              autostartScreen.classList.remove('active');
-              launchRose();
-            }, { once: true });
-          }
+          if (autostartPhoto) autostartPhoto.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
+          if (autostartName) autostartName.textContent = companionName;
+          showAutostartTapScreen();
         }
         updateNextVisitTime();
         console.log('loadClientProfile() completed successfully');
@@ -943,6 +940,24 @@
 
     function showRoseScreen() { document.getElementById('waitingScreen').classList.add('hidden'); document.getElementById('roseScreen').classList.remove('hidden'); }
     function showWaitingScreen() { document.getElementById('roseScreen').classList.add('hidden'); document.getElementById('waitingScreen').classList.remove('hidden'); updateNextVisitTime(); }
+
+    // ── Autostart tap-to-begin (CareLink360) ──
+    // Shows the companion-photo tap screen instead of the regular waiting
+    // screen — used both on first load and again after each visit ends
+    // (see endSession()), so an AUTOSTART session never falls back to the
+    // busy "Good evening" home screen, which isn't relevant on their device.
+    function showAutostartTapScreen() {
+      const autostartScreen = document.getElementById('autostartScreen');
+      const autostartPhoto = document.getElementById('autostartPhoto');
+      if (!autostartScreen || !autostartPhoto) return;
+      document.getElementById('waitingScreen').classList.add('hidden');
+      document.getElementById('roseScreen').classList.add('hidden');
+      autostartScreen.classList.add('active');
+      autostartPhoto.addEventListener('click', () => {
+        autostartScreen.classList.remove('active');
+        launchRose();
+      }, { once: true });
+    }
     function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
     function setListening(on) { document.getElementById('listenIndicator').classList.toggle('active', on); if (on) document.getElementById('speakingIndicator').classList.remove('active'); }
     function setSpeaking(on) { document.getElementById('speakingIndicator').classList.toggle('active', on); if (on) document.getElementById('listenIndicator').classList.remove('active'); }
@@ -1520,7 +1535,7 @@
       document.getElementById('youtubeCorner').classList.remove('visible');
       setSpeaking(false); setListening(false);
       photoShown = false; pendingPhoto = null; sessionActive = false; currentSessionId = null;
-      showWaitingScreen();
+      if (AUTOSTART) { showAutostartTapScreen(); } else { showWaitingScreen(); }
 
       // ── Resume Soothing Sounds, if the visit was the reason it paused ──
       // Only resumes what launchRose() itself paused (soothingPausedForVisit)
