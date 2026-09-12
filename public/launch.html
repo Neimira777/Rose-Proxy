@@ -477,8 +477,14 @@
     // their music/reminders/sounds later the same day.
     const AUTOSTART = _urlParams.get('autostart') === 'true';
     if (AUTOSTART) {
+      // Hide, don't remove — later code (the click/touchend listeners
+      // near the bottom of this script) still expects this element to
+      // exist in the DOM. Removing it outright threw an uncaught
+      // TypeError there ("Cannot read properties of null"), which
+      // silently aborted the rest of this script's setup — including the
+      // autostart launch itself further down — before it ever ran.
       const splash = document.getElementById('splashScreen');
-      if (splash) splash.remove();
+      if (splash) splash.classList.add('hidden');
     }
 
     // ── Spotify bypass (Aug 13, 2026) ──
