@@ -289,7 +289,7 @@
   <!-- Loading overlay -->
   <div id="loadingOverlay">
     <div class="loading-spinner"></div>
-    <div class="loading-msg" id="loadingMsg">Getting ready…</div>
+    <div class="loading-msg" id="loadingMsg">Connecting…</div>
   </div>
 
   <!-- Waiting screen -->
@@ -717,7 +717,7 @@
         console.log('loadClientProfile() resolved companionName:', companionName, '(raw preferredCompanion was:', data.preferredCompanion, ')');
         document.title = `Neimira — ${companionName}`;
         const loadingMsg = document.getElementById('loadingMsg');
-        if (loadingMsg) loadingMsg.textContent = `${companionName}, your AI companion, is on ${companionName === 'Jim' ? 'his' : 'her'} way…`;
+        if (loadingMsg) loadingMsg.textContent = `Connecting you with ${companionName}…`;
         const waitingCompanionName = document.getElementById('waitingCompanionName');
         if (waitingCompanionName) waitingCompanionName.textContent = companionName;
         const waitingAiNote = document.getElementById('waitingAiNote');
