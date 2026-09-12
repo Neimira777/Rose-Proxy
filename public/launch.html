@@ -465,6 +465,21 @@
     const urlMemberId = _urlParams.get('member') || _urlParams.get('patient'); // legacy links, still supported
     const API = 'https://rose-proxy.vercel.app';
     const IS_DEMO = _urlParams.get('demo') === 'true';
+    // ── Partner autostart (CareLink360, Sep 2026) ──
+    // Only ever set by carelink360-session.js's returned launchUrl — never
+    // present on a regular member's own link. Skips the splash tap and the
+    // waiting-icon tap entirely, going straight to "Connecting…". This
+    // deliberately skips the Spotify/YouTube/Soothing Sounds/Voice Reminders
+    // audio-unlock priming that the splash tap normally does (see
+    // actuallyDismissSplash) — CareLink360's device doesn't use any of those
+    // features, so there's nothing for that priming to protect here. Do not
+    // reuse this flag for a regular member's link; it would silently break
+    // their music/reminders/sounds later the same day.
+    const AUTOSTART = _urlParams.get('autostart') === 'true';
+    if (AUTOSTART) {
+      const splash = document.getElementById('splashScreen');
+      if (splash) splash.remove();
+    }
 
     // ── Spotify bypass (Aug 13, 2026) ──
     // Spotify's Developer Mode changes (5-user allowlist cap, Artist Top
@@ -1928,6 +1943,10 @@
         startScheduleChecker();
         startEventReminderChecker();
         loadVoiceReminders().then(startVoiceReminderChecker);
+        // Partner autostart — see AUTOSTART declaration above. Goes straight
+        // to launchRose() the moment identity resolves, same call the
+        // waiting-icon tap normally makes, just without waiting for it.
+        if (AUTOSTART) launchRose();
       }
       loadYoutubeApi();
       setInterval(loadBackgroundVideo, 10 * 60 * 1000);

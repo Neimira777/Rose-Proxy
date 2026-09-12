@@ -48,7 +48,12 @@ export default async function handler(req, res) {
     }
 
     return res.status(200).json({
-      launchUrl: `https://app.neimira.com/launch.html?token=${encodeURIComponent(memberToken)}`
+      // autostart=true skips the two tap screens and goes straight to
+      // "Connecting…" — safe here because CareLink360's device doesn't use
+      // Neimira's own music/reminders/soothing-sounds features, which is
+      // what those taps otherwise unlock. Never add this to a regular
+      // member's link (see launch.html's AUTOSTART comment).
+      launchUrl: `https://app.neimira.com/launch.html?token=${encodeURIComponent(memberToken)}&autostart=true`
     });
   } catch (e) {
     console.error('CareLink360 session error:', e.message);
