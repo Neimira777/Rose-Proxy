@@ -655,6 +655,10 @@
     let clientProfile = null;
     let sessionActive = false;
     let restartCooldown = false;
+    // ── Tracks which scheduled visit times have already fired today (FIX
+    // Sep 14, 2026) — see startScheduleChecker() below for why this exists.
+    let firedVisitTimes = new Set();
+    let firedVisitDate = new Date().toDateString();
 
     const SILENCE_BEFORE_CHECKIN = 45 * 1000;
     const SILENCE_BEFORE_END = 60 * 1000;
@@ -909,14 +913,32 @@
     function startScheduleChecker() {
       scheduleCheckInterval = setInterval(() => {
         if (sessionActive || !clientProfile?.visitTimes) return;
+        // A new calendar day resets which scheduled times are "used up" —
+        // this page is meant to stay open all day, so this can't just be a
+        // one-time check at load.
+        const today = new Date().toDateString();
+        if (today !== firedVisitDate) { firedVisitDate = today; firedVisitTimes.clear(); }
         const times = clientProfile.visitTimes.split(',').map(t => t.trim()).filter(Boolean);
         const now = new Date();
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
         for (const t of times) {
           const parsed = parseTime(t);
-          // Fire if within 2 minutes of scheduled time to avoid missing exact minute
-          if (parsed >= 0 && Math.abs(parsed - nowMinutes) <= 1 && !restartCooldown) {
+          // Fire if within 2 minutes of scheduled time to avoid missing exact
+          // minute — but only ONCE per time per day (FIX Sep 14, 2026). Real
+          // bug found via a live session: if a scheduled visit's session
+          // ends for any reason (HeyGen dropped the connection mid-visit,
+          // in this case) while still inside this matching window, the old
+          // code had no memory of "already started this one" and would
+          // silently launch a brand-new session again on the very next
+          // 30-second tick — tearing down and rebuilding the whole
+          // video/audio connection under the member without any visible
+          // restart. From their side, it just looked like the companion
+          // suddenly stopped listening. Tracking which times have already
+          // fired today stops that restart loop at the source, regardless
+          // of why the earlier session ended.
+          if (parsed >= 0 && Math.abs(parsed - nowMinutes) <= 1 && !restartCooldown && !firedVisitTimes.has(t)) {
             console.log('Scheduled visit time reached:', t);
+            firedVisitTimes.add(t);
             launchRose();
             break;
           }
