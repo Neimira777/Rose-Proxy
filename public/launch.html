@@ -8,6 +8,19 @@
   <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' blob: data:;">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <title>Neimira — Rose</title>
+  <script>
+    // ── Autostart flash prevention (CareLink360, Sep 2026) ──
+    // splashScreen/waitingScreen are visible by default in the HTML/CSS
+    // below; the code that hides them for autostart lives in the
+    // type="module" script near the bottom, which can't run until it
+    // fetches the HeyGen SDK over the network — long enough for the
+    // browser to paint the regular splash + home screens first. Hiding
+    // them here, synchronously, before the parser even reaches them,
+    // removes that flash regardless of how long the module import takes.
+    if (new URLSearchParams(location.search).get('autostart') === 'true') {
+      document.write('<style>#splashScreen,#waitingScreen{display:none!important}</style>');
+    }
+  </script>
   <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500&family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
   <style>
     :root { --navy: #1A237E; --cyan: #00BCD4; --blue: #2979FF; --green: #1DB954; }
