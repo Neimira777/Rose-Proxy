@@ -77,11 +77,31 @@
     .autostart-name { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; color: white; }
     .autostart-hint { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.55); animation: pulse-tap 2s ease-in-out infinite; }
 
-    /* ── Loading overlay ── */
-    #loadingOverlay { position: fixed; inset: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
+    /* ── Loading overlay ──
+       Redesigned Sep 18, 2026 (Linda's son's idea, re: Paula's concern
+       about how long HeyGen takes to connect) to look and sound like an
+       actual video call connecting — the companion's photo with
+       outward-pulsing rings, like a FaceTime/Zoom "calling…" screen —
+       instead of a bare generic spinner, so the wait reads as "the call
+       is going through" rather than "the page is stuck." Paired with a
+       soft repeating ringback-style tone; see startCallingTone().
+       Deliberately Neimira-only for now (Linda wants to run this past
+       Paula before it touches CareLink360) — gated by !AUTOSTART further
+       down, with #loadingOverlay.classic-spinner as the CareLink360
+       fallback that keeps the original plain spinner unchanged. */
+    #loadingOverlay { position: fixed; inset: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); z-index: 20; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 24px; opacity: 0; pointer-events: none; transition: opacity 0.4s ease; }
     #loadingOverlay.active { opacity: 1; pointer-events: all; }
-    .loading-spinner { width: 48px; height: 48px; border: 3px solid rgba(0,188,212,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.9s linear infinite; }
+    .loading-call-rings { position: relative; width: 140px; height: 140px; display: flex; align-items: center; justify-content: center; }
+    .loading-call-ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid rgba(0,188,212,0.55); animation: loading-ring-pulse 2.2s ease-out infinite; }
+    .loading-call-ring:nth-child(2) { animation-delay: 0.7s; }
+    .loading-call-ring:nth-child(3) { animation-delay: 1.4s; }
+    @keyframes loading-ring-pulse { 0% { transform: scale(0.72); opacity: 0.9; } 100% { transform: scale(1.55); opacity: 0; } }
+    .loading-photo { width: 108px; height: 108px; border-radius: 50%; object-fit: cover; border: 3px solid rgba(255,255,255,0.3); box-shadow: 0 8px 28px rgba(0,0,0,0.4); position: relative; z-index: 1; }
+    .loading-spinner { display: none; width: 48px; height: 48px; border: 3px solid rgba(0,188,212,0.2); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.9s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    /* CareLink360 (AUTOSTART) fallback — original plain spinner, calling rings/photo hidden */
+    #loadingOverlay.classic-spinner .loading-call-rings { display: none; }
+    #loadingOverlay.classic-spinner .loading-spinner { display: block; }
     .loading-msg { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: var(--cyan); }
 
     /* ── Rose screen ── */
@@ -316,6 +336,12 @@
 
   <!-- Loading overlay -->
   <div id="loadingOverlay">
+    <div class="loading-call-rings">
+      <div class="loading-call-ring"></div>
+      <div class="loading-call-ring"></div>
+      <div class="loading-call-ring"></div>
+      <img class="loading-photo" id="loadingPhoto" src="" alt="">
+    </div>
     <div class="loading-spinner"></div>
     <div class="loading-msg" id="loadingMsg">Connecting…</div>
   </div>
@@ -516,6 +542,12 @@
     // silently break their music/reminders/sounds later the same day.
     const AUTOSTART = _urlParams.get('autostart') === 'true';
     if (AUTOSTART) {
+      // Keep the new calling-screen photo/rings/tone Neimira-only for now
+      // (Linda wants to run it past Paula before it touches CareLink360) —
+      // CareLink360 keeps the original plain spinner, no tone. See
+      // showLoading() and the #loadingOverlay.classic-spinner CSS above.
+      const loadingOverlayEl = document.getElementById('loadingOverlay');
+      if (loadingOverlayEl) loadingOverlayEl.classList.add('classic-spinner');
       // Hide, don't remove — later code (the click/touchend listeners
       // near the bottom of this script) still expects this element to
       // exist in the DOM. Removing it outright threw an uncaught
@@ -722,6 +754,44 @@
       } catch(e) { console.warn('Rep tick failed:', e); }
     }
 
+    // ── Connecting "ringback" tone (Sep 18, 2026 — Linda's son's idea,
+    // re: Paula's concern about how long HeyGen takes to connect) ──
+    // A soft, repeating two-note blip, reusing the same Web Audio API
+    // pattern as playChime()/playRepTick() above, meant to read like the
+    // outgoing-call tone on a real video call rather than an alert — kept
+    // quieter than playChime() and on a slower, gentler cadence. Runs only
+    // while the loading overlay is up; see showLoading() below.
+    let callingToneInterval = null;
+    let callingToneCtx = null;
+
+    function playCallingBlip() {
+      try {
+        if (!callingToneCtx) callingToneCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const ctx = callingToneCtx;
+        [440, 554.37].forEach((freq, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.type = 'sine'; osc.frequency.value = freq;
+          const start = ctx.currentTime + i * 0.18;
+          gain.gain.setValueAtTime(0, start);
+          gain.gain.linearRampToValueAtTime(0.09, start + 0.04);
+          gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+          osc.start(start); osc.stop(start + 0.5);
+        });
+      } catch(e) { console.warn('Calling tone failed:', e); }
+    }
+
+    function startCallingTone() {
+      if (callingToneInterval) return;
+      playCallingBlip();
+      callingToneInterval = setInterval(playCallingBlip, 2400);
+    }
+
+    function stopCallingTone() {
+      if (callingToneInterval) { clearInterval(callingToneInterval); callingToneInterval = null; }
+    }
+
     async function sendCheckIn() {
       if (!sessionActive || checkInSent) return;
       checkInSent = true;
@@ -790,6 +860,8 @@
         document.title = `Neimira — ${companionName}`;
         const loadingMsg = document.getElementById('loadingMsg');
         if (loadingMsg) loadingMsg.textContent = `Connecting you with ${companionName}…`;
+        const loadingPhoto = document.getElementById('loadingPhoto');
+        if (loadingPhoto) loadingPhoto.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
         const waitingCompanionName = document.getElementById('waitingCompanionName');
         if (waitingCompanionName) waitingCompanionName.textContent = companionName;
         const waitingAiNote = document.getElementById('waitingAiNote');
@@ -979,7 +1051,12 @@
         launchRose();
       }, { once: true });
     }
-    function showLoading(show) { document.getElementById('loadingOverlay').classList.toggle('active', show); }
+    function showLoading(show) {
+      document.getElementById('loadingOverlay').classList.toggle('active', show);
+      // Calling tone stays Neimira-only for now — see the AUTOSTART block above.
+      if (AUTOSTART) return;
+      if (show) startCallingTone(); else stopCallingTone();
+    }
     function setListening(on) { document.getElementById('listenIndicator').classList.toggle('active', on); if (on) document.getElementById('speakingIndicator').classList.remove('active'); }
     function setSpeaking(on) { document.getElementById('speakingIndicator').classList.toggle('active', on); if (on) document.getElementById('listenIndicator').classList.remove('active'); }
 
