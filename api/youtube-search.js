@@ -18,8 +18,13 @@ export default async function handler(req, res) {
   if (!query) return res.status(400).json({ error: 'Missing query' });
 
   try {
+    // videoCategoryId=10 restricts results to YouTube's "Music" category —
+    // without it, a plain keyword search can surface a podcast episode,
+    // interview, or documentary that happens to mention the artist/song
+    // name, and the member has no way to tell it's not the song they were
+    // told is playing.
     const searchRes = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=5&q=${encodeURIComponent(query)}&key=${process.env.YOUTUBE_API_KEY}`
+      `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoCategoryId=10&videoEmbeddable=true&maxResults=5&q=${encodeURIComponent(query)}&key=${process.env.YOUTUBE_API_KEY}`
     );
     const searchData = await searchRes.json();
 
@@ -29,11 +34,19 @@ export default async function handler(req, res) {
     }
 
     const items = searchData.items || [];
+    // Belt-and-suspenders on top of videoCategoryId=10: YouTube's category
+    // tagging isn't reliable for every upload, so also drop anything whose
+    // title reads like a podcast/interview/documentary rather than a song.
+    const nonMusic = items.filter(item =>
+      !/podcast|interview|documentary|episode|reaction|explained|review/i.test(item.snippet?.title || '')
+    );
+    const candidates = nonMusic.length > 0 ? nonMusic : items;
+
     // Prefer results that look like official audio/music uploads over
     // random covers, reactions, or unrelated content.
-    const preferred = items.find(item =>
+    const preferred = candidates.find(item =>
       /official (audio|video)|lyrics|full song/i.test(item.snippet?.title || '')
-    ) || items[0];
+    ) || candidates[0];
 
     if (!preferred) {
       return res.status(200).json({ ok: false, message: 'No results found' });

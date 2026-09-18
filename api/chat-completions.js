@@ -660,7 +660,6 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
       if (playlistSource) {
         const songs = playlistSource.split(',').map(s => s.trim()).filter(Boolean);
         const randomSong = songs[Math.floor(Math.random() * songs.length)];
-        const artistHint = favoriteArtists ? favoriteArtists.split(',')[0].trim() + ' ' : '';
         if (randomSong) {
           morningMusicInstruction += `\nMORNING MUSIC: Music is already being started for this resident behind the scenes — you don't need to trigger it yourself. Just naturally mention "I put on ${randomSong} for you this morning" somewhere warm and early in your reply.`;
           // Queue the song directly, deterministically — this used to rely
@@ -671,11 +670,21 @@ Cognitive notes: ${f['Cognitive Notes'] || ''}`.trim();
           // rule — first message of a morning session, song exists, play it —
           // exactly the kind of thing that shouldn't depend on an LLM
           // choosing to comply correctly every single time.
+          //
+          // FIX (Sep 18, 2026): search by song title alone, never prefixed
+          // with Favorite Artist #1's name. This is the exact bug already
+          // found and fixed client-side in launch.html's getMorningSong()
+          // on Aug 19 ("morning song was always getting glued to Favorite
+          // Artist #1") — but when the queuing logic moved server-side on
+          // Sep 1 for reliability, the artist prefix was reintroduced here
+          // and getMorningSong() was left uncalled. Prefixing an unrelated
+          // artist's name onto the search query is what caused a George
+          // Harrison song to surface a Peter Frampton video instead.
           try {
             await fetch('https://rose-proxy.vercel.app/api/music-queue', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ patientId, query: `${artistHint}${randomSong}`.trim() })
+              body: JSON.stringify({ patientId, query: randomSong })
             });
           } catch (e) { console.error('Deterministic morning music queue failed:', e.message); }
         }
