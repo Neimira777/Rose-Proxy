@@ -3,6 +3,13 @@
 
 ## CareLink360 Partnership Status (as of Sep 11, 2026)
 
+**PAUSED Sep 22, 2026:** Paula emailed to step back from the demo
+integration for now (too busy; wants to revisit when she can do it
+properly). Linda replied telling her to take her time.
+`api/carelink360-session.js` is switched off via
+`CARELINK360_ENABLED = false` — flip it back to resume. Everything below
+is the status as of the pause.
+
 **Already built and live (main branch):**
 - `api/carelink360-session.js` — partner-facing endpoint, gated by
   `CARELINK360_API_KEY` env var, resolves a member's Access Token to a

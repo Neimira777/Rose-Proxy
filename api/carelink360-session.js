@@ -17,6 +17,13 @@
 //                                second one.
 //  Returns: { launchUrl }
 // ─────────────────────────────────────────────
+
+// Paused Sep 22, 2026 — CareLink360 stepped back from the integration for
+// now. While false, every request is refused before the API key is even
+// checked. Flip back to true (and swap in the fresh key, not the demo one —
+// see TODO.md) if the partnership resumes.
+const CARELINK360_ENABLED = false;
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -24,6 +31,10 @@ export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'no-store');
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  if (!CARELINK360_ENABLED) {
+    return res.status(503).json({ error: 'This integration is currently paused' });
+  }
 
   // ── Partner authentication — fails closed if the key isn't configured ──
   const apiKey = req.headers['x-carelink360-api-key'];
