@@ -39,22 +39,22 @@
     /* ── Waiting screen ── */
     #waitingScreen { gap: 0; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); position: relative; min-height: 100vh; width: 100vw; }
     #waitingBgOverlay { position: fixed; inset: 0; z-index: 1; background: linear-gradient(160deg, rgba(26,35,126,0.72) 0%, rgba(13,71,161,0.65) 50%, rgba(26,35,126,0.72) 100%); }
-    .waiting-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; }
+    .waiting-content { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; height: 100%; padding: 24px 20px 20px 20px; overflow-y: auto; }
     .photo-credit { position: absolute; bottom: 16px; right: 16px; font-size: 10px; color: rgba(255,255,255,0.3); letter-spacing: 1px; z-index: 3; }
-    .waiting-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 48px; }
+    .waiting-logo { display: flex; flex-direction: column; align-items: center; margin-bottom: 12px; }
     .waiting-logo svg { margin-bottom: 20px; }
     .waiting-logo-name { font-family: 'Cormorant Garamond', serif; font-size: 36px; font-weight: 300; letter-spacing: 14px; text-transform: uppercase; color: white; }
     .waiting-logo-tag { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: #80DEEA; margin-top: 6px; font-weight: 600; text-shadow: 0 1px 8px rgba(0,0,0,0.6); }
-    .waiting-greeting { font-family: 'Cormorant Garamond', serif; font-size: 56px; font-weight: 400; color: white; text-align: center; margin-bottom: 16px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
-    .waiting-subgreeting { font-size: 42px; font-weight: 500; color: white; letter-spacing: 2px; text-align: center; margin-bottom: 64px; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
-    .waiting-time { font-family: 'Cormorant Garamond', serif; font-size: 80px; font-weight: 300; color: white; text-align: center; line-height: 1; margin-bottom: 8px; letter-spacing: -2px; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
-    .waiting-date { font-size: 20px; letter-spacing: 4px; text-transform: uppercase; font-weight: 500; color: white; text-align: center; margin-bottom: 80px; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
+    .waiting-greeting { font-family: 'Cormorant Garamond', serif; font-size: 48px; font-weight: 400; color: white; text-align: center; margin-bottom: 8px; line-height: 1.2; text-shadow: 0 2px 12px rgba(0,0,0,0.5); }
+    .waiting-subgreeting { font-size: 36px; font-weight: 500; color: white; letter-spacing: 2px; text-align: center; margin-bottom: 12px; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
+    .waiting-time { font-family: 'Cormorant Garamond', serif; font-size: 72px; font-weight: 300; color: white; text-align: center; line-height: 1; margin-bottom: 4px; letter-spacing: -2px; text-shadow: 0 2px 12px rgba(0,0,0,0.5); margin-top: 12px; }
+    .waiting-date { font-size: 18px; letter-spacing: 3px; text-transform: uppercase; font-weight: 500; color: white; text-align: center; margin-bottom: 12px; text-shadow: 0 2px 10px rgba(0,0,0,0.6); }
     .waiting-next { font-size: 20px; letter-spacing: 3px; text-transform: uppercase; color: white; font-weight: 600; text-align: center; text-shadow: 0 2px 10px rgba(0,0,0,0.7); }
     .waiting-next span { color: #80DEEA; font-weight: 700; font-size: 22px; }
-    .waiting-ai-note { font-size: 13px; letter-spacing: 1px; color: rgba(255,255,255,0.65); text-align: center; margin-top: 14px; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
+    .waiting-ai-note { font-size: 13px; letter-spacing: 1px; color: rgba(255,255,255,0.65); text-align: center; margin-top: 8px; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 
     /* ── Splash screen ── */
-    #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; }
+    #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; opacity: 0; pointer-events: none; }
     #splashScreen.hidden { opacity: 0; pointer-events: none; }
     #splashBg { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 1.5s ease; z-index: 0; }
     #splashBg.loaded { opacity: 1; }
@@ -76,6 +76,14 @@
     @keyframes autostart-pulse { 0%, 100% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 0 rgba(0,188,212,0.35); } 50% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 18px rgba(0,188,212,0); } }
     .autostart-name { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; color: white; }
     .autostart-hint { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.55); animation: pulse-tap 2s ease-in-out infinite; }
+
+    /* ── Waiting screen companion photo tile ──
+       Integrated into the waiting screen (home screen) instead of a
+       separate tap-to-begin screen, combining Neimira's polish with
+       the intuitive Carelink360 tap-the-photo UX. */
+    .waiting-photo-tile { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.25); box-shadow: 0 12px 40px rgba(0,0,0,0.4); cursor: pointer; animation: waiting-photo-pulse 2.4s ease-in-out infinite; margin-bottom: 16px; margin-top: 12px; transition: transform 0.2s; }
+    .waiting-photo-tile:active { transform: scale(0.96); }
+    @keyframes waiting-photo-pulse { 0%, 100% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 0 rgba(0,188,212,0.35); } 50% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 18px rgba(0,188,212,0); } }
 
     /* ── Loading overlay ──
        Redesigned Sep 18, 2026 (Linda's son's idea, re: Paula's concern
@@ -393,6 +401,7 @@
         <div class="waiting-logo-name">Neimira</div>
         <div class="waiting-logo-tag">AI Companion Technology</div>
       </div>
+      <img class="waiting-photo-tile" id="waitingPhotoTile" src="" alt="Tap to start your visit">
       <div class="waiting-greeting" id="waitingGreeting">Good morning</div>
       <div class="waiting-subgreeting" id="waitingName"></div>
       <div class="waiting-time" id="waitingTime">--:--</div>
@@ -870,6 +879,10 @@
         if (roseAiTag) roseAiTag.textContent = `${companionName} is an AI Companion`;
         const speakingLabel = document.getElementById('speakingLabel');
         if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
+        // ── Waiting screen companion photo ──
+        // Set the photo tile on the waiting/home screen, visible to all members.
+        const waitingPhotoTile = document.getElementById('waitingPhotoTile');
+        if (waitingPhotoTile) waitingPhotoTile.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
         // ── Autostart tap-to-begin (CareLink360) ── set the photo/name
         // once here; showAutostartTapScreen() (below) handles showing it,
         // both now and again after each visit ends.
@@ -1672,6 +1685,7 @@
     };
 
     document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
+    document.getElementById('waitingPhotoTile').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
 
     function isVerifiedOnThisDevice() {
       if (!DEVICE_KEY) return true; // nothing to verify against (fallback/edge case) — don't block
@@ -2105,6 +2119,8 @@
     (async () => {
       await identityReady;
       console.log('PATIENT_ID resolved:', PATIENT_ID, '| needs family code:', NEEDS_FAMILY_CODE);
+      // Load background video immediately instead of waiting for splash tap
+      loadBackgroundVideo();
       // Nothing to load yet if a family code hasn't been entered — these
       // all run once submitFamilyCode() resolves a real PATIENT_ID instead.
       if (!NEEDS_FAMILY_CODE) {
