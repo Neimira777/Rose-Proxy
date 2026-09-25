@@ -868,7 +868,7 @@
         console.log('loadClientProfile() resolved companionName:', companionName, '(raw preferredCompanion was:', data.preferredCompanion, ')');
         document.title = `Neimira — ${companionName}`;
         const loadingMsg = document.getElementById('loadingMsg');
-        if (loadingMsg) loadingMsg.textContent = `Connecting you with ${companionName}…`;
+        if (loadingMsg) loadingMsg.textContent = `Calling ${companionName}…`;
         const loadingPhoto = document.getElementById('loadingPhoto');
         if (loadingPhoto) loadingPhoto.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
         const waitingCompanionName = document.getElementById('waitingCompanionName');
