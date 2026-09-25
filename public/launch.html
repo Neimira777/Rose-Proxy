@@ -54,7 +54,7 @@
     .waiting-ai-note { font-size: 13px; letter-spacing: 1px; color: rgba(255,255,255,0.65); text-align: center; margin-top: 14px; font-weight: 500; text-shadow: 0 1px 6px rgba(0,0,0,0.5); }
 
     /* ── Splash screen ── */
-    #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; }
+    #splashScreen { position: fixed; inset: 0; z-index: 50; background: linear-gradient(160deg, #1A237E 0%, #0d47a1 50%, #1A237E 100%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 32px; cursor: pointer; transition: opacity 0.8s ease; opacity: 0; pointer-events: none; }
     #splashScreen.hidden { opacity: 0; pointer-events: none; }
     #splashBg { position: absolute; inset: 0; background-size: cover; background-position: center; background-repeat: no-repeat; opacity: 0; transition: opacity 1.5s ease; z-index: 0; }
     #splashBg.loaded { opacity: 1; }
@@ -2119,6 +2119,8 @@
     (async () => {
       await identityReady;
       console.log('PATIENT_ID resolved:', PATIENT_ID, '| needs family code:', NEEDS_FAMILY_CODE);
+      // Load background video immediately instead of waiting for splash tap
+      loadBackgroundVideo();
       // Nothing to load yet if a family code hasn't been entered — these
       // all run once submitFamilyCode() resolves a real PATIENT_ID instead.
       if (!NEEDS_FAMILY_CODE) {
