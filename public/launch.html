@@ -77,6 +77,14 @@
     .autostart-name { font-family: 'Cormorant Garamond', serif; font-size: 30px; font-weight: 400; color: white; }
     .autostart-hint { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.55); animation: pulse-tap 2s ease-in-out infinite; }
 
+    /* ── Waiting screen companion photo tile ──
+       Integrated into the waiting screen (home screen) instead of a
+       separate tap-to-begin screen, combining Neimira's polish with
+       the intuitive Carelink360 tap-the-photo UX. */
+    .waiting-photo-tile { width: 180px; height: 180px; border-radius: 50%; object-fit: cover; border: 4px solid rgba(255,255,255,0.25); box-shadow: 0 12px 40px rgba(0,0,0,0.4); cursor: pointer; animation: waiting-photo-pulse 2.4s ease-in-out infinite; margin-bottom: 32px; margin-top: 20px; transition: transform 0.2s; }
+    .waiting-photo-tile:active { transform: scale(0.96); }
+    @keyframes waiting-photo-pulse { 0%, 100% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 0 rgba(0,188,212,0.35); } 50% { box-shadow: 0 12px 40px rgba(0,0,0,0.4), 0 0 0 18px rgba(0,188,212,0); } }
+
     /* ── Loading overlay ──
        Redesigned Sep 18, 2026 (Linda's son's idea, re: Paula's concern
        about how long HeyGen takes to connect) to look and sound like an
@@ -393,6 +401,7 @@
         <div class="waiting-logo-name">Neimira</div>
         <div class="waiting-logo-tag">AI Companion Technology</div>
       </div>
+      <img class="waiting-photo-tile" id="waitingPhotoTile" src="" alt="Tap to start your visit">
       <div class="waiting-greeting" id="waitingGreeting">Good morning</div>
       <div class="waiting-subgreeting" id="waitingName"></div>
       <div class="waiting-time" id="waitingTime">--:--</div>
@@ -870,6 +879,10 @@
         if (roseAiTag) roseAiTag.textContent = `${companionName} is an AI Companion`;
         const speakingLabel = document.getElementById('speakingLabel');
         if (speakingLabel) speakingLabel.textContent = `${companionName} is speaking`;
+        // ── Waiting screen companion photo ──
+        // Set the photo tile on the waiting/home screen, visible to all members.
+        const waitingPhotoTile = document.getElementById('waitingPhotoTile');
+        if (waitingPhotoTile) waitingPhotoTile.src = companionName === 'Jim' ? '/assets/Jim-Static.webp' : '/assets/Rose-Static.webp';
         // ── Autostart tap-to-begin (CareLink360) ── set the photo/name
         // once here; showAutostartTapScreen() (below) handles showing it,
         // both now and again after each visit ends.
@@ -1672,6 +1685,7 @@
     };
 
     document.querySelector('.waiting-logo').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
+    document.getElementById('waitingPhotoTile').addEventListener('click', () => { if (!sessionActive && !restartCooldown) launchRose(); });
 
     function isVerifiedOnThisDevice() {
       if (!DEVICE_KEY) return true; // nothing to verify against (fallback/edge case) — don't block
